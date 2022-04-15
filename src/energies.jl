@@ -1,0 +1,117 @@
+### TODO ADD PROPER DOC TO DIFFERENCIATE Φ from ΦT
+
+"""
+   Coulomb and exchange matrices J and K for a given couple of projectors (Pd,Ps) of
+   in non-orthogonal AO basis. Take as argument the four-index tensor A.
+"""
+function assemble_CX_operators(A::AbstractArray{T}, Pd::AbstractMatrix{T},
+                               Ps::AbstractMatrix{T}) where {T<:Real}
+    Jd = zero(Pd); Js = zero(Ps); Kd = zero(Pd); Ks = zero(Ps);
+    N = size(Pd,1)
+    for j in 1:N
+        for i in j:N
+	    A_J = A[i,j,:,:]
+            A_K = A[i,:,:,j]
+	    Jd[i,j] = tr(A_J*Pd); Jd[j,i] = Jd[i,j] # Jd = J(Pd)
+	    Js[i,j] = tr(A_J*Ps); Js[j,i] = Js[i,j] # Js = J(Ps)
+	    Kd[i,j] = tr(A_K*Pd); Kd[j,i] = Kd[i,j] # Kd = K(Pd)
+            Ks[i,j] = tr(A_K*Ps); Ks[j,i] = Ks[i,j] # Ks = K(Ps)
+        end
+    end
+    Jd, Js, Kd, Ks    
+end    
+
+"""
+    Similar to assemble_CX_operators but only for one projector
+"""
+function assemble_CX_operators(A::AbstractArray{T}, P::AbstractMatrix{T}) where {T<:Real}
+    J = zero(P);  K = zero(P);
+    N = size(P,1)
+    for j in 1:N
+        for i in j:N
+            Aj = A[i,j,:,:]; Ak = A[i,:,:,j]
+            J[i,j] = tr(Aj*P); J[j,i] = J[i,j] # J(P)
+            K[i,j] = tr(Ak*P); K[j,i] = K[i,j] # K(P)
+        end
+    end
+    J, K
+end
+###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
+##!!! !! !  !                       Energy                         !  ! !! !!!##
+###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
+"""
+Energy given doubly (resp. singly) occupied state density and 
+coulomb/exchange operators. 
+The core hamiltonian as well as the PySCF molecule is also needed.
+"""
+rohf_energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol) =
+    tr(H*(2Pd+Ps)) + tr((2Jd-Kd)*(Pd+Ps)) + 1/2*tr((Js-Ks)*Ps) + mol.energy_nuc()
+
+"""
+Energy given only densities, core Hamiltonian and molecule.
+"""
+function rohf_energy(Pd::Matrix{T}, Ps::Matrix{T}, mo_numbers,
+                     A::Array{T},  H::Matrix{T}, mol) where {T<:Real}
+    Jd, Js, Kd, Ks = assemble_CX_operators(A, Pd, Ps)
+    rohf_energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol)
+end
+rohf_energy(Pd::Matrix, Ps::Matrix, ζ::ROHFState) =
+    rohf_energy(Pd, Ps, collect(ζ)[1:end-1]...)
+
+"""
+Energy given only MOs and ROHFState.
+"""
+function rohf_energy(Φ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}
+    Pd, Ps = densities(Φ, ζ.M.mo_numbers)
+    rohf_energy(Pd, Ps, collect(ζ)[1:end-1]...)
+end
+
+###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
+##!!! !! !  !                   Energy gradients                   !  ! !! !!!##
+###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
+"""
+    Computes the Fock operators Fd and Fs for a given Φ
+    in the ROHF manifold, in orthonormal AO basis.
+"""
+function compute_Fock_operators(Jd, Js, Kd, Ks, H, Sm12, mo_numbers)
+    FdT = H .+ 2Jd .- Kd .+ Js .- 0.5 .* Ks
+    FsT = 0.5 .*(H .+ 2Jd .- Kd .+ Js .- Ks)
+    Sm12*FdT*Sm12, Sm12*FsT*Sm12
+end
+function compute_Fock_operators(ΦT, Sm12, mo_numbers, A, H)
+    Pd, Ps = densities(Sm12*ΦT, mo_numbers)
+    Jd, Js, Kd, Ks = eval_J_K(Pd, Ps, A)
+    compute_Fock_operators(Jd, Js, Kd, Js, H, Sm12, mo_numbers)
+end
+compute_Fock_operators(ΦT, Sm12, ζ::ROHFState) =
+    compute_Fock_operators(ΦT, Sm12, collect(ζ)[1:end-2]...)
+
+"""
+    Compute the gradient of the energy in MO formalism for the metric: g_y(Ψd, Ψs) = ⟨Ψd,Ψs⟩_{MO}
+    For y = (Φd, Φs), the gradient lies in the horizontal tangent space at y:
+    ∇gE_MO(y) = ( Φs[Φs'2(Fd-Fs)Φd] + Φv[4Φv'FdΦd],  -Φd[Φd'2(Fd-Fs)Φs] + Φv[4Φv'FsΦs] )
+"""
+function grad_E_MO_metric(ΦT, Sm12, mo_numbers, A, H)
+    FdT, FsT = compute_Fock_operators(ΦT, Sm12, A, H, mo_numbers)
+    ΦdT, ΦsT = split_MOs(ΦT, mo_numbers);
+    ∇E = (4*FdT*ΦdT, 4*FsT*ΦsT)
+    proj_horizontal_tangent_space(ΦT, ∇E, mo_numbers)
+end
+grad_E_MO_metric(ΦT, Sm12, ζ::ROHFState) =
+    grad_E_MO_metric(ΦT, Sm12, collect(ζ)[1:end-2]...)
+
+function rohf_energy_and_gradient(ΦT, Sm12, mo_numbers, A, H, mol)
+    # Compute Jd, Js, Kd, Ks
+    Pd, Ps = compute_densities(Sm12*ΦT, N_bds)
+    Jd, Js, Kd, Ks = eval_J_K(Pd, Ps, A)
+    # energy
+    E = rohf_energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol)
+    # gradient
+    FdT, FsT = compute_Fock_operators(Jd, Js, Kd, Ks, H, Sm12, mo_numbers)
+    ΦdT, ΦsT = split_MOs(ΦT, N_bds);
+    ∇E = proj_horizontal_tangent_space(ΦT,(4*FdT*ΦdT, 4*FsT*ΦsT), N_bds)
+    #
+    E, ∇E
+end
+rohf_energy_and_gradient(ΦT, Sm12, ζ::ROHFState) =
+    rohf_energy_and_gradient(ΦT, Sm12, collect(ζ)[1:end-2]...)
