@@ -20,7 +20,7 @@ function split_MOs(Φ, N_bds)
 end
 split_MOs(ζ::ROHFState) = split_MOs(ζ.Φ, ζ.M.mo_numbers)
 function split_MOs(Ψ::ROHFTangentVector)
-    mo_numers = Ψ.foot.M.mo_numbers
+    mo_numbers = Ψ.foot.M.mo_numbers
     Φ = Ψ.foot.Φ
     split_MOs(Ψ.vec, mo_numbers), split_MOs(Φ, mo_numbers)
 end
@@ -109,24 +109,6 @@ function transport_dir(raw_dir, ΦT_next)
 end
 
 ###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
-##!!! !! !  !               ROHF manifold utils                    !  ! !! !!!##
-###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
-
-"""
-    For (Ψd,Ψs) in R^{Nb×Nd}×R^{Nb×Ns} and y = (Φd,Φs) in the MO manifold
-    the orthogonal projector on the horizontal tangent space at y is defined by
-    
-    Π_y(Ψd,Ψs) = ( 1/2*Φs[Φs'Ψd - Ψs'Φd] + Φv(Φv'Ψd),  -1/2*Φd[Ψd'Φs - Φd'Ψs] + Φv(Φv'Ψs) )
-"""
-function proj_horizontal_tangent_space(ΦT, ΨT, N_bds)
-    ΦdT, ΦsT = split_MOs(ΦT, N_bds);
-    ΨdT, ΨsT = ΨT
-    X = 1/2 .* (ΨdT'ΦsT + ΦdT'ΨsT); I = diagm(ones(N_bds[1]));
-    -ΦsT*X' + (I - ΦdT*ΦdT')*ΨdT, -ΦdT*X + (I - ΦsT*ΦsT')*ΨsT
-end
-
-
-###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
 ##!!! !! !  !                     MO formalism                     !  ! !! !!!##
 ###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
 
@@ -162,29 +144,6 @@ function retraction_MOs(p, Φ, N_bds)
     return (Φ*V2*cos(Σ) + V1*sin(Σ))*V2' * exp(W)
 end
 
-"""
-    transport p along t*p. [A CORRIGER]
-"""
-function transport_MOs_same_dirs(p, t, ΦT, ΦT_next, N_bds)
-    Nb, Nd, Ns = N_bds; No = Nd+Ns
-    Ψd,Ψs = p; Φd, Φs = split_MOs(ΦT, N_bds);
-    Φd_next, Φs_next = split_MOs(ΦT_next, N_bds);
-    
-    # d <-> s rotations
-    X = -Φd'*Ψs;
-    W = zeros(No,No); W[1:Nd,Nd+1:No] = .- X; W[Nd+1:No,1:Nd] = X';
-
-    # occupied <-> virtual
-    Ψd_tilde = Ψd .- Φd*Φd'*Ψd .- Φs*Φs'*Ψd;
-    Ψs_tilde = Ψs .- Φd*Φd'*Ψs .- Φs*Φs'*Ψs;
-    V1,D,V2 = svd(hcat(Ψd_tilde, Ψs_tilde))
-    Σ = diagm(D)
-
-    τ_p = (-ΦT*V2*sin(t .*Σ) + V1*cos( t .*Σ))*Σ*V2' * exp(t .* W) + ΦT_next*W
-    Ξd,Ξs = split_MOs(τ_p, N_bds)
-    Ξd - Φd_next*Φd_next'Ξd, Ξs - Φs_next*Φs_next'Ξs
-end
-
 function d_zeta(ΦT, p, N_bds)
     Φd,Φs = split_MOs(ΦT,N_bds); Ψd,Ψs = p
     Φd*Ψd' + Ψd*Φd', Φs*Ψs' + Ψs*Φs'
@@ -200,7 +159,7 @@ end
 """
 function test_MOs(ΦT::AbstractArray, N_bds)
     Nb,Nd,Ns = N_bds
-    PdT, PsT = compute_densities(ΦT, N_bds)
+    PdT, PsT = densities(ΦT, N_bds)
     
     test = norm(PdT*PdT - PdT)
     test += norm(PsT*PsT - PsT)

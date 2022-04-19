@@ -13,11 +13,13 @@ using Dates
 export ChemicalSystem
 export ROHFManifold
 export ROHFState
+export ROHFTangentVector
 export reset_system!
 export rohf_energy
 include("ChemicalSystem.jl")
 include("ROHFManifold.jl")
 include("energies.jl")
+include("rohf_manifold_methods.jl")
 
 export generate_virtual_MOs_T
 include("common/utils.jl")
@@ -33,6 +35,7 @@ include("minimization_methods/sd.jl")
 include("minimization_methods/cg.jl")
 include("minimization_methods/preconditioned_sd.jl")
 include("minimization_methods/preconditioned_cg.jl")
+include("minimization_methods/linesearch.jl")
 
 #TEST
 include("paths.jl")

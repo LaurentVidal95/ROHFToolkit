@@ -7,36 +7,6 @@ mutable struct ROHFManifold <: Manifold
     mo_numbers :: Tuple{Int64,Int64,Int64}
 end
 
-function retract!(M::ROHFManifold, Ψ::ROHFTangentVector{T}) where {T<:Real}
-    Nb, Nd, Ns = M.mo_numbers; No = Nd+Ns
-    Ψd, Ψs, Φd, Φs = split_MOs(Ψ)
-
-    # d <-> s rotations
-    X = -Φd'Ψs
-    W = zeros(No,No); W[1:Nd,Nd+1:No] = .- X; W[Nd+1:No,1:Nd] = X';
-
-    # occupied <-> virtual
-    Ψd_tilde = Ψd .- Φd*Φd'*Ψd .- Φs*Φs'*Ψd;
-    Ψs_tilde = Ψs .- Φd*Φd'*Ψs .- Φs*Φs'*Ψs;
-    V1,D,V2 = svd(hcat(Ψd_tilde, Ψs_tilde))
-    Σ = diagm(D)
-
-    Ψ.foot .= (Φ*V2*cos(Σ) + V1*sin(Σ))*V2' * exp(W)
-end
-
-"""
-For (Ψd,Ψs) in R^{Nb×Nd}×R^{Nb×Ns} and y = (Φd,Φs) in the MO manifold
-the orthogonal projector on the horizontal tangent space at y is defined by
-    Π_y(Ψd,Ψs) = ( 1/2*Φs[Φs'Ψd - Ψs'Φd] + Φv(Φv'Ψd),
-                  -1/2*Φd[Ψd'Φs - Φd'Ψs] + Φv(Φv'Ψs) )
-"""
-function project_tangent!(M::ROHFManifold, Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
-    Ψd, Ψs = split_MOs(Ψ, M.mo_numbers)
-    Φd, Φs = split_MOs(Φ, M.mo_numbers)
-    X = 1/2 .* (ΨdT'ΦsT + ΦdT'ΨsT);
-    Ψ .= -ΦsT*X' + (I - ΦdT*ΦdT')*ΨdT, -ΦdT*X + (I - ΦsT*ΦsT')*ΨsT
-end
-
 """
 Molecular orbitals belonging to a specified ROHF manifold.
 """
@@ -48,16 +18,6 @@ mutable struct ROHFState{T<:Real}
     energy::T
     isortho::Bool
 end
-
-"""
-If vec = foot.Φ, ROHFTangentVector is just a ROHFState
-"""
-mutable struct ROHFTangentVector{T<:Real}
-    vec::AbstractMatrix{T}
-    foot::ROHFState{T}
-end
-ROHFTangentVector(ζ::ROHFState) = ROHFTangentVector(ζ.Φ, Φ)
-
 """
 Returns initial guess MOs and energies
 The guess is a string following PySCF conventions.
@@ -67,7 +27,7 @@ function init_guess(mol, guess::String)
     pyscf = pyimport("pyscf")
     rohf = pyscf.scf.ROHF(mol)
     rohf.kernel(max_cycle=0, init_guess=guess, verbose=0)
-    rohf.mo_coeff[:,1:mol.nelectron], rohf.energy_tot()
+    rohf.mo_coeff[:,1:mol.nelec[1]], rohf.energy_tot()
 end
 
 function ROHFState(Σ::ChemicalSystem; guess="huckel")
@@ -79,6 +39,17 @@ function ROHFState(Σ::ChemicalSystem; guess="huckel")
     ROHFState(Φ_init, Σ, M, E_init, false)
 end
 ROHFState(mol::PyObject; guess="huckel") = ROHFState(ChemicalSystem(mol), guess=guess)
+ROHFState(ζ::ROHFState, Φ::Matrix) = ROHFState(Φ, ζ.Σ, ζ.M, ζ.energy, ζ.isortho)    
+
+"""
+If vec = foot.Φ, ROHFTangentVector is just a ROHFState
+"""
+mutable struct ROHFTangentVector{T<:Real}
+    vec::AbstractMatrix{T}
+    foot::ROHFState{T}
+end
+
+ROHFTangentVector(ζ::ROHFState) = ROHFTangentVector(ζ.Φ, Φ)
 
 function reset_state!(ζ::ROHFState; guess="huckel")
     Φ_init, E = init_guess(ζ.Σ.mol, guess)

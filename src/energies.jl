@@ -65,6 +65,18 @@ function rohf_energy(Φ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}
     Pd, Ps = densities(Φ, ζ.M.mo_numbers)
     rohf_energy(Pd, Ps, collect(ζ)[1:end-1]...)
 end
+function rohf_energy!(ζ::ROHFState{T}) where {T<:Real}
+    @assert (!ζ.isortho) "In orthonormal convention you must provide Sm12"
+    E = rohf_energy(ζ.Φ, ζ)
+    ζ.energy = E
+    E
+end
+function rohf_energy!(ζ::ROHFState{T}, Sm12) where {T<:Real}
+    @assert (ζ.isortho) "In non-orthonormal convention no need for Sm12"
+    E = rohf_energy(Sm12*ζ.Φ, ζ)
+    ζ.energy = E
+    E
+end
 
 ###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
 ##!!! !! !  !                   Energy gradients                   !  ! !! !!!##
@@ -80,11 +92,13 @@ function compute_Fock_operators(Jd, Js, Kd, Ks, H, Sm12, mo_numbers)
 end
 function compute_Fock_operators(ΦT, Sm12, mo_numbers, A, H)
     Pd, Ps = densities(Sm12*ΦT, mo_numbers)
-    Jd, Js, Kd, Ks = eval_J_K(Pd, Ps, A)
-    compute_Fock_operators(Jd, Js, Kd, Js, H, Sm12, mo_numbers)
+    Jd, Js, Kd, Ks = assemble_CX_operators(A, Pd, Ps)
+    compute_Fock_operators(Jd, Js, Kd, Ks, H, Sm12, mo_numbers)
 end
-compute_Fock_operators(ΦT, Sm12, ζ::ROHFState) =
+function compute_Fock_operators(ΦT, Sm12, ζ::ROHFState)
+    @assert(ζ.isortho)
     compute_Fock_operators(ΦT, Sm12, collect(ζ)[1:end-2]...)
+end
 
 """
     Compute the gradient of the energy in MO formalism for the metric: g_y(Ψd, Ψs) = ⟨Ψd,Ψs⟩_{MO}
@@ -92,26 +106,30 @@ compute_Fock_operators(ΦT, Sm12, ζ::ROHFState) =
     ∇gE_MO(y) = ( Φs[Φs'2(Fd-Fs)Φd] + Φv[4Φv'FdΦd],  -Φd[Φd'2(Fd-Fs)Φs] + Φv[4Φv'FsΦs] )
 """
 function grad_E_MO_metric(ΦT, Sm12, mo_numbers, A, H)
-    FdT, FsT = compute_Fock_operators(ΦT, Sm12, A, H, mo_numbers)
+    FdT, FsT = compute_Fock_operators(ΦT, Sm12, mo_numbers, A, H)
     ΦdT, ΦsT = split_MOs(ΦT, mo_numbers);
-    ∇E = (4*FdT*ΦdT, 4*FsT*ΦsT)
+    ∇E = hcat(4*FdT*ΦdT, 4*FsT*ΦsT)
     proj_horizontal_tangent_space(ΦT, ∇E, mo_numbers)
 end
-grad_E_MO_metric(ΦT, Sm12, ζ::ROHFState) =
+function grad_E_MO_metric(ΦT, Sm12, ζ::ROHFState)
+    @assert(ζ.isortho)
     grad_E_MO_metric(ΦT, Sm12, collect(ζ)[1:end-2]...)
+end
 
 function rohf_energy_and_gradient(ΦT, Sm12, mo_numbers, A, H, mol)
     # Compute Jd, Js, Kd, Ks
-    Pd, Ps = compute_densities(Sm12*ΦT, N_bds)
-    Jd, Js, Kd, Ks = eval_J_K(Pd, Ps, A)
+    Pd, Ps = densities(Sm12*ΦT, mo_numbers)
+    Jd, Js, Kd, Ks = assemble_CX_operators(A, Pd, Ps)
     # energy
     E = rohf_energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol)
     # gradient
     FdT, FsT = compute_Fock_operators(Jd, Js, Kd, Ks, H, Sm12, mo_numbers)
-    ΦdT, ΦsT = split_MOs(ΦT, N_bds);
-    ∇E = proj_horizontal_tangent_space(ΦT,(4*FdT*ΦdT, 4*FsT*ΦsT), N_bds)
+    ΦdT, ΦsT = split_MOs(ΦT, mo_numbers);
+    ∇E = proj_horizontal_tangent_space(ΦT, hcat(4*FdT*ΦdT, 4*FsT*ΦsT), mo_numbers)
     #
     E, ∇E
 end
-rohf_energy_and_gradient(ΦT, Sm12, ζ::ROHFState) =
-    rohf_energy_and_gradient(ΦT, Sm12, collect(ζ)[1:end-2]...)
+function rohf_energy_and_gradient(ΦT, Sm12, ζ::ROHFState)
+    @assert(ζ.isortho)
+    rohf_energy_and_gradient(ΦT, Sm12, collect(ζ)[1:end-1]...)
+end
