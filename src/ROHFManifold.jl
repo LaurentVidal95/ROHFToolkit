@@ -20,14 +20,22 @@ mutable struct ROHFState{T<:Real}
 end
 """
 Returns initial guess MOs and energies
-The guess is a string following PySCF conventions.
-[TODO: LIST ALL PYSCF GUESS]
+The guess is one of the following (see PySCF API doc)
+["minao", "atom", "huckel", "hcore", "1e", "chkfile".]
 """
 function init_guess(mol, guess::String)
     pyscf = pyimport("pyscf")
+    # Dictionary of all PySCF init guess
     rohf = pyscf.scf.ROHF(mol)
-    rohf.kernel(max_cycle=0, init_guess=guess, verbose=0)
-    rohf.mo_coeff[:,1:mol.nelec[1]], rohf.energy_tot()
+    init_guesses = Dict("minao" => rohf.init_guess_by_minao,
+                        "atom" => rohf.init_guess_by_atom,
+                        "huckel" => rohf.init_guess_by_huckel,
+                        "hcore" => rohf.init_guess_by_hcore,
+                        "1e" => rohf.init_guess_by_1e,
+                        "chkfile" => rohf.init_guess_by_chkfile)
+    
+    # rohf.kernel(max_cycle=-1, init_guess=guess, verbose=1)
+    # rohf.mo_coeff[:,1:mol.nelec[1]], rohf.energy_tot()
 end
 
 function ROHFState(Σ::ChemicalSystem; guess="huckel")
@@ -76,10 +84,6 @@ function deorthonormalize_state!(ζ::ROHFState;
         ζ.isortho = false
     end
     nothing
-end
-function deorthonormalize_state!(Ψ::ROHFTangentVector;
-                                 Sm12=inv(sqrt(Symmetric(Ψ.foot.Σ.overlap_matrix))))
-    deorthonormalize_state!(Ψ.foot, S12=S12)
 end
 
 """

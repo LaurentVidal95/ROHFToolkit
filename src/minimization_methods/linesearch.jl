@@ -35,6 +35,7 @@ function rohf_linesearch(ζ::ROHFState{T}, p::Matrix{T}, Sm12;
         τ_p = transport_vec_along_himself(p_test, step, ζ_next)
         E_next, tr(∇E_next'τ_p.vec)
     end
+
     # Init objects
     df0 = tr(∇E'p); linesearch = linesearch_type;
     α, E_next = linesearch(f, df, fdf, max_step, E, df0)

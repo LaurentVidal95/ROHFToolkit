@@ -27,10 +27,10 @@ include("common/generate_virtual_mos.jl")
 include("common/pyscf.jl")
 
 #### ALGORITHMS
-export rohf_SD
-export rohf_CG
-export rohf_preconditioned_SD
-export rohf_preconditioned_CG
+export rohf_steepest_descent
+# export rohf_CG
+# export rohf_preconditioned_SD
+# export rohf_preconditioned_CG
 include("minimization_methods/sd.jl")
 include("minimization_methods/cg.jl")
 include("minimization_methods/preconditioned_sd.jl")
