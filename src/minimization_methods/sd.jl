@@ -31,7 +31,6 @@ function rohf_steepest_descent(ζ::ROHFState;
         # k -> k+1
         step, E, ζ = rohf_linesearch(ζ, p, Sm12, E = E, ∇E = ∇E,
                            max_step = max_step, linesearch_type = linesearch_type)
-
         δE = E - E_previous; E_previous = E
 
         # New gradient and direction

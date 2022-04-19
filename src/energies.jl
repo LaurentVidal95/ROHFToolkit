@@ -36,6 +36,7 @@ function assemble_CX_operators(A::AbstractArray{T}, P::AbstractMatrix{T}) where 
     end
     J, K
 end
+
 ###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
 ##!!! !! !  !                       Energy                         !  ! !! !!!##
 ###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###

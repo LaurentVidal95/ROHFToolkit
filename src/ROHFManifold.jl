@@ -23,31 +23,43 @@ Returns initial guess MOs and energies
 The guess is one of the following (see PySCF API doc)
 ["minao", "atom", "huckel", "hcore", "1e", "chkfile".]
 """
-function init_guess(mol, guess::String)
+function init_guess(Σ::ChemicalSystem{T}, M::ROHFManifold, guess::String) where {T<:Real}
     pyscf = pyimport("pyscf")
+    @assert guess ∈ ["hcore", "minao", "atom", "huckel", "1e", "chkfile"]  "Guess not handled"
     # Dictionary of all PySCF init guess
-    rohf = pyscf.scf.ROHF(mol)
-    init_guesses = Dict("minao" => rohf.init_guess_by_minao,
-                        "atom" => rohf.init_guess_by_atom,
-                        "huckel" => rohf.init_guess_by_huckel,
-                        "hcore" => rohf.init_guess_by_hcore,
-                        "1e" => rohf.init_guess_by_1e,
+    rohf = pyscf.scf.ROHF(Σ.mol)
+    init_guesses = Dict("minao"   => rohf.init_guess_by_minao,
+                        "atom"    => rohf.init_guess_by_atom,
+                        "huckel"  => rohf.init_guess_by_huckel,
+                        "1e"      => rohf.init_guess_by_1e,
                         "chkfile" => rohf.init_guess_by_chkfile)
-    
-    # rohf.kernel(max_cycle=-1, init_guess=guess, verbose=1)
-    # rohf.mo_coeff[:,1:mol.nelec[1]], rohf.energy_tot()
+    # Core guess
+    (guess == "hcore") && (return core_guess(Σ, M.mo_numbers))
+    # Other guess: beware PySCF returns guess in orthonormal AO conventions
+    No = sum(M.mo_numbers[2:3])
+    Φ_ortho = eigen(Symmetric(-init_guesses[guess]()[1,:,:])).vectors[:,1:No]
+    # Deorthonormalize
+    inv(sqrt(Symmetric(Σ.overlap_matrix))) * Φ_ortho
 end
-
-function ROHFState(Σ::ChemicalSystem; guess="huckel")
+function core_guess(Σ::ChemicalSystem{T}, mo_numbers) where {T<:Real}
+    No = sum(mo_numbers[2:3])
+    F = eigen(Symmetric(Σ.core_hamiltonian), Symmetric(Σ.overlap_matrix))
+    normalize_col(col) = col ./ sqrt(col'*Σ.overlap_matrix*col)
+    hcat(normalize_col.(eachcol(F.vectors[:,1:No]))...)
+end
+                    
+function ROHFState(Σ::ChemicalSystem{T}; guess="huckel") where {T<:Real}
     mol = Σ.mol
     # Create Manifold and ChemicalSystem
     No, Nd = mol.nelec; Ns = No - Nd; Nb = convert(Int64, mol.nao);
     M = ROHFManifold((Nb, Nd, Ns))
-    Φ_init, E_init = init_guess(mol, guess)
+    # Compute guess
+    Φ_init = init_guess(Σ, M, guess)
+    E_init = rohf_energy(densities(Φ_init, M.mo_numbers)..., M.mo_numbers, collect(Σ)[1:3]...)
     ROHFState(Φ_init, Σ, M, E_init, false)
 end
 ROHFState(mol::PyObject; guess="huckel") = ROHFState(ChemicalSystem(mol), guess=guess)
-ROHFState(ζ::ROHFState, Φ::Matrix) = ROHFState(Φ, ζ.Σ, ζ.M, ζ.energy, ζ.isortho)    
+ROHFState(ζ::ROHFState, Φ::Matrix) = ROHFState(Φ, ζ.Σ, ζ.M, ζ.energy, ζ.isortho)
 
 """
 If vec = foot.Φ, ROHFTangentVector is just a ROHFState
