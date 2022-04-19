@@ -27,12 +27,15 @@ include("misc/pyscf.jl")
 
 #### ALGORITHMS
 export minimize_rohf_energy
-include("minimization_routines/info_prompt.jl")
-include("minimization_routines/linesearch.jl")
-include("minimization_routines/direct_minimization.jl")
-include("minimization_routines/rohf_manifold_methods.jl")
+include("compute_ground_state/info_prompt.jl")
+include("compute_ground_state/linesearch.jl")
+include("compute_ground_state/direct_minimization.jl")
+include("compute_ground_state/rohf_manifold_methods.jl")
 
-#TEST
-include("paths.jl")
+export steepest_descent_solver
+export conjugate_gradient_solver
+include("compute_ground_state/solver/preconditioning.jl")
+include("compute_ground_state/solver/steepest_descent.jl")
+include("compute_ground_state/solver/conjugate_gradient.jl")
 
 end # Module

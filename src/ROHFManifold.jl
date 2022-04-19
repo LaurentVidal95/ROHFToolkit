@@ -1,6 +1,5 @@
 # Define ROHF manifold, associated methods and objects
 
-
 """
 Structure that only serves to match Optim.jl standards.
 Contains almost no information but is attached to the retraction
