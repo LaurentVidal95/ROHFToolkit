@@ -1,3 +1,6 @@
+# Define ROHF manifold, associated methods and objects
+
+
 """
 Structure that only serves to match Optim.jl standards.
 Contains almost no information but is attached to the retraction
@@ -18,37 +21,48 @@ mutable struct ROHFState{T<:Real}
     energy::T
     isortho::Bool
 end
+
 """
-Returns initial guess MOs and energies
+Returns initial guess MOs and energies in non-orthonormal convention
 The guess is one of the following (see PySCF API doc)
 ["minao", "atom", "huckel", "hcore", "1e", "chkfile".]
 """
 function init_guess(Σ::ChemicalSystem{T}, M::ROHFManifold, guess::String) where {T<:Real}
+    # Define PySCF rohf object
     pyscf = pyimport("pyscf")
-    @assert guess ∈ ["hcore", "minao", "atom", "huckel", "1e", "chkfile"]  "Guess not handled"
-    # Dictionary of all PySCF init guess
     rohf = pyscf.scf.ROHF(Σ.mol)
+    
+    # Dictionary of all PySCF init guess
+    @assert guess ∈ ["hcore", "minao", "atom", "huckel", "1e", "chkfile"]  "Guess not handled"
     init_guesses = Dict("minao"   => rohf.init_guess_by_minao,
                         "atom"    => rohf.init_guess_by_atom,
                         "huckel"  => rohf.init_guess_by_huckel,
                         "1e"      => rohf.init_guess_by_1e,
                         "chkfile" => rohf.init_guess_by_chkfile)
-    # Core guess
+
+    # Handle core guess manualy
     (guess == "hcore") && (return core_guess(Σ, M.mo_numbers))
-    # Other guess: beware PySCF returns guess in orthonormal AO conventions
+
+    # Other guesses via PySCF
+    P_ortho = Symmetric(init_guesses[guess]()[1,:,:])
     No = sum(M.mo_numbers[2:3])
-    Φ_ortho = eigen(Symmetric(-init_guesses[guess]()[1,:,:])).vectors[:,1:No]
+    Φ_ortho = eigen(-P_ortho).vectors[:,1:No]
+
     # Deorthonormalize
     inv(sqrt(Symmetric(Σ.overlap_matrix))) * Φ_ortho
 end
+
 function core_guess(Σ::ChemicalSystem{T}, mo_numbers) where {T<:Real}
     No = sum(mo_numbers[2:3])
     F = eigen(Symmetric(Σ.core_hamiltonian), Symmetric(Σ.overlap_matrix))
     normalize_col(col) = col ./ sqrt(col'*Σ.overlap_matrix*col)
     hcat(normalize_col.(eachcol(F.vectors[:,1:No]))...)
 end
-                    
-function ROHFState(Σ::ChemicalSystem{T}; guess="huckel") where {T<:Real}
+
+"""
+All ROHFSate structure constructors
+"""
+function ROHFState(Σ::ChemicalSystem{T}; guess="minao") where {T<:Real}
     mol = Σ.mol
     # Create Manifold and ChemicalSystem
     No, Nd = mol.nelec; Ns = No - Nd; Nb = convert(Int64, mol.nao);
@@ -58,7 +72,7 @@ function ROHFState(Σ::ChemicalSystem{T}; guess="huckel") where {T<:Real}
     E_init = rohf_energy(densities(Φ_init, M.mo_numbers)..., M.mo_numbers, collect(Σ)[1:3]...)
     ROHFState(Φ_init, Σ, M, E_init, false)
 end
-ROHFState(mol::PyObject; guess="huckel") = ROHFState(ChemicalSystem(mol), guess=guess)
+ROHFState(mol::PyObject; guess="minao") = ROHFState(ChemicalSystem(mol), guess=guess)
 ROHFState(ζ::ROHFState, Φ::Matrix) = ROHFState(Φ, ζ.Σ, ζ.M, ζ.energy, ζ.isortho)
 
 """
@@ -71,7 +85,7 @@ end
 
 ROHFTangentVector(ζ::ROHFState) = ROHFTangentVector(ζ.Φ, Φ)
 
-function reset_state!(ζ::ROHFState; guess="huckel")
+function reset_state!(ζ::ROHFState; guess="minao")
     Φ_init, E = init_guess(ζ.Σ.mol, guess)
     ζ.Φ = Φ_init; ζ.energy = E; ζ.isortho=false;
     nothing

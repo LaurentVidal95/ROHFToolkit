@@ -4,7 +4,7 @@ using LineSearches
     Armijo linesearch using the retraction in MO formalism eq. (39) part II.
 """
 
-function rohf_linesearch(ζ::ROHFState{T}, p::Matrix{T}, Sm12;
+function rohf_manifold_linesearch(ζ::ROHFState{T}, p::Matrix{T}, Sm12;
                          E = zero(T), ∇E = zero.(split_MOs(ζ)),
                          max_step = one(Float64),
                          linesearch_type = BackTracking(order=3),

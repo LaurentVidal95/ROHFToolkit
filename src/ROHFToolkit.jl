@@ -18,24 +18,19 @@ export reset_system!
 export rohf_energy
 include("ChemicalSystem.jl")
 include("ROHFManifold.jl")
-include("energies.jl")
-include("rohf_manifold_methods.jl")
+include("energy.jl")
 
 export generate_virtual_MOs_T
-include("common/utils.jl")
-include("common/generate_virtual_mos.jl")
-include("common/pyscf.jl")
+include("misc/utils.jl")
+include("misc/generate_virtual_mos.jl")
+include("misc/pyscf.jl")
 
 #### ALGORITHMS
-export rohf_steepest_descent
-# export rohf_CG
-# export rohf_preconditioned_SD
-# export rohf_preconditioned_CG
-include("minimization_methods/sd.jl")
-include("minimization_methods/cg.jl")
-include("minimization_methods/preconditioned_sd.jl")
-include("minimization_methods/preconditioned_cg.jl")
-include("minimization_methods/linesearch.jl")
+export minimize_rohf_energy
+include("minimization_routines/info_prompt.jl")
+include("minimization_routines/linesearch.jl")
+include("minimization_routines/direct_minimization.jl")
+include("minimization_routines/rohf_manifold_methods.jl")
 
 #TEST
 include("paths.jl")
