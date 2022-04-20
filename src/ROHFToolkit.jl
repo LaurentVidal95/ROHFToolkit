@@ -21,21 +21,19 @@ include("ROHFManifold.jl")
 include("energy.jl")
 
 export generate_virtual_MOs_T
-include("misc/utils.jl")
+include("misc/toolbox.jl")
 include("misc/generate_virtual_mos.jl")
 include("misc/pyscf.jl")
 
 #### ALGORITHMS
 export minimize_rohf_energy
-include("compute_ground_state/info_prompt.jl")
-include("compute_ground_state/linesearch.jl")
-include("compute_ground_state/direct_minimization.jl")
-include("compute_ground_state/rohf_manifold_methods.jl")
-
 export steepest_descent_solver
 export conjugate_gradient_solver
-include("compute_ground_state/solver/preconditioning.jl")
-include("compute_ground_state/solver/steepest_descent.jl")
-include("compute_ground_state/solver/conjugate_gradient.jl")
+include("direct_minimization/main_direct_minimization.jl")
+include("direct_minimization/prompt_info.jl")
+include("direct_minimization/linesearch.jl")
+include("direct_minimization/rohf_manifold_methods.jl")
+include("direct_minimization/preconditioning.jl")
+include("direct_minimization/solver.jl")
 
 end # Module

@@ -1,4 +1,4 @@
-# TODO : CLEAAAAAAAAANN
+# TODO : clean old routines. Do some renaming
 
 ###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
 ##!!! !! !  !                  General operations                  !  ! !! !!!##
@@ -33,67 +33,51 @@ function densities(ΦT, N_bds)
 end
 densities(ζ::ROHFState) = densities(ζ.Φ, ζ.M.mo_numbers)
 
+"""
+Concatenate all columns of given matrices X, Y and Z into a single
+vector. Used to define preconditioning system with LinearMaps
+"""
 function mat_to_vec(X,Y,Z)
-    vec = Float64[]
+    XYZ = Float64[]
     for mat in (X,Y,Z)
         for col in eachcol(mat)
-            vec = vcat(vec,col)
+            XYZ = vcat(XYZ, col)
         end
     end
-    vec
+    XYZ
 end
-
-function vec_to_mat(vec, N_bds)
-    Nb,Nd,Ns = N_bds
+"""
+Reverse operation of mat_to_vec. mo_numbers are needed to recover the proper dimensions
+of X, Y and Z as three individual matrices.
+"""
+function vec_to_mat(XYZ, mo_numbers)
+    Nb,Nd,Ns = mo_numbers
     Nn = Nd*Ns + Nb*Nd + Nb*Ns
     # reshape
-    X=reshape(vec[1:Nd*Ns],(Nd,Ns))
-    Y=reshape(vec[Nd*Ns+1:Nd*Ns+Nb*Nd],(Nb,Nd))
-    Z=reshape(vec[Nd*Ns+Nb*Nd+1:Nn],(Nb,Ns))
+    X = reshape(XYZ[1:Nd*Ns],(Nd,Ns))
+    Y = reshape(XYZ[Nd*Ns+1:Nd*Ns+Nb*Nd],(Nb,Nd))
+    Z = reshape(XYZ[Nd*Ns+Nb*Nd+1:Nn],(Nb,Ns))
     [X,Y,Z]
 end;
-
-
 
 """
     Test if new MOs are admissible solutions MAYBE REMOVE THAT !
 """
-function test_MOs(ΦT::AbstractArray, N_bds)
-    Nb,Nd,Ns = N_bds
-    PdT, PsT = densities(ΦT, N_bds)
+function test_MOs(Φ::Matrix{T}, mo_numbers) where {T<:Real}
+    Nb,Nd,Ns = mo_numbers
+    Pd, Ps = densities(Φ, mo_numbers)
     
-    test = norm(PdT*PdT - PdT)
-    test += norm(PsT*PsT - PsT)
-    test += norm(PdT*PsT)
-    test += tr(PdT) - Nd
-    test -= tr(PsT) - Ns
+    test = norm(Pd*Pd - Pd)
+    test += norm(Ps*Ps - Ps)
+    test += norm(Pd*Ps)
+    test += tr(Pd) - Nd
+    test -= tr(Ps) - Ns
 
     test
 end
 
 
 ######## OLD
-function mat_to_vec(X,Y,Z)
-    vec = Float64[]
-    for mat in (X,Y,Z)
-        for col in eachcol(mat)
-            vec = vcat(vec,col)
-        end
-    end
-    vec
-end
-
-function vec_to_mat_MO(vec, N_bds)
-    Nb,Nd,Ns = N_bds
-    Nn = Nd*Ns + Nb*Nd + Nb*Ns
-    # reshape
-    X=reshape(vec[1:Nd*Ns],(Nd,Ns))
-    Y=reshape(vec[Nd*Ns+1:Nd*Ns+Nb*Nd],(Nb,Nd))
-    Z=reshape(vec[Nd*Ns+Nb*Nd+1:Nn],(Nb,Ns))
-    [X,Y,Z]
-end;
-
-
 """                                                                                 
    Concatenate into a single vector (of size Nb^2) a couple of matrices 
    in the ROHF manifold M

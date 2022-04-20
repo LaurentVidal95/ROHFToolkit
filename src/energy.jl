@@ -110,7 +110,7 @@ function grad_E_MO_metric(ΦT, Sm12, mo_numbers, A, H)
     FdT, FsT = compute_Fock_operators(ΦT, Sm12, mo_numbers, A, H)
     ΦdT, ΦsT = split_MOs(ΦT, mo_numbers);
     ∇E = hcat(4*FdT*ΦdT, 4*FsT*ΦsT)
-    proj_horizontal_tangent_space(ΦT, ∇E, mo_numbers)
+    project_tangent(ΦT, ∇E, mo_numbers)
 end
 function grad_E_MO_metric(ΦT, Sm12, ζ::ROHFState)
     @assert(ζ.isortho)
@@ -126,7 +126,7 @@ function rohf_energy_and_gradient(ΦT, Sm12, mo_numbers, A, H, mol)
     # gradient
     FdT, FsT = compute_Fock_operators(Jd, Js, Kd, Ks, H, Sm12, mo_numbers)
     ΦdT, ΦsT = split_MOs(ΦT, mo_numbers);
-    ∇E = proj_horizontal_tangent_space(ΦT, hcat(4*FdT*ΦdT, 4*FsT*ΦsT), mo_numbers)
+    ∇E = project_tangent(ΦT, hcat(4*FdT*ΦdT, 4*FsT*ΦsT), mo_numbers)
     #
     E, ∇E
 end

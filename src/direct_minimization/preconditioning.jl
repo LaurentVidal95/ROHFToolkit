@@ -10,7 +10,7 @@ function preconditioned_gradient(ζ::ROHFState{T}, Sm12) where {T<:Real}
     X, Yv, Zv = vec_to_mat(XYvZv, mo_numbers)
     tmp_mat = hcat(Φs*X' + Yv, -Φd*X + Zv)
     # Project preconditioned gradient on horizontal tangent space
-    prec_grad = proj_horizontal_tangent_space(ζ.Φ, tmp_mat, mo_numbers)        
+    prec_grad = project_tangent(ζ.Φ, tmp_mat, mo_numbers)
 end
 
 """
@@ -81,7 +81,7 @@ function compute_L_blocs_and_shift(Φd, Φs, Pd, Ps, Fd, Fs, Fd_dd, Fs_dd,
 end
 
 function L_as_linear_map(XYZ, A_ds, B_ds, A_bd, B_bd, A_bs, B_bs, shift, mo_numbers)
-    X,Yv,Zv = vec_to_mat_MO(XYZ, mo_numbers)
+    X,Yv,Zv = vec_to_mat(XYZ, mo_numbers)
 
     L_ds = X*A_ds  .- B_ds*X  .+ shift*X
     L_bd = Yv*A_bd .- B_bd*Yv .+ shift*Yv

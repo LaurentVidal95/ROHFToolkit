@@ -25,27 +25,27 @@ function minimize_rohf_energy(ζ::ROHFState;
     orthonormalize_state!(ζ, S12=S12)
 
     # Populate info with initial data
-    n_iter     = zero(Int64)
-    E, ∇E      = rohf_energy_and_gradient(ζ.Φ, Sm12, ζ)
-    E_prev     = NaN
-    dir_vec    = solver.preconditioned ? .- preconditioned_gradient(ζ, Sm12) : .- ∇E
-    dir        = ROHFTangentVector(dir_vec, ζ)
-    step       = zero(Float64)
-    converged  = false
-    cg_restart = true
-    info = (; n_iter, ζ, E, E_prev, ∇E, dir, solver, step,
-            converged, cv_threshold, cg_restart)
+    n_iter       = zero(Int64)
+    E, ∇E        = rohf_energy_and_gradient(ζ.Φ, Sm12, ζ)
+    ∇E_prev_norm = norm(∇E)
+    E_prev       = NaN
+    dir_vec      = solver.preconditioned ? .- preconditioned_gradient(ζ, Sm12) : .- ∇E
+    dir          = ROHFTangentVector(dir_vec, ζ)
+    step         = zero(Float64)
+    converged    = false
 
-    # Prompt initial data
+    info = (; n_iter, ζ, E, E_prev, ∇E, ∇E_prev_norm, dir, solver, step,
+            converged, cv_threshold)
+    # Display header and initial data
     prompt(info)
-    
+
     while (!(info.converged) && (n_iter < max_iter))
         n_iter += 1;
-        # k -> k+1
+        # find next point ζ on ROHF manifold
         step, E, ζ = rohf_manifold_linesearch(ζ, dir.vec, Sm12, E = E, ∇E = ∇E,
-                               max_step = max_step, linesearch_type = linesearch_type)
+                              max_step = max_step, linesearch_type = linesearch_type)
 
-        # Update info with the new ROHF state and related quantities
+        # Update "info" with the new ROHF point and related quantities
         ∇E = grad_E_MO_metric(ζ.Φ, Sm12, ζ)
         E_prev = info.E
         (norm(info.∇E)<cv_threshold) && (converged=true)
@@ -57,7 +57,7 @@ function minimize_rohf_energy(ζ::ROHFState;
         dir, info = solver.next_dir(info, Sm12)
 
         # Save MOs in file if needed
-        !isempty(savefile) && (writedlm("rohf_MOs_$(solver.name)_$(n_iter).dat", Sm12*ζ.Φ))
+        !isempty(savefile) && (writedlm("rohf_MOs_$(solver.prefix)_current_iter.dat", Sm12*ζ.Φ))
     end
     # Go back to non-orthonormal AO convention
     deorthonormalize_state!(ζ, Sm12=Sm12)
