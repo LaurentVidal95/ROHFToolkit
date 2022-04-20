@@ -23,24 +23,27 @@ end
 
 """
 Returns initial guess MOs and energies in non-orthonormal convention
-The guess is one of the following (see PySCF API doc)
-["minao", "atom", "huckel", "hcore", "1e", "chkfile".]
+
+The guess is one of the following (see PySCF API doc):
+:minao, :atom, :huckel, :hcore, :hcore_pyscf (1e in PySCF doc), :chkfile
+
+The hcore guess of PySCF ("1e") is somehow very bad so it is handled manualy.
+See the "core_guess" function bellow.
 """
-function init_guess(Σ::ChemicalSystem{T}, M::ROHFManifold, guess::String) where {T<:Real}
+function init_guess(Σ::ChemicalSystem{T}, M::ROHFManifold, guess::Symbol) where {T<:Real}
     # Define PySCF rohf object
     pyscf = pyimport("pyscf")
     rohf = pyscf.scf.ROHF(Σ.mol)
     
     # Dictionary of all PySCF init guess
-    @assert guess ∈ ["hcore", "minao", "atom", "huckel", "1e", "chkfile"]  "Guess not handled"
-    init_guesses = Dict("minao"   => rohf.init_guess_by_minao,
-                        "atom"    => rohf.init_guess_by_atom,
-                        "huckel"  => rohf.init_guess_by_huckel,
-                        "1e"      => rohf.init_guess_by_1e,
-                        "chkfile" => rohf.init_guess_by_chkfile)
-
-    # Handle core guess manualy
-    (guess == "hcore") && (return core_guess(Σ, M.mo_numbers))
+    @assert guess ∈ [:hcore, :minao, :atom, :huckel, :chkfile, :hcore_pyscf] "Guess not handled"
+    init_guesses = Dict(:minao            => rohf.init_guess_by_minao,
+                        :atom             => rohf.init_guess_by_atom,
+                        :huckel           => rohf.init_guess_by_huckel,
+                        :hcore_pyscf      => rohf.init_guess_by_1e,
+                        :chkfile          => rohf.init_guess_by_chkfile)
+    # Handle core guess manualy because the PySCF core guess is somehow very bad..
+    (guess == :hcore) && (return core_guess(Σ, M.mo_numbers))
 
     # Other guesses via PySCF
     P_ortho = Symmetric(init_guesses[guess]()[1,:,:])
@@ -61,7 +64,7 @@ end
 """
 All ROHFSate structure constructors
 """
-function ROHFState(Σ::ChemicalSystem{T}; guess="minao") where {T<:Real}
+function ROHFState(Σ::ChemicalSystem{T}; guess=:minao) where {T<:Real}
     mol = Σ.mol
     # Create Manifold and ChemicalSystem
     No, Nd = mol.nelec; Ns = No - Nd; Nb = convert(Int64, mol.nao);
@@ -71,7 +74,7 @@ function ROHFState(Σ::ChemicalSystem{T}; guess="minao") where {T<:Real}
     E_init = rohf_energy(densities(Φ_init, M.mo_numbers)..., M.mo_numbers, collect(Σ)[1:3]...)
     ROHFState(Φ_init, Σ, M, E_init, false)
 end
-ROHFState(mol::PyObject; guess="minao") = ROHFState(ChemicalSystem(mol), guess=guess)
+ROHFState(mol::PyObject; guess=:minao) = ROHFState(ChemicalSystem(mol), guess=guess)
 ROHFState(ζ::ROHFState, Φ::Matrix) = ROHFState(Φ, ζ.Σ, ζ.M, ζ.energy, ζ.isortho)
 
 """
@@ -84,7 +87,7 @@ end
 
 ROHFTangentVector(ζ::ROHFState) = ROHFTangentVector(ζ.Φ, Φ)
 
-function reset_state!(ζ::ROHFState; guess="minao")
+function reset_state!(ζ::ROHFState; guess=:minao)
     Φ_init, E = init_guess(ζ.Σ.mol, guess)
     ζ.Φ = Φ_init; ζ.energy = E; ζ.isortho=false;
     nothing

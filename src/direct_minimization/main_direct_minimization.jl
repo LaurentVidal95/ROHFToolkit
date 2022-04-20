@@ -18,7 +18,7 @@ function minimize_rohf_energy(ζ::ROHFState;
 
     (typeof(max_step)≠Float64) && (max_step = Float64(max_step))
 
-    # Transfer in orthonormal AO convention
+    # non-orthonormal AO -> orthonormal AO convention
     (cond(ζ.Σ.overlap_matrix) > 1e6) && @warn("Conditioning of the "*
                                      "overlap: $(cond(ζ.Σ.overlap_matrix))")
     S12 = sqrt(Symmetric(ζ.Σ.overlap_matrix)); Sm12=inv(S12);
@@ -36,11 +36,13 @@ function minimize_rohf_energy(ζ::ROHFState;
 
     info = (; n_iter, ζ, E, E_prev, ∇E, ∇E_prev_norm, dir, solver, step,
             converged, cv_threshold)
+
     # Display header and initial data
     prompt(info)
 
     while (!(info.converged) && (n_iter < max_iter))
         n_iter += 1;
+
         # find next point ζ on ROHF manifold
         step, E, ζ = rohf_manifold_linesearch(ζ, dir.vec, Sm12, E = E, ∇E = ∇E,
                               max_step = max_step, linesearch_type = linesearch_type)
@@ -63,8 +65,7 @@ function minimize_rohf_energy(ζ::ROHFState;
     deorthonormalize_state!(ζ, Sm12=Sm12)
     info = merge(info, (;ζ=ζ))
 
-    (info.converged)  && println("CONVERGED")
-    !(info.converged) && println("----Maximum iteration reached")
+    (info.converged) ? println("CONVERGED") : println("----Maximum iteration reached")
 
     clean_info(info)
 end

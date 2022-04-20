@@ -15,7 +15,7 @@ function retract(M::ROHFManifold, Ψ::ROHFTangentVector{T}) where {T<:Real}
 
     ROHFState(Ψ.foot, (Ψ.foot.Φ*V2*cos(Σ) + V1*sin(Σ))*V2' * exp(W))
 end
-function retract!(M::ROHFManifold{T}, Ψ::ROHFTangentVector{T}) where {T<:Real}
+function retract!(M::ROHFManifold, Ψ::ROHFTangentVector{T}) where {T<:Real}
     Ψ.vec = retract(M, Ψ).Φ
     nothing
 end

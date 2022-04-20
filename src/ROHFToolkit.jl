@@ -25,7 +25,7 @@ include("misc/toolbox.jl")
 include("misc/generate_virtual_mos.jl")
 include("misc/pyscf.jl")
 
-#### ALGORITHMS
+#### Direct Minimization
 export minimize_rohf_energy
 export steepest_descent_solver
 export conjugate_gradient_solver
@@ -36,4 +36,6 @@ include("direct_minimization/rohf_manifold_methods.jl")
 include("direct_minimization/preconditioning.jl")
 include("direct_minimization/solver.jl")
 
+### Self consistent field
+include("self_consistent_field/scf_utils.jl")
 end # Module

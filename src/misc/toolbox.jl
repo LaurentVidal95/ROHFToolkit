@@ -76,6 +76,14 @@ function test_MOs(Φ::Matrix{T}, mo_numbers) where {T<:Real}
     test
 end
 
+"""
+Used for random guesses
+"""
+function rand_unitary_matrix(N)
+    M = rand(N,N)
+    exp((M .- M') ./ 2)
+end
+
 
 ######## OLD
 """                                                                                 

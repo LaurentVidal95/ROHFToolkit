@@ -24,7 +24,7 @@ function default_prompt(; show_dir_angle=false)
 end
 
 """
-Info keeping only argmunents returned by minimization procedure.
+Select in "info" only the argmunents returned by the minimization procedure.
 """
-clean_info(info) = (;E=info.E, ζ=info.ζ, n_iter=info.n_iter,
+clean_info(info) = (;energy=info.E, ζ=info.ζ, n_iter=info.n_iter,
                     residual=norm(info.∇E), solver=info.solver.name)
