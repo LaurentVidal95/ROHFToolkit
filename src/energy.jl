@@ -3,38 +3,41 @@
 """
    Coulomb and exchange matrices J and K for a given couple of projectors (Pd,Ps) of
    in non-orthogonal AO basis. Take as argument the four-index tensor A.
+   TODO: look at Einstein notations and related libraries to simplify
 """
-function assemble_CX_operators(A::AbstractArray{T}, Pd::AbstractMatrix{T},
+# function assemble_CX_operators(A::AbstractArray{T}, Pd::AbstractMatrix{T},
+#                                Ps::AbstractMatrix{T}) where {T<:Real}
+#     Jd = zero(Pd); Js = zero(Ps); Kd = zero(Pd); Ks = zero(Ps);
+#     N = size(Pd,1)
+#     for j in 1:N
+#         for i in j:N
+# 	    A_J = A[i,j,:,:]
+#             A_K = A[i,:,:,j]
+# 	    Jd[i,j] = tr(A_J*Pd); Jd[j,i] = Jd[i,j] # Jd = J(Pd)
+# 	    Js[i,j] = tr(A_J*Ps); Js[j,i] = Js[i,j] # Js = J(Ps)
+# 	    Kd[i,j] = tr(A_K*Pd); Kd[j,i] = Kd[i,j] # Kd = K(Pd)
+#             Ks[i,j] = tr(A_K*Ps); Ks[j,i] = Ks[i,j] # Ks = K(Ps)
+#         end
+#     end
+#     Jd, Js, Kd, Ks
+# end
+
+function assemble_CX_operators(eri::AbstractVector{T}, Pd::AbstractMatrix{T},
                                Ps::AbstractMatrix{T}) where {T<:Real}
-    Jd = zero(Pd); Js = zero(Ps); Kd = zero(Pd); Ks = zero(Ps);
-    N = size(Pd,1)
-    for j in 1:N
-        for i in j:N
-	    A_J = A[i,j,:,:]
-            A_K = A[i,:,:,j]
-	    Jd[i,j] = tr(A_J*Pd); Jd[j,i] = Jd[i,j] # Jd = J(Pd)
-	    Js[i,j] = tr(A_J*Ps); Js[j,i] = Js[i,j] # Js = J(Ps)
-	    Kd[i,j] = tr(A_K*Pd); Kd[j,i] = Kd[i,j] # Kd = K(Pd)
-            Ks[i,j] = tr(A_K*Ps); Ks[j,i] = Ks[i,j] # Ks = K(Ps)
-        end
-    end
-    Jd, Js, Kd, Ks    
-end    
+    
+end
 
 """
-    Similar to assemble_CX_operators but only for one projector
+test = mol.intor("int2e", shls_slice=(0, 1, 0, 1, 0, 5, 0, 5), aosym="2ij")
+dropdims(test, dims=1) donne A[1,1,:,:]
 """
-function assemble_CX_operators(A::AbstractArray{T}, P::AbstractMatrix{T}) where {T<:Real}
-    J = zero(P);  K = zero(P);
-    N = size(P,1)
-    for j in 1:N
-        for i in j:N
-            Aj = A[i,j,:,:]; Ak = A[i,:,:,j]
-            J[i,j] = tr(Aj*P); J[j,i] = J[i,j] # J(P)
-            K[i,j] = tr(Ak*P); K[j,i] = K[i,j] # K(P)
-        end
-    end
-    J, K
+
+function tensor_slice(mol::PyObject, i, j, type)
+    shls_slice = nothing
+    n_ao = mol.nao
+    (type=="J") && (shls_slice = (i-1, i-1, j-1, j-1, 0, n_ao-1, 0, n_ao-1))
+    (type=="K") && (shls_slice = (i-1, i-1, 0, n_ao-1, 0, n_ao-1, j-1, j-1,))
+    mol.intor("int2e", shls_slice=shls_slice)
 end
 
 ###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###

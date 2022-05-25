@@ -1,5 +1,4 @@
 using PyCall; using LinearAlgebra; using DelimitedFiles
-using Pkg; Pkg.activate("/home/lvidal/Documents/CERMICS/these/rohf_papers/code/ROHFToolkit_MO"); using ROHFToolkit
 
 pyscf = pyimport("pyscf")
 

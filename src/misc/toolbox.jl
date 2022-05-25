@@ -58,7 +58,7 @@ function vec_to_mat(XYZ, mo_numbers)
     Y = reshape(XYZ[Nd*Ns+1:Nd*Ns+Nb*Nd],(Nb,Nd))
     Z = reshape(XYZ[Nd*Ns+Nb*Nd+1:Nn],(Nb,Ns))
     [X,Y,Z]
-end;
+end
 
 """
     Test if new MOs are admissible solutions MAYBE REMOVE THAT !

@@ -41,11 +41,11 @@ function minimize_rohf_energy(ζ::ROHFState;
     prompt(info)
 
     while (!(info.converged) && (n_iter < max_iter))
-        n_iter += 1;
+        n_iter += 1
 
         # find next point ζ on ROHF manifold
-        step, E, ζ = rohf_manifold_linesearch(ζ, dir.vec, Sm12, E = E, ∇E = ∇E,
-                              max_step = max_step, linesearch_type = linesearch_type)
+        step, E, ζ = rohf_manifold_linesearch(ζ, dir.vec, Sm12, E=E, ∇E=∇E,
+                              max_step=max_step, linesearch_type=linesearch_type)
 
         # Update "info" with the new ROHF point and related quantities
         ∇E = grad_E_MO_metric(ζ.Φ, Sm12, ζ)

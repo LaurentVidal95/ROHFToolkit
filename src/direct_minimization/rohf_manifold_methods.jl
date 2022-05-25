@@ -43,7 +43,7 @@ function project_tangent!(M::ROHFManifold, Ψ::ROHFTangentVector)
 end
 
 """
-Transport a directin p along t*p. Used as default transport for SD and CG
+Transport a direction p along t*p. Used as default transport for SD and CG
 in the linesearch routine on the ROHF manifold.
 """
 function transport_vec_along_himself(Ψ::ROHFTangentVector{T}, t::T,

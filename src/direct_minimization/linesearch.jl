@@ -1,19 +1,20 @@
 using LineSearches
 
 """
-    Armijo linesearch using the retraction in MO formalism eq. (39) part II.
+Armijo linesearch using the retraction in orthonormal MO formalism eq. (39) part II.
 """
-
 function rohf_manifold_linesearch(ζ::ROHFState{T}, p::Matrix{T}, Sm12;
-                         E = zero(T), ∇E = zero.(split_MOs(ζ)),
-                         max_step = one(Float64),
-                         linesearch_type = BackTracking(order=3),
-                         ) where {T<:Real}
+                                  E = zero(T), ∇E = zero.(split_MOs(ζ)),
+                                  max_step = one(Float64),
+                                  linesearch_type = BackTracking(order=3),
+                                  ) where {T<:Real}
     # All linesearch routines are performed in orthonormal AOs convention
     @assert(ζ.isortho)
     M = ζ.M
-    p_test = ROHFTangentVector(p, ζ)
+
     # LineSearches.jl objects
+    p_test = ROHFTangentVector(p, ζ)
+
     function f(step)
         ζ_next = retract(M, ROHFTangentVector(step .* p, ζ))
         rohf_energy!(ζ_next, Sm12)
