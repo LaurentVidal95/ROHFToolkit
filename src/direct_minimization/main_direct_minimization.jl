@@ -47,8 +47,6 @@ function minimize_rohf_energy(ζ::ROHFState;
         step, E, ζ = rohf_manifold_linesearch(ζ, dir.vec, Sm12, E=E, ∇E=∇E,
                               max_step=max_step, linesearch_type=linesearch_type)
 
-        # Apply DIIS if needed
-        
         # Update "info" with the new ROHF point and related quantities
         ∇E = grad_E_MO_metric(ζ.Φ, Sm12, ζ)
         E_prev = info.E
@@ -56,9 +54,6 @@ function minimize_rohf_energy(ζ::ROHFState;
         info = merge(info, (; ζ=ζ, E=E, E_prev=E_prev, ∇E = ∇E, residual=∇E,
                             n_iter=n_iter, step=step, converged=converged))
         prompt(info)
-
-        # Add DIIS
-        # E_diis = f(E)
 
         # Choose next dir according to the solver and update info with new dir
         dir, info = solver.next_dir(info, Sm12)

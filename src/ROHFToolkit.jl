@@ -45,6 +45,7 @@ include("direct_minimization/solver.jl")
 ### Self consistent field
 include("self_consistent_field/scf_utils.jl")
 
+### Plot MOs
 export generate_molden
 include("misc/molden.jl")
 
