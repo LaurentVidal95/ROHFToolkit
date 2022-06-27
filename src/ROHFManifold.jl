@@ -8,7 +8,6 @@ and projection methods.
 mutable struct ROHFManifold <: Manifold
     mo_numbers :: Tuple{Int64,Int64,Int64}
 end
-
 """
 Molecular orbitals belonging to a specified ROHF manifold.
 """
@@ -32,7 +31,6 @@ See the "core_guess" function bellow.
 """
 function init_guess(Σ::ChemicalSystem{T}, M::ROHFManifold, guess::Symbol) where {T<:Real}
     # Define PySCF rohf object
-    pyscf = pyimport("pyscf")
     rohf = pyscf.scf.ROHF(Σ.mol)
     
     # Dictionary of all PySCF init guess
@@ -44,12 +42,11 @@ function init_guess(Σ::ChemicalSystem{T}, M::ROHFManifold, guess::Symbol) where
                         :chkfile          => rohf.init_guess_by_chkfile)
     # Handle core guess manualy because the PySCF core guess is somehow very bad..
     (guess == :hcore) && (return core_guess(Σ, M.mo_numbers))
-
     # Other guesses via PySCF
     P_ortho = Symmetric(init_guesses[guess]()[1,:,:])
     No = sum(M.mo_numbers[2:3])
     Φ_ortho = eigen(-P_ortho).vectors[:,1:No]
-
+    
     # Deorthonormalize
     inv(sqrt(Symmetric(Σ.overlap_matrix))) * Φ_ortho
 end

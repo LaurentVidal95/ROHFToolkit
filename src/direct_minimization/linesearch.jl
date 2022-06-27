@@ -22,8 +22,8 @@ function rohf_manifold_linesearch(ζ::ROHFState{T}, p::Matrix{T}, Sm12;
 
     function df(step)
         ζ_next = retract(M, ROHFTangentVector(step .* p, ζ))
-        # τ_p = project_tangent(M, p, ζ_next.Φ) <= Benchmark this.
-        τ_p = transport_vec_along_himself(p_test, step, ζ_next)
+        τ_p = project_tangent(M, ζ_next.Φ, p) #<= Benchmark this.
+        # τ_p = transport_vec_along_himself(p_test, step, ζ_next)
         ∇E_next = grad_E_MO_metric(ζ_next.Φ, Sm12, ζ_next)
         tr(∇E_next'τ_p.vec)
     end
@@ -31,8 +31,8 @@ function rohf_manifold_linesearch(ζ::ROHFState{T}, p::Matrix{T}, Sm12;
     function fdf(step)
         ζ_next = retract(M, ROHFTangentVector(step .* p, ζ))
         E_next, ∇E_next = rohf_energy_and_gradient(ζ_next.Φ, Sm12, ζ_next)
-        # τ_p = project_tangent(M, p, ζ_next.Φ) <= Benchmark this.
-        τ_p = transport_vec_along_himself(p_test, step, ζ_next)
+        τ_p = project_tangent(M, ζ_next.Φ, p) #<= Benchmark this.
+        # τ_p = transport_vec_along_himself(p_test, step, ζ_next)
         E_next, tr(∇E_next'τ_p.vec)
     end
 

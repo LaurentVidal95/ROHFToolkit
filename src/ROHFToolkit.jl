@@ -10,6 +10,12 @@ using PyCall
 using Printf
 using Dates
 
+# Import pyscf globaly
+const pyscf = PyNULL()
+function __init__()
+    copy!(pyscf, pyimport("pyscf"))
+end
+
 export ChemicalSystem
 export ROHFManifold
 export ROHFState
@@ -38,4 +44,8 @@ include("direct_minimization/solver.jl")
 
 ### Self consistent field
 include("self_consistent_field/scf_utils.jl")
+
+export generate_molden
+include("misc/molden.jl")
+
 end # Module

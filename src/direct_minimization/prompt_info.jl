@@ -6,9 +6,9 @@ function default_prompt(; show_dir_angle=false)
             println("Convergence threshold : $(info.cv_threshold)")
 
             header = ["Iter", "Energy","log10(ΔE)", "log10(||Π∇E||)"]
-            println("-"^57)
+            println("-"^58)
             println(@sprintf("%-5s  %-16s  %-16s  %-16s", header...))
-            println("-"^57)
+            println("-"^58)
 
             info_out = [info.n_iter, info.E, " "^16, " "^16]
             println(@sprintf("%5i %16.12f %16s %16s", info_out...))

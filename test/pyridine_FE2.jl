@@ -20,7 +20,7 @@ pyridine_FE2 = pyscf.M(
     Fe -4.28268 -1.18964 0.365066",
     basis = "$basis", # A modifier
     symmetry = true,
-    unit="bohr",
+    unit="angstrom",
     spin=4,
     charge=2,
 )
