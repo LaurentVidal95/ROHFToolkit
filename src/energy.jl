@@ -7,6 +7,7 @@ and the densities Pd and Ps.
 function assemble_CX_operators(eri::Vector{T}, Pd::AbstractMatrix{T},
                                Ps::AbstractMatrix{T}) where {T<:Real}
     @assert ( issymmetric(Pd) && issymmetric(Ps) ) "Densities have to be symmetric"
+    # TODO setup threading, see pyscf lib.num_threads(n_threads)
     # Compute coulomb and exchange operators
     Jd, Kd = pyscf.scf.hf.dot_eri_dm(eri, Pd, hermi=1)
     Js, Ks = pyscf.scf.hf.dot_eri_dm(eri, Ps, hermi=1)
@@ -120,7 +121,6 @@ function rohf_energy_and_gradient(Φ, Sm12, ζ::ROHFState)
     @assert(ζ.isortho)
     rohf_energy_and_gradient(Φ, Sm12, collect(ζ)[1:end-1]...)
 end
-
 
 # function tensor_slice(mol::PyObject, i, j, type)
 #     shls_slice = nothing

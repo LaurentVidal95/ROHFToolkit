@@ -1,6 +1,7 @@
 function preconditioned_gradient(ζ::ROHFState{T}, Sm12) where {T<:Real}
     mo_numbers = ζ.M.mo_numbers
 
+    # Construct preconditioned grad system
     Fd, Fs = compute_Fock_operators(ζ.Φ, Sm12, ζ)
     Φd, Φs = split_MOs(ζ.Φ, mo_numbers)
     L, b = build_prec_grad_system(Φd, Φs, Fd, Fs, mo_numbers)

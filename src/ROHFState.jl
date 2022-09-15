@@ -100,7 +100,7 @@ function orthonormalize_state!(ζ::ROHFState; S12=sqrt(Symmetric(ζ.Σ.overlap_m
     nothing
 end
 orthonormalize_state!(Ψ::ROHFTangentVector; S12=sqrt(Symmetric(Ψ.foot.Σ.overlap_matrix)))=
-    orthonormalize_state!(Ψ.foot, S12=S12)
+    orthonormalize_state!(Ψ.foot; S12)
 function deorthonormalize_state!(ζ::ROHFState;
                                  Sm12=inv(sqrt(Symmetric(ζ.Σ.overlap_matrix))))
     !(ζ.isortho) && (@info "The state is already non-orthonomal")

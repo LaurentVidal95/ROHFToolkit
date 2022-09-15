@@ -1,4 +1,6 @@
-using PyCall; using LinearAlgebra; using DelimitedFiles
+using PyCall;
+# using ROHFToolkit
+using LinearAlgebra, DelimitedFiles
 
 pyscf = pyimport("pyscf")
 
@@ -14,3 +16,4 @@ oxygen = pyscf.M(atom = "O 0.0 0.0 0.0",
 )
 
 ζ = ROHFState(oxygen);
+res = ROHF_ground_state(ζ)
