@@ -1,11 +1,10 @@
-function scf_rohf(ζ::ROHFState;
-                  max_iter=500,
-                  effective_hamiltonian=:Roothan,
-                  solver = scf_nlsolve_solver(),
-                  tol=1e-5,
-                  prompt=default_scf_prompt(),
-                  savefile="")
-
+function self_consistent_field(ζ::ROHFState;
+                               max_iter=500,
+                               effective_hamiltonian=:Roothan,
+                               solver = scf_diis(),
+                               tol=1e-5,
+                               prompt=default_prompt(),
+                               savefile="")
     # non-orthonormal AO -> orthonormal AO convention
     (cond(ζ.Σ.overlap_matrix) > 1e6) && @warn("Conditioning of the "*
                                      "overlap: $(cond(ζ.Σ.overlap_matrix))")
@@ -14,39 +13,38 @@ function scf_rohf(ζ::ROHFState;
 
     # Populate info with initial data
     n_iter       = zero(Int64)
-    E            = rohf_energy!(ζ, Sm12)
+    E, ∇E        = rohf_energy_and_gradient(ζ.Φ, Sm12, ζ)
     E_prev       = NaN
-    Φ            = ζ.Φ
-    converged    = false
-    residual = Inf
-
-    info = (; n_iter, ζ, E, residual, effective_hamiltonian, converged, tol)
+    residual     = norm(∇E)
+    converged    = (residual < tol)
+    
+    info = (; n_iter, ζ, E, E_prev, ∇E, effective_hamiltonian, converged, tol, solver)
 
     # Display header and initial data
     prompt.prompt(info)
 
-    function fixpoint_map(Φ_in)
-        converged && return Φ_in # end process if converged
+    function fixpoint_map(Φ)
+        converged && return Φ # end process if converged
         n_iter += 1
-
+        
         # Assemble effective Hamiltonian
         Nb, Nd, Ns = ζ.M.mo_numbers
-        Pd, Ps = densities(Φ_in, (Nb, Nd, Ns))
-        Fd, Fs = compute_Fock_operators(Φ_in, Sm12, ζ)
+        Pd, Ps = densities(Φ, (Nb, Nd, Ns))
+        Fd, Fs = compute_Fock_operators(Φ, Sm12, ζ)
 
         H_eff = assemble_H_eff(H_eff_coeffs(effective_hamiltonian, ζ.Σ.mol)..., Pd, Ps, Fd, Fs)
         Φ_out = eigvecs(Symmetric(H_eff))[:,1:Nd+Ns]
-        
-        # Check Aufbau
-        # (λ[Nd] ≥ λ[Nd+1]) && @warn("Warning: no aufbau between ds")
-        # (λ[Ns] ≥ λ[Ns+1]) && @warn("Warning: no aufbau between sv")
+        ζ.Φ = Φ_out
 
-        # Actualize data and check for convergence
-        ζ.Φ = Φ_out[:,1:Nd+Ns]
-        residual = norm(Φ_out - Φ_in)
-        E = rohf_energy!(ζ, Sm12)
-        (residual < info.tol) && (converged = true)
+        # Actualize data
         E_prev = info.E
+        E = rohf_energy!(ζ, Sm12)
+        Φd, Φs = split_MOs(ζ)
+        ∇E = project_tangent(ζ.M, Φ_out, hcat(4Fd*Φd, 4Fs*Φs))
+
+        # check for convergence
+        residual = norm(∇E)
+        (residual < info.tol) && (converged = true)
 
         info = merge(info, (; n_iter=n_iter, ζ=ζ, E=E, E_prev=E_prev,
                             residual=residual, converged=converged))
@@ -56,15 +54,8 @@ function scf_rohf(ζ::ROHFState;
     end
 
     # SCF loop through nlsolve
-    Φ = solver(fixpoint_map, Φ, max_iter; tol=eps(eltype(Φ)))
-    residual = norm(ζ.Φ - Φ)
-    ζ.Φ = Φ
+    Φ_out = solver.solve(fixpoint_map, ζ.Φ, max_iter; tol=eps(eltype(ζ.Φ)))[1]
     deorthonormalize_state!(ζ; Sm12)
-    E = rohf_energy!(ζ)
-
-    info = merge(info, (; ζ=ζ, E=E, residual=residual))
-    prompt.prompt(info)
-
     (info.converged) ? println("CONVERGED") : println("----Maximum interation reached")
 
     prompt.clean(info)

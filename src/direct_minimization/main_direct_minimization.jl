@@ -8,14 +8,14 @@ In two words:
 3) Check convergence
 4) Change Delimited files by JSON3, to save more data.
 """
-function ROHF_ground_state(ζ::ROHFState;
-                           max_iter = 500,
-                           max_step = 2*one(Float64),
-                           solver = steepest_descent(), # preconditioned
-                           tol = 1e-5,
-                           linesearch_type = BackTracking(order=3),
-                           prompt=default_direct_min_prompt(),
-                           savefile="")
+function direct_minimization(ζ::ROHFState;
+                             max_iter = 500,
+                             max_step = 2*one(Float64),
+                             solver = steepest_descent(), # preconditioned
+                             tol = 1e-5,
+                             linesearch_type = BackTracking(order=3),
+                             prompt=default_prompt(),
+                             savefile="")
     # Linesearch.jl only handles Float64 step sisze
     (typeof(max_step)≠Float64) && (max_step=Float64(max_step))
 
@@ -34,9 +34,10 @@ function ROHF_ground_state(ζ::ROHFState;
     dir          = ROHFTangentVector(dir_vec, ζ)
     step         = zero(Float64)
     converged    = false
+    residual = norm(∇E)
 
     info = (; n_iter, ζ, E, E_prev, ∇E, ∇E_prev_norm, dir, solver, step,
-            converged, tol)
+            converged, tol, residual)
 
     # Display header and initial data
     prompt.prompt(info)
@@ -51,8 +52,10 @@ function ROHF_ground_state(ζ::ROHFState;
         # Update "info" with the new ROHF point and related quantities
         ∇E = grad_E_MO_metric(ζ.Φ, Sm12, ζ)
         E_prev = info.E
-        (norm(info.∇E)<tol) && (converged=true)
-        info = merge(info, (; ζ=ζ, E=E, E_prev=E_prev, ∇E = ∇E, residual=∇E,
+        residual = norm(info.∇E)
+        (residual<tol) && (converged=true)
+
+        info = merge(info, (; ζ=ζ, E=E, E_prev=E_prev, ∇E = ∇E, residual=residual,
                             n_iter=n_iter, step=step, converged=converged))
         prompt.prompt(info)
 

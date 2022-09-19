@@ -1,8 +1,7 @@
 using PyCall;
-# using ROHFToolkit
-using LinearAlgebra, DelimitedFiles
-
 pyscf = pyimport("pyscf")
+
+using ROHFToolkit
 
 basis = "6-31g"
 list_E = []
@@ -15,5 +14,5 @@ oxygen = pyscf.M(atom = "O 0.0 0.0 0.0",
     charge=0,
 )
 
-ζ = ROHFState(oxygen);
-res = ROHF_ground_state(ζ)
+ζ = ROHFState(oxygen; guess=:hcore);
+# res = ROHF_ground_state(ζ)

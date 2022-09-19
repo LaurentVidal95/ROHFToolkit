@@ -1,15 +1,11 @@
-# TODO: fully exploit low memory storage of the four indexed tensor of PySCF.
-
-"""
-Class containing all infos of the system:
- - mol = molecule as a pyscf object, containing data
-   on atoms and number and spin of electrons.
- - the overlap matrix
- - the four index tensor
- - the core hamiltonian matrix
- - MOs in non orthogonal AO basis
- - E_rohf: the ROHF energy.
-"""
+# Class containing all info on the system:
+#  - mol = molecule as a pyscf object, containing data
+#    on atoms and number and spin of electrons.
+#  - the overlap matrix
+#  - the four index tensor
+#  - the core hamiltonian matrix
+#  - MOs in non orthogonal AO basis
+#  - E_rohf: the ROHF energy.
 struct ChemicalSystem{T <: Real}
     # Molecule containing the geometry and numbers Nb, Nd, Ns
     mol               ::PyObject
@@ -20,10 +16,9 @@ struct ChemicalSystem{T <: Real}
 end
 
 """
-    Construct a chemical system directly from a file
+Construct a chemical system directly from a file
 """
 function ChemicalSystem(mol::PyObject)
-    pyscf = pyimport("pyscf")
     # Compute static objects
     S = mol.intor("int1e_ovlp")
     eri = mol.intor("int2e", aosym="s8")

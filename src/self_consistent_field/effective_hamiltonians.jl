@@ -1,3 +1,21 @@
+function H_eff_coeffs(name, mol::PyObject)
+    S = mol.spin
+    # Standard coefficients, as given in the litterature
+    coeffs = Dict(
+        :Roothan              => [[-0.5,0.5,1.5], [1.5,0.5,-0.5]],
+        :McWeeny_Diercksen    => [[1//3, 1//3, 2//3], [2//3, 1//3, 1//3]],
+        :Davidson             => [[1//2, 1., 1.], [1//2, 0., 0.]],
+        :Guest_Saunders       => [[1//2, 1//2, 1//2], [1//2, 1//2, 1//2]],
+        :Binckey_Pople_Dobosh => [[1//2, 1., 0.], [1//2, 0., 1.]],
+        :Faegri_Manne         => [[1//2, 1., 1//2], [1//2, 0., 1//2]],
+        :Euler                => [[1//2, 1//2, 1//2], [1//2, 0., 1//2]],
+        :Canonical_1          => [[(2*S+1.)/(2*S), 1., 1.], [-1/(2*S), 0., 0.]],
+        :Canonical_2          => [[0., 0., -1/(2*S)],  [1., 1., (2*S+1.)/(2*S)]]
+    )
+    @assert name ∈ keys(coeffs) "spelling mistake or the chosen effective Hamitonian not implemented"
+    2 .* coeffs[name] # multiply by 2 the litterature coeff to adapt to the code convention
+end
+
 """
 Assemble the ROHF effective Hamiltonian, that is the matrix:
 +---------+---------+--------+
@@ -23,19 +41,8 @@ function assemble_H_eff(A_tt, B_tt, Pd, Ps, Fd, Fs)
     # Return H_eff
     (R_dd .+ R_ss .+ R_vv) .+ H_u .+ H_u'
 end
-function H_eff_coeffs(name, mol::PyObject)
-    S = mol.spin
-    coeffs = Dict(
-        :Roothan              => [[-0.5,0.5,1.5], [1.5,0.5,-0.5]],
-        :McWeeny_Diercksen    => [[1//3, 1//3, 2//3], [2//3, 1//3, 1//3]],
-        :Davidson             => [[1//2, 1., 1.], [1//2, 0., 0.]],
-        :Guest_Saunders       => [[1//2, 1//2, 1//2], [1//2, 1//2, 1//2]],
-        :Binckey_Pople_Dobosh => [[1//2, 1., 0.], [1//2, 0., 1.]],
-        :Faegri_Manne         => [[1//2, 1., 1//2], [1//2, 0., 1//2]],
-        :Euler                => [[1//2, 1//2, 1//2], [1//2, 0., 1//2]],
-        :Canonical_1          => [[(2*S+1.)/(2*S), 1., 1.], [-1/(2*S), 0., 0.]],
-        :Canonical_2          => [[0., 0., -1/(2*S)],  [1., 1., (2*S+1.)/(2*S)]]
-    )
-    @assert name ∈ keys(coeffs) "spelling mistake or the chosen effective Hamitonian not implemented"
-    coeffs[name]
+function assemble_H_eff(ζ::ROHFState, Sm12, name::Symbol)
+    Pd, Ps = densities(ζ)
+    Fd, Fs = compute_Fock_operators(ζ.Φ, Sm12, ζ)
+    assemble_H_eff(H_eff_coeffs(name, ζ.Σ.mol)..., Pd, Ps, Fd, Fs)
 end
