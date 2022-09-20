@@ -10,7 +10,8 @@ function steepest_descent(; preconditioned=true)
 end
 
 # TODO: check second restart condition before to avoid computation of CG dir
-# TODO: Add other than Fletcher-Reeves type of CG
+# TODO: Replace Fletcher-Reeves coefficient with Polak-Ribière with automatic
+# restart, ie β = max(0, β_PR).
 function conjugate_gradient(; preconditioned=true, cg_type="Fletcher-Reeves")
     function next_dir(info, Sm12)
         ζ = info.ζ

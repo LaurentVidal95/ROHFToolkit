@@ -40,11 +40,12 @@ include("direct_minimization/preconditioning.jl")
 include("direct_minimization/direct_min_solvers.jl")
 
 #### Self consistent field
-export scf_nlsolve_solver
-export scf_diis
+export scf
+# export scf_anderson_solver
 include("self_consistent_field/effective_hamiltonians.jl")
 include("self_consistent_field/scf_solvers.jl")
 include("self_consistent_field/main_scf.jl")
+include("self_consistent_field/manual_diis.jl")
 
 export generate_virtual_MOs_T
 export generate_molden

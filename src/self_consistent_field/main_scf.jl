@@ -53,8 +53,12 @@ function self_consistent_field(ζ::ROHFState;
         Φ_out
     end
 
+    while ( !(info.converged) && (info.n_iter<max_iter) )
+        fixpoint_map(ζ.Φ)
+    end
     # SCF loop through nlsolve
-    Φ_out = solver.solve(fixpoint_map, ζ.Φ, max_iter; tol=eps(eltype(ζ.Φ)))[1]
+    # Φ_out = solver.solve(fixpoint_map, ζ.Φ, max_iter; tol=eps(eltype(ζ.Φ)))[1]
+
     deorthonormalize_state!(ζ; Sm12)
     (info.converged) ? println("CONVERGED") : println("----Maximum interation reached")
 
