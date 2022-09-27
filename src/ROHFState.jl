@@ -1,10 +1,9 @@
 # Define ROHF manifold, associated methods and objects
 
-
 #Structure that only serves to match Optim.jl standards.
 #Contains almost no information but is attached to the retraction
 #and projection methods.
-mutable struct ROHFManifold <: Manifold
+struct ROHFManifold <: Manifold
     mo_numbers :: Tuple{Int64,Int64,Int64}
 end
 
@@ -120,7 +119,7 @@ Base.collect(ζ::ROHFState) = (ζ.M.mo_numbers, collect(ζ.Σ)...)
 #
 #Retraction and vector transports on the ROHF manifold.
 #
-function retract(M::ROHFManifold, Ψ::ROHFTangentVector{T}) where {T<:Real}
+function retract(M::ROHFManifold, Ψ::ROHFTangentVector)
     Nb, Nd, Ns = M.mo_numbers
     No = Nd+Ns
     (Ψd, Ψs), (Φd, Φs) = split_MOs(Ψ)
@@ -137,9 +136,18 @@ function retract(M::ROHFManifold, Ψ::ROHFTangentVector{T}) where {T<:Real}
 
     ROHFState(Ψ.foot, (Ψ.foot.Φ*V2*cos(Σ) + V1*sin(Σ))*V2' * exp(W))
 end
-function retract!(M::ROHFManifold, Ψ::ROHFTangentVector{T}) where {T<:Real}
+function retract!(M::ROHFManifold, Ψ::ROHFTangentVector)
     Ψ.vec = retract(M, Ψ).Φ
     nothing
+end
+
+function force_retract(M::ROHFManifold, Ψ::AbstractMatrix{T}) where {T<:Real}
+    Nb, Nd, Ns = M.mo_numbers
+    D, U = eigen(Symmetric(Ψ*Ψ'))
+    D = map(x-> (x<1/2) ? zero(T) : one(T), D)
+    P_ret = U'*diagm(D)*U
+    println("forced"); flush(stdout)
+    eigen(Symmetric(P_ret)).vectors[:,1:Nd+Ns]
 end
 
 """

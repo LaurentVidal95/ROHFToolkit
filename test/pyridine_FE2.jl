@@ -4,7 +4,7 @@ pyscf = pyimport("pyscf")
 using ROHFToolkit
 
 
-basis = "6-31g"
+basis = "cc-pvdz"
 list_E = []
 
 pyridine_FE2 = pyscf.M(

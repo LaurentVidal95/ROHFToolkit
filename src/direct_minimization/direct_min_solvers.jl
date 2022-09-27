@@ -9,38 +9,23 @@ function steepest_descent(; preconditioned=true)
     (;next_dir, name, prefix, preconditioned)
 end
 
-# TODO: check second restart condition before to avoid computation of CG dir
-# TODO: Replace Fletcher-Reeves coefficient with Polak-Ribière with automatic
-# restart, ie β = max(0, β_PR).
 function conjugate_gradient(; preconditioned=true, cg_type="Fletcher-Reeves")
     function next_dir(info, Sm12)
         ζ = info.ζ
         ∇E = info.∇E
         current_grad = preconditioned ? preconditioned_gradient(ζ, Sm12) : ∇E
+
+        # Transport previous dir and gradient on current point ζ
+        τ_dir_prev = transport_vec_along_himself(info.dir, 1., ζ).vec # use vector transport
+        # τ_grad_prev = transport_vec_along_himself(info.∇E_prev, 1., ζ).vec
+        τ_grad_prev = project_tangent(ζ.M, ζ.Φ, info.∇E_prev)
+ 
+        # Assemble CG dir with Polack-Ribière coefficient
+        β_PR = (norm(∇E)^2 .- tr(∇E'τ_grad_prev)) / norm(info.∇E_prev)^2
+        β = (β_PR > 0) ? β_PR : zero(Float64) # Automatic restart if β_PR < 0
         
-        # Transport previous dir on current point ζ
-        # τ_dir_prev = transport_vec_along_himself(info.dir, 1., ζ).vec # use vector transport
-        τ_dir_prev = project_tangent(ζ.M, ζ.Φ, info.dir.vec) # use projection
-
-        # Assemble CG dir with Fletcher-Reeves coefficient
-        β_FR = norm(∇E)^2 / info.∇E_prev_norm^2
-        dir = ROHFTangentVector(.- current_grad .+ β_FR .* τ_dir_prev, ζ)
-
-        # Check restart conditions.
-        # - The first condition checks that the direction is a descent direction
-        # - The second one is from experiment and ensures seldom forced restarts
-        #   to avoid convergence plateaux.
-        Nb, Nd, Ns = ζ.M.mo_numbers; No = Nd+Ns
-        cos_angle_dir_∇E = cos_angle_vecs(dir.vec, .- ∇E)
-
-        if ((cos_angle_dir_∇E < 1e-3) | (info.n_iter%(No*(Nb-No))==0))
-            @show (cos_angle_dir_∇E) # DEBUG
-            println("RESTART")
-            dir = ROHFTangentVector(.- current_grad, ζ)
-            return dir, merge(info, (;dir=dir, ∇E_prev_norm=norm(∇E)))
-        end
-
-        dir, merge(info, (;dir=dir, ∇E_prev_norm=norm(∇E)))
+        dir = ROHFTangentVector(.- current_grad .+ β .* τ_dir_prev, ζ)
+        dir, merge(info, (;dir=dir))
     end
     name = preconditioned ? "Preconditioned Conjugate Gradient" : "Conjugate Gradient"
     prefix = preconditioned ? "prec_CG" : "CG"
@@ -48,3 +33,15 @@ function conjugate_gradient(; preconditioned=true, cg_type="Fletcher-Reeves")
 end
 
 cos_angle_vecs(X,Y) = tr(X'Y) / √(tr(X'X)*tr(Y'Y))
+
+# function BFGS(; preconditioned=true)
+#     function  next_dir(info, Sm12)
+#         ζ = info.ζ
+#         ∇E = preconditioned ? preconditioned_gradient(ζ, Sm12) : ∇E
+#         ∇E_prev = info.∇E_prev
+#         dir = info.dir
+        
+#         # Transport previous dir and previous grad
+        
+#     end
+# end

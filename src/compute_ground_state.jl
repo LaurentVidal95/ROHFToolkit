@@ -1,7 +1,7 @@
 """
 Wraps all ground state computation routines.
 """
-function compute_ground_state(ζ::ROHFState; solver=steepest_descent(), kwargs...)
+function compute_ground_state(ζ::ROHFState; solver=conjugate_gradient(), kwargs...)
     # Direct minimization
     if (true ∈ contains.(Ref(solver.prefix), ("SD", "CG")))
         return direct_minimization(ζ; solver, kwargs...)

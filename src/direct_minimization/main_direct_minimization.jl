@@ -11,9 +11,9 @@ In two words:
 function direct_minimization(ζ::ROHFState;
                              max_iter = 500,
                              max_step = 2*one(Float64),
-                             solver = steepest_descent(), # preconditioned
+                             solver = conjugate_gradient(), # preconditioned
                              tol = 1e-5,
-                             linesearch_type = BackTracking(order=3),
+                             linesearch_type = HagerZhang(),
                              prompt=default_prompt(),
                              savefile="")
     # Linesearch.jl only handles Float64 step sisze
@@ -26,17 +26,16 @@ function direct_minimization(ζ::ROHFState;
     orthonormalize_state!(ζ; S12)
 
     # Populate info with initial data
-    n_iter       = zero(Int64)
-    E, ∇E        = rohf_energy_and_gradient(ζ.Φ, Sm12, ζ)
-    ∇E_prev_norm = norm(∇E)
-    E_prev       = NaN
-    dir_vec      = solver.preconditioned ? .- preconditioned_gradient(ζ, Sm12) : .- ∇E
-    dir          = ROHFTangentVector(dir_vec, ζ)
-    step         = zero(Float64)
-    converged    = false
-    residual = norm(∇E)
+    n_iter          = zero(Int64)
+    E, ∇E           = rohf_energy_and_gradient(ζ.Φ, Sm12, ζ)
+    E_prev, ∇E_prev = E, ∇E
+    dir_vec         = solver.preconditioned ? .- preconditioned_gradient(ζ, Sm12) : .- ∇E.vec
+    dir             = ROHFTangentVector(dir_vec, ζ)
+    step            = zero(Float64)
+    converged       = false
+    residual        = norm(∇E)
 
-    info = (; n_iter, ζ, E, E_prev, ∇E, ∇E_prev_norm, dir, solver, step,
+    info = (; n_iter, ζ, E, E_prev, ∇E, ∇E_prev, dir, solver, step,
             converged, tol, residual)
 
     # Display header and initial data
@@ -51,12 +50,13 @@ function direct_minimization(ζ::ROHFState;
 
         # Update "info" with the new ROHF point and related quantities
         ∇E = grad_E_MO_metric(ζ.Φ, Sm12, ζ)
-        E_prev = info.E
+        ∇E_prev = info.∇E; E_prev = info.E
         residual = norm(info.∇E)
         (residual<tol) && (converged=true)
 
-        info = merge(info, (; ζ=ζ, E=E, E_prev=E_prev, ∇E = ∇E, residual=residual,
-                            n_iter=n_iter, step=step, converged=converged))
+        info = merge(info, (; ζ=ζ, E=E, E_prev=E_prev, ∇E=∇E, ∇E_prev=∇E_prev,
+                            residual=residual, n_iter=n_iter, step=step,
+                            converged=converged))
         prompt.prompt(info)
 
         # Choose next dir according to the solver and update info with new dir

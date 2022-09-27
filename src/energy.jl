@@ -101,7 +101,8 @@ function grad_E_MO_metric(Φ, Sm12, mo_numbers, eri, H)
 end
 function grad_E_MO_metric(Φ, Sm12, ζ::ROHFState)
     @assert(ζ.isortho)
-    grad_E_MO_metric(Φ, Sm12, collect(ζ)[1:end-2]...)
+    ∇E = grad_E_MO_metric(Φ, Sm12, collect(ζ)[1:end-2]...)
+    # ROHFTangentVector(∇E, ζ)
 end
 
 function rohf_energy_and_gradient(Φ, Sm12, mo_numbers, eri, H, mol)
@@ -119,7 +120,8 @@ function rohf_energy_and_gradient(Φ, Sm12, mo_numbers, eri, H, mol)
 end
 function rohf_energy_and_gradient(Φ, Sm12, ζ::ROHFState)
     @assert(ζ.isortho)
-    rohf_energy_and_gradient(Φ, Sm12, collect(ζ)[1:end-1]...)
+    E, ∇E = rohf_energy_and_gradient(Φ, Sm12, collect(ζ)[1:end-1]...)
+    # E, ROHFTangentVector(∇E, ζ)
 end
 
 # function tensor_slice(mol::PyObject, i, j, type)
