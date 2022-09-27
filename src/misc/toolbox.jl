@@ -85,68 +85,68 @@ function rand_unitary_matrix(N)
 end
 
 
-######## OLD
-"""                                                                                 
-   Concatenate into a single vector (of size Nb^2) a couple of matrices 
-   in the ROHF manifold M
-"""                                                                                 
-function vectorize_couple_ROHF_manifold(ud, us, N_bds)
-    Nb = N_bds[1]; Ntot=2*Nb^2;
-    vec=zeros(Ntot,1)
-    vec[1:Nb*Nb] = reshape(ud,(Nb*Nb,1))
-    vec[Nb*Nb+1:Ntot] = reshape(us,(Nb*Nb,1))
-    vec
-end
+# ######## OLD
+# """                                                                                 
+#    Concatenate into a single vector (of size Nb^2) a couple of matrices 
+#    in the ROHF manifold M
+# """                                                                                 
+# function vectorize_couple_ROHF_manifold(ud, us, N_bds)
+#     Nb = N_bds[1]; Ntot=2*Nb^2;
+#     vec=zeros(Ntot,1)
+#     vec[1:Nb*Nb] = reshape(ud,(Nb*Nb,1))
+#     vec[Nb*Nb+1:Ntot] = reshape(us,(Nb*Nb,1))
+#     vec
+# end
 
-"""
-    Reverse operation of vectorize_couple
-"""
-function unvectorize_couple_ROHF_manifold(vec, N_bds)
-    Nb = N_bds[1]; Ntot=2*Nb^2
-    ud=reshape(vec[1:Nb*Nb],(Nb,Nb))
-    us=reshape(vec[Nb*Nb+1:Ntot],(Nb,Nb))
-    ud,us
-end
+# """
+#     Reverse operation of vectorize_couple
+# """
+# function unvectorize_couple_ROHF_manifold(vec, N_bds)
+#     Nb = N_bds[1]; Ntot=2*Nb^2
+#     ud=reshape(vec[1:Nb*Nb],(Nb,Nb))
+#     us=reshape(vec[Nb*Nb+1:Ntot],(Nb,Nb))
+#     ud,us
+# end
 
-"""
-    Express as (Qd,Qs) a tangent vector in XYZ_vec convention
-"""
-function XYZ_to_TM(XYZ,ΦT,N_bds)
-    Nb,Nd,Ns = N_bds; No = Nd+Ns;
+# """
+#     Express as (Qd,Qs) a tangent vector in XYZ_vec convention
+# """
+# function XYZ_to_TM(XYZ,ΦT,N_bds)
+#     Nb,Nd,Ns = N_bds; No = Nd+Ns;
     
-    X,Y,Z = vec_to_mat(XYZ,N_bds)
-    ηd = zeros(Nb,Nb); ηs = zero(ηd);
-    # d
-    ηd[1:Nd,Nd+1:No]= X; ηd[1:Nd,No+1:Nb] = Y;
-    ηd = ηd + ηd'
-    ηd = ΦT*ηd*ΦT'
-    # s
-    ηs[1:Nd,Nd+1:No]= -X; ηs[Nd+1:No,No+1:Nb] = Z;
-    ηs = ηs + ηs'
-    ηs = ΦT*ηs*ΦT'
+#     X,Y,Z = vec_to_mat(XYZ,N_bds)
+#     ηd = zeros(Nb,Nb); ηs = zero(ηd);
+#     # d
+#     ηd[1:Nd,Nd+1:No]= X; ηd[1:Nd,No+1:Nb] = Y;
+#     ηd = ηd + ηd'
+#     ηd = ΦT*ηd*ΦT'
+#     # s
+#     ηs[1:Nd,Nd+1:No]= -X; ηs[Nd+1:No,No+1:Nb] = Z;
+#     ηs = ηs + ηs'
+#     ηs = ΦT*ηs*ΦT'
 
-    ηd,ηs
-end
+#     ηd,ηs
+# end
 
-"""
-    Reverse to XYZ_to_TM
-"""
-function TM_to_XYZ(Q, ΦT,N_bds)
-    Nb,Nd,Ns = N_bds; No = Nd+Ns;
-    raw_Qd, raw_Qs = ΦT'*Q[1]*ΦT, ΦT'*Q[2]*ΦT
+# """
+#     Reverse to XYZ_to_TM
+# """
+# function TM_to_XYZ(Q, ΦT,N_bds)
+#     Nb,Nd,Ns = N_bds; No = Nd+Ns;
+#     raw_Qd, raw_Qs = ΦT'*Q[1]*ΦT, ΦT'*Q[2]*ΦT
 
-    X = raw_Qd[1:Nd,Nd+1:No]
-    Y = raw_Qd[1:Nd, No+1:Nb]
-    Z = raw_Qs[Nd+1:No, No+1:Nb]
+#     X = raw_Qd[1:Nd,Nd+1:No]
+#     Y = raw_Qd[1:Nd, No+1:Nb]
+#     Z = raw_Qs[Nd+1:No, No+1:Nb]
 
-    mat_to_vec(X,Y,Z,N_bds)
-end
+#     mat_to_vec(X,Y,Z,N_bds)
+# end
 
-function transport_dir(raw_dir, ΦT_next)
-    new_dir_d = ΦT_next*raw_dir[1]*ΦT_next'
-    new_dir_s = ΦT_next*raw_dir[2]*ΦT_next'
-    new_dir_d, new_dir_s
-end
+# function transport_dir(raw_dir, ΦT_next)
+#     new_dir_d = ΦT_next*raw_dir[1]*ΦT_next'
+#     new_dir_s = ΦT_next*raw_dir[2]*ΦT_next'
+#     new_dir_d, new_dir_s
+# end
 
 ###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
 ##!!! !! !  !                     MO formalism                     !  ! !! !!!##

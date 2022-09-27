@@ -1,5 +1,8 @@
 # Define ROHF manifold, associated methods and objects
 
+import Base.+, Base.-, Base.*, Base.adjoint
+import LinearAlgebra.norm
+
 #Structure that only serves to match Optim.jl standards.
 #Contains almost no information but is attached to the retraction
 #and projection methods.
@@ -76,13 +79,20 @@ ROHFState(ζ::ROHFState, Φ::Matrix) = ROHFState(Φ, ζ.Σ, ζ.M, ζ.energy, ζ.
 #
 # If vec = foot.Φ, ROHFTangentVector is just a ROHFState
 #
-mutable struct ROHFTangentVector{T<:Real}
+struct ROHFTangentVector{T<:Real}
     vec::AbstractMatrix{T}
     foot::ROHFState{T}
 end
 
 ROHFTangentVector(ζ::ROHFState) = ROHFTangentVector(ζ.Φ, Φ)
-
+(+)(A::Matrix, X::ROHFTangentVector) = (+)(A, X.vec)
+(+)(X::ROHFTangentVector, A::Matrix) = (+)(X.vec, A)
+(*)(λ::Real, X::ROHFTangentVector) = (*)(λ, X.vec)
+(*)(A::Adjoint{Float64, Matrix{Float64}}, X::ROHFTangentVector) = (*)(A, X.vec)
+(-)(X::ROHFTangentVector) = -X.vec
+norm(X::ROHFTangentVector) = norm(X.vec)
+(adjoint)(X::ROHFTangentVector) = X.vec'
+    
 function reset_state!(ζ::ROHFState; guess=:minao)
     Φ_init, E = init_guess(ζ.Σ.mol, guess)
     ζ.Φ = Φ_init; ζ.energy = E; ζ.isortho=false;
@@ -117,7 +127,7 @@ Base.collect(ζ::ROHFState) = (ζ.M.mo_numbers, collect(ζ.Σ)...)
 
 
 #
-#Retraction and vector transports on the ROHF manifold.
+# Retraction and vector transports on the ROHF manifold.
 #
 function retract(M::ROHFManifold, Ψ::ROHFTangentVector)
     Nb, Nd, Ns = M.mo_numbers

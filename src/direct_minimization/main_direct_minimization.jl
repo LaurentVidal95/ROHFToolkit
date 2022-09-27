@@ -29,7 +29,7 @@ function direct_minimization(ζ::ROHFState;
     n_iter          = zero(Int64)
     E, ∇E           = rohf_energy_and_gradient(ζ.Φ, Sm12, ζ)
     E_prev, ∇E_prev = E, ∇E
-    dir_vec         = solver.preconditioned ? .- preconditioned_gradient(ζ, Sm12) : .- ∇E.vec
+    dir_vec         = solver.preconditioned ? .- preconditioned_gradient(ζ, Sm12) : - ∇E
     dir             = ROHFTangentVector(dir_vec, ζ)
     step            = zero(Float64)
     converged       = false
