@@ -2,7 +2,7 @@
 
 julia_version = "1.8.0"
 manifest_format = "2.0"
-project_hash = "bf48aec9e554f877b56a6e2258fd514ed352ee16"
+project_hash = "229959a0352fc56241013fc7d69ceb0039936370"
 
 [[deps.AMD]]
 deps = ["Libdl", "LinearAlgebra", "SparseArrays", "Test"]
@@ -318,6 +318,12 @@ deps = ["Compat", "FillArrays", "ForwardDiff", "LineSearches", "LinearAlgebra", 
 git-tree-sha1 = "b9fe76d1a39807fdcf790b991981a922de0c3050"
 uuid = "429524aa-4258-5aef-a3af-852621145aeb"
 version = "1.7.3"
+
+[[deps.OptimKit]]
+deps = ["LinearAlgebra", "Printf"]
+git-tree-sha1 = "24809c0f09f6faa46a1c9a91581017d175f899ca"
+uuid = "77e91f04-9b3b-57a6-a776-40b61faaebe0"
+version = "0.3.1"
 
 [[deps.OrderedCollections]]
 git-tree-sha1 = "85f8e6578bf1f9ee0d11e7bb1b1456435479d47c"

@@ -44,14 +44,9 @@ function rohf_energy(Φ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}
     rohf_energy(Pd, Ps, collect(ζ)[1:end-1]...)
 end
 function rohf_energy!(ζ::ROHFState{T}) where {T<:Real}
-    @assert (!ζ.isortho) "In orthonormal convention you must provide Sm12"
-    E = rohf_energy(ζ.Φ, ζ)
-    ζ.energy = E
-    E
-end
-function rohf_energy!(ζ::ROHFState{T}, Sm12) where {T<:Real}
-    @assert (ζ.isortho) "In non-orthonormal convention no need for Sm12"
-    E = rohf_energy(Sm12*ζ.Φ, ζ)
+    Φ = ζ.Φ
+    (ζ.isortho) && (Φ=ζ.Σ.Sm12*Φ)
+    E = rohf_energy(Φ, ζ)
     ζ.energy = E
     E
 end
@@ -82,9 +77,9 @@ function compute_Fock_operators(Φ, Sm12, mo_numbers, eri, H)
     Jd, Js, Kd, Ks = assemble_CX_operators(eri, Pd, Ps)
     compute_Fock_operators(Jd, Js, Kd, Ks, H, Sm12, mo_numbers)
 end
-function compute_Fock_operators(Φ, Sm12, ζ::ROHFState)
+function compute_Fock_operators(Φ, ζ::ROHFState)
     @assert(ζ.isortho)
-    compute_Fock_operators(Φ, Sm12, collect(ζ)[1:end-2]...)
+    compute_Fock_operators(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
 end
 
 """
@@ -99,9 +94,9 @@ function grad_E_MO_metric(Φ, Sm12, mo_numbers, eri, H)
     ∇E = hcat(4*FdT*ΦdT, 4*FsT*ΦsT)
     project_tangent(Φ, ∇E, mo_numbers)
 end
-function grad_E_MO_metric(Φ, Sm12, ζ::ROHFState)
+function grad_E_MO_metric(Φ, ζ::ROHFState)
     @assert(ζ.isortho)
-    ∇E = grad_E_MO_metric(Φ, Sm12, collect(ζ)[1:end-2]...)
+    ∇E = grad_E_MO_metric(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
     ROHFTangentVector(∇E, ζ)
 end
 
@@ -118,9 +113,9 @@ function rohf_energy_and_gradient(Φ, Sm12, mo_numbers, eri, H, mol)
     #
     E, ∇E
 end
-function rohf_energy_and_gradient(Φ, Sm12, ζ::ROHFState)
+function rohf_energy_and_gradient(Φ, ζ::ROHFState)
     @assert(ζ.isortho)
-    E, ∇E = rohf_energy_and_gradient(Φ, Sm12, collect(ζ)[1:end-1]...)
+    E, ∇E = rohf_energy_and_gradient(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
     E, ROHFTangentVector(∇E, ζ)
 end
 

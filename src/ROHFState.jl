@@ -77,11 +77,11 @@ ROHFState(mol::PyObject; guess=:minao) = ROHFState(ChemicalSystem(mol), guess=gu
 ROHFState(ζ::ROHFState, Φ::Matrix) = ROHFState(Φ, ζ.Σ, ζ.M, ζ.energy, ζ.isortho)
 
 #
-# If vec = foot.Φ, ROHFTangentVector is just a ROHFState
+# If vec = base.Φ, ROHFTangentVector is just a ROHFState
 #
 struct ROHFTangentVector{T<:Real}
     vec::AbstractMatrix{T}
-    foot::ROHFState{T}
+    base::ROHFState{T}
 end
 
 ROHFTangentVector(ζ::ROHFState) = ROHFTangentVector(ζ.Φ, Φ)
@@ -99,20 +99,20 @@ function reset_state!(ζ::ROHFState; guess=:minao)
     nothing
 end
 
-function orthonormalize_state!(ζ::ROHFState; S12=sqrt(Symmetric(ζ.Σ.overlap_matrix)))
+function orthonormalize_state!(ζ::ROHFState)
     # If MOs are already orthonormal do nothing
     (ζ.isortho) && (@info "The state is already orthonomal")
+    S12 = ζ.Σ.S12
     if !(ζ.isortho)
         ζ.Φ = S12*ζ.Φ
         ζ.isortho = true
     end
     nothing
 end
-orthonormalize_state!(Ψ::ROHFTangentVector; S12=sqrt(Symmetric(Ψ.foot.Σ.overlap_matrix)))=
-    orthonormalize_state!(Ψ.foot; S12)
-function deorthonormalize_state!(ζ::ROHFState;
-                                 Sm12=inv(sqrt(Symmetric(ζ.Σ.overlap_matrix))))
+orthonormalize_state!(Ψ::ROHFTangentVector) = orthonormalize_state!(Ψ.base)
+function deorthonormalize_state!(ζ::ROHFState)
     !(ζ.isortho) && (@info "The state is already non-orthonomal")
+    Sm12=ζ.Σ.Sm12
     if (ζ.isortho)
         ζ.Φ = Sm12*ζ.Φ
         ζ.isortho = false
@@ -144,7 +144,7 @@ function retract(M::ROHFManifold, Ψ::ROHFTangentVector)
     V1,D,V2 = svd(hcat(Ψd_tilde, Ψs_tilde))
     Σ = diagm(D)
 
-    ROHFState(Ψ.foot, (Ψ.foot.Φ*V2*cos(Σ) + V1*sin(Σ))*V2' * exp(W))
+    ROHFState(Ψ.base, (Ψ.base.Φ*V2*cos(Σ) + V1*sin(Σ))*V2' * exp(W))
 end
 function retract!(M::ROHFManifold, Ψ::ROHFTangentVector)
     Ψ.vec = retract(M, Ψ).Φ
@@ -166,7 +166,7 @@ the orthogonal projector on the horizontal tangent space at y is defined by
 
 Π_y(Ψd|Ψs) = ( 1/2*Φs[Φs'Ψd - Ψs'Φd] + Φv(Φv'Ψd) | -1/2*Φd[Ψd'Φs - Φd'Ψs] + Φv(Φv'Ψs) )
 
-If Φ is no the foot of Ψ, may serve as an alternative to transport 
+If Φ is no the base of Ψ, may serve as an alternative to transport 
 Ψ in the tangent plane to Φ.
 """
 function project_tangent(Φ::Matrix{T}, Ψ::Matrix{T}, mo_numbers) where {T<:Real}
@@ -178,7 +178,7 @@ end
 project_tangent(M::ROHFManifold, Φ::Matrix, Ψ::Matrix) =
     project_tangent(Φ, Ψ, M.mo_numbers)
 function project_tangent!(M::ROHFManifold, Ψ::ROHFTangentVector)
-    Ψ.vec = project_tangent(M, Ψ.foot, Ψ.vec)
+    Ψ.vec = project_tangent(M, Ψ.base, Ψ.vec)
     nothing
 end
 
@@ -206,7 +206,7 @@ function transport_vec_along_himself(Ψ::ROHFTangentVector{T}, t::T,
     V1,D,V2 = svd(hcat(Ψd_tilde, Ψs_tilde))
     Σ = diagm(D)
 
-    τ_p = (-Ψ.foot.Φ*V2*sin(t .*Σ) + V1*cos( t .*Σ))*Σ*V2' * exp(t .* W) + ζ_next.Φ*W
+    τ_p = (-Ψ.base.Φ*V2*sin(t .*Σ) + V1*cos( t .*Σ))*Σ*V2' * exp(t .* W) + ζ_next.Φ*W
     Ξd, Ξs = split_MOs(τ_p, (Nb,Nd,Ns))
     ROHFTangentVector(hcat(Ξd - Φd_next*Φd_next'Ξd, Ξs - Φs_next*Φs_next'Ξs), ζ_next)
 end

@@ -16,8 +16,8 @@ function split_MOs(Φ, N_bds)
 end
 split_MOs(ζ::ROHFState) = split_MOs(ζ.Φ, ζ.M.mo_numbers)
 function split_MOs(Ψ::ROHFTangentVector)
-    mo_numbers = Ψ.foot.M.mo_numbers
-    Φ = Ψ.foot.Φ
+    mo_numbers = Ψ.base.M.mo_numbers
+    Φ = Ψ.base.Φ
     split_MOs(Ψ.vec, mo_numbers), split_MOs(Φ, mo_numbers)
 end
 

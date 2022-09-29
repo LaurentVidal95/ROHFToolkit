@@ -1,6 +1,6 @@
 function steepest_descent(; preconditioned=true)
-    function next_dir(info, Sm12)
-        grad = preconditioned ? - preconditioned_gradient(info.ζ, Sm12) : - info.∇E
+    function next_dir(info)
+        grad = preconditioned ? - preconditioned_gradient(info.ζ) : - info.∇E
         dir = ROHFTangentVector(grad, info.ζ)
         dir, merge(info,(;dir=dir))
     end
@@ -10,10 +10,10 @@ function steepest_descent(; preconditioned=true)
 end
 
 function conjugate_gradient(; preconditioned=true, cg_type="Fletcher-Reeves")
-    function next_dir(info, Sm12)
+    function next_dir(info)
         ζ = info.ζ
         ∇E = info.∇E
-        current_grad = preconditioned ? preconditioned_gradient(ζ, Sm12) : ∇E
+        current_grad = preconditioned ? preconditioned_gradient(ζ) : ∇E
 
         # Transport previous dir and gradient on current point ζ
         τ_dir_prev = transport_vec_along_himself(info.dir, 1., ζ)
@@ -32,19 +32,3 @@ function conjugate_gradient(; preconditioned=true, cg_type="Fletcher-Reeves")
 end
 
 cos_angle_vecs(X,Y) = tr(X'Y) / √(tr(X'X)*tr(Y'Y))
-
-# function BFGS(; preconditioned=true)
-#     function  next_dir(info, Sm12)
-#         ζ = info.ζ
-#         ∇E = preconditioned ? preconditioned_gradient(ζ, Sm12) : ∇E
-#         ∇E_prev = info.∇E_prev
-#         dir = info.dir
-#         # Previous approximation of Hessian
-#         B = info.B
-        
-#         # Transport previous dir and previous grad
-#         s = transport_vec_along_himself(info.dir, 1., ζ)
-#         y = ∇E - transport_vec_along_himself(∇E_prev, 1., ζ)
-
-#     end
-# end

@@ -8,12 +8,11 @@ function self_consistent_field(ζ::ROHFState;
     # non-orthonormal AO -> orthonormal AO convention
     (cond(ζ.Σ.overlap_matrix) > 1e6) && @warn("Conditioning of the "*
                                      "overlap: $(cond(ζ.Σ.overlap_matrix))")
-    S12 = sqrt(Symmetric(ζ.Σ.overlap_matrix)); Sm12=inv(S12);
     orthonormalize_state!(ζ; S12)
 
     # Populate info with initial data
     n_iter       = zero(Int64)
-    E, ∇E        = rohf_energy_and_gradient(ζ.Φ, Sm12, ζ)
+    E, ∇E        = rohf_energy_and_gradient(ζ.Φ, ζ)
     E_prev       = NaN
     residual     = norm(∇E)
     converged    = (residual < tol)
@@ -30,7 +29,7 @@ function self_consistent_field(ζ::ROHFState;
         # Assemble effective Hamiltonian
         Nb, Nd, Ns = ζ.M.mo_numbers
         Pd, Ps = densities(Φ, (Nb, Nd, Ns))
-        Fd, Fs = compute_Fock_operators(Φ, Sm12, ζ)
+        Fd, Fs = compute_Fock_operators(Φ, ζ)
 
         H_eff = assemble_H_eff(H_eff_coeffs(effective_hamiltonian, ζ.Σ.mol)..., Pd, Ps, Fd, Fs)
         Φ_out = eigvecs(Symmetric(H_eff))[:,1:Nd+Ns]
@@ -38,7 +37,7 @@ function self_consistent_field(ζ::ROHFState;
 
         # Actualize data
         E_prev = info.E
-        E = rohf_energy!(ζ, Sm12)
+        E = rohf_energy!(ζ)
         Φd, Φs = split_MOs(ζ)
         ∇E = project_tangent(ζ.M, Φ_out, hcat(4Fd*Φd, 4Fs*Φs))
 
@@ -59,7 +58,7 @@ function self_consistent_field(ζ::ROHFState;
     # SCF loop through nlsolve
     # Φ_out = solver.solve(fixpoint_map, ζ.Φ, max_iter; tol=eps(eltype(ζ.Φ)))[1]
 
-    deorthonormalize_state!(ζ; Sm12)
+    deorthonormalize_state!(ζ)
     (info.converged) ? println("CONVERGED") : println("----Maximum interation reached")
 
     prompt.clean(info)

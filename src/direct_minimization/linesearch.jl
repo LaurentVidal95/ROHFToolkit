@@ -3,7 +3,7 @@ using LineSearches
 """
 Armijo linesearch using the retraction in orthonormal MO formalism eq. (39) part II.
 """
-function rohf_manifold_linesearch(ζ::ROHFState{T}, p::Matrix{T}, Sm12;
+function rohf_manifold_linesearch(ζ::ROHFState{T}, p::Matrix{T};
                                   E = zero(T), ∇E = zero.(split_MOs(ζ)),
                                   max_step = one(Float64),
                                   linesearch_type,
@@ -17,19 +17,19 @@ function rohf_manifold_linesearch(ζ::ROHFState{T}, p::Matrix{T}, Sm12;
 
     function f(step)
         ζ_next = retract(M, ROHFTangentVector(step .* p, ζ))
-        rohf_energy!(ζ_next, Sm12)
+        rohf_energy!(ζ_next)
     end
 
     function df(step)
         ζ_next = retract(M, ROHFTangentVector(step .* p, ζ))
         τ_p = transport_vec_along_himself(p_test, step, ζ_next)
-        ∇E_next = grad_E_MO_metric(ζ_next.Φ, Sm12, ζ_next)
+        ∇E_next = grad_E_MO_metric(ζ_next.Φ, ζ_next)
         tr(∇E_next'τ_p)
     end
 
     function fdf(step)
         ζ_next = retract(M, ROHFTangentVector(step .* p, ζ))
-        E_next, ∇E_next = rohf_energy_and_gradient(ζ_next.Φ, Sm12, ζ_next)
+        E_next, ∇E_next = rohf_energy_and_gradient(ζ_next.Φ, ζ_next)
         τ_p = transport_vec_along_himself(p_test, step, ζ_next)
         E_next, tr(∇E_next'τ_p)
     end

@@ -13,6 +13,9 @@ struct ChemicalSystem{T <: Real}
     overlap_matrix    ::AbstractMatrix{T}
     eri               ::Vector{T}
     core_hamiltonian  ::AbstractMatrix{T}
+    # overlap dependant
+    S12               ::AbstractMatrix{T}
+    Sm12              ::AbstractMatrix{T}
 end
 
 """
@@ -23,8 +26,11 @@ function ChemicalSystem(mol::PyObject)
     S = mol.intor("int1e_ovlp")
     eri = mol.intor("int2e", aosym="s8")
     H = mol.intor("int1e_nuc") + mol.intor("int1e_kin")
+    #
+    S12 = sqrt(Symmetric(S))
+    Sm12 = inv(S12)
     # Assemble chemical system
-    Σ = ChemicalSystem{eltype(S)}(mol, S, eri, H)
+    Σ = ChemicalSystem{eltype(S)}(mol, S, eri, H, S12, Sm12)
 end
 
 Base.collect(Σ::ChemicalSystem) = (Σ.eri, Σ.core_hamiltonian,

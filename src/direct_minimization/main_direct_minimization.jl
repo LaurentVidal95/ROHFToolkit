@@ -22,14 +22,13 @@ function direct_minimization(ζ::ROHFState;
     # non-orthonormal AO -> orthonormal AO convention
     (cond(ζ.Σ.overlap_matrix) > 1e6) && @warn("Conditioning of the "*
                                      "overlap: $(cond(ζ.Σ.overlap_matrix))")
-    S12 = sqrt(Symmetric(ζ.Σ.overlap_matrix)); Sm12=inv(S12);
-    orthonormalize_state!(ζ; S12)
+    orthonormalize_state!(ζ)
 
     # Populate info with initial data
     n_iter          = zero(Int64)
-    E, ∇E           = rohf_energy_and_gradient(ζ.Φ, Sm12, ζ)
+    E, ∇E           = rohf_energy_and_gradient(ζ.Φ, ζ)
     E_prev, ∇E_prev = E, ∇E
-    dir_vec         = solver.preconditioned ? .- preconditioned_gradient(ζ, Sm12) : - ∇E
+    dir_vec         = solver.preconditioned ? .- preconditioned_gradient(ζ) : - ∇E
     dir             = ROHFTangentVector(dir_vec, ζ)
     step            = zero(Float64)
     converged       = false
@@ -45,11 +44,11 @@ function direct_minimization(ζ::ROHFState;
         n_iter += 1
 
         # find next point ζ on ROHF manifold
-        step, E, ζ = rohf_manifold_linesearch(ζ, dir.vec, Sm12; E, ∇E, max_step,
+        step, E, ζ = rohf_manifold_linesearch(ζ, dir.vec; E, ∇E, max_step,
                                               linesearch_type)
 
         # Update "info" with the new ROHF point and related quantities
-        ∇E = grad_E_MO_metric(ζ.Φ, Sm12, ζ)
+        ∇E = grad_E_MO_metric(ζ.Φ, ζ)
         ∇E_prev = info.∇E; E_prev = info.E
         residual = norm(info.∇E)
         (residual<tol) && (converged=true)
@@ -60,13 +59,10 @@ function direct_minimization(ζ::ROHFState;
         prompt.prompt(info)
 
         # Choose next dir according to the solver and update info with new dir
-        dir, info = solver.next_dir(info, Sm12)
-
-        # Save MOs in file if needed
-        !isempty(savefile) && (writedlm("rohf_MOs_$(solver.prefix)_current_iter.dat", Sm12*ζ.Φ))
+        dir, info = solver.next_dir(info)
     end
     # Go back to non-orthonormal AO convention
-    deorthonormalize_state!(ζ; Sm12)
+    deorthonormalize_state!(ζ)
     info = merge(info, (;ζ=ζ))
 
     (info.converged) ? println("CONVERGED") : println("----Maximum iteration reached")
