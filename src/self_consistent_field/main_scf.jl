@@ -16,7 +16,7 @@ function self_consistent_field(ζ::ROHFState;
     E_prev       = NaN
     residual     = norm(∇E)
     converged    = (residual < tol)
-    
+
     info = (; n_iter, ζ, E, E_prev, ∇E, effective_hamiltonian, converged, tol, solver)
 
     # Display header and initial data
@@ -25,7 +25,7 @@ function self_consistent_field(ζ::ROHFState;
     function fixpoint_map(Φ)
         converged && return Φ # end process if converged
         n_iter += 1
-        
+
         # Assemble effective Hamiltonian
         Nb, Nd, Ns = ζ.M.mo_numbers
         Pd, Ps = densities(Φ, (Nb, Nd, Ns))

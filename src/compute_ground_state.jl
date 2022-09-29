@@ -1,12 +1,12 @@
 """
 Wraps all ground state computation routines.
 """
-function compute_ground_state(ζ::ROHFState; solver=conjugate_gradient(), kwargs...)
+function compute_ground_state(ζ::ROHFState; solver=ConjugateGradient, kwargs...)
     # Direct minimization
-    if (true ∈ contains.(Ref(solver.prefix), ("SD", "CG")))
-        return direct_minimization(ζ; solver, kwargs...)
+    if (solver ∈ (GradientDescent, ConjugateGradient, LBFGS))
+        return direct_minimization_OptimKit(ζ; solver, kwargs...)
     # Self consistent field
-    elseif contains(solver.prefix, "SCF")
+    else
         return self_consistent_field(ζ; solver, kwargs...)
     end
     error("Solver not handled")

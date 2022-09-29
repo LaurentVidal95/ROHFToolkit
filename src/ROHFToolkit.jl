@@ -3,11 +3,8 @@ module ROHFToolkit
 using LinearAlgebra
 using LinearMaps
 using IterativeSolvers
-using Preconditioners
-using Optim
-
 using Printf
-using Dates
+using OptimKit
 
 using PyCall
 # Import pyscf globaly
@@ -32,12 +29,15 @@ include("energy.jl")
 include("compute_ground_state.jl")
 
 #### Direct Minimization
-export steepest_descent
-export conjugate_gradient
-include("direct_minimization/main_direct_minimization.jl")
-include("direct_minimization/linesearch.jl")
 include("direct_minimization/preconditioning.jl")
-include("direct_minimization/direct_min_solvers.jl")
+include("direct_minimization/OptimKit_solve.jl")
+
+# old
+# export steepest_descent
+# export conjugate_gradient
+# include("direct_minimization/old/main_direct_minimization.jl")
+# include("direct_minimization/old/linesearch.jl")
+# include("direct_minimization/old/direct_min_solvers.jl")
 
 #### Self consistent field
 export scf

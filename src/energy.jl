@@ -118,6 +118,7 @@ function rohf_energy_and_gradient(Φ, ζ::ROHFState)
     E, ∇E = rohf_energy_and_gradient(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
     E, ROHFTangentVector(∇E, ζ)
 end
+rohf_energy_and_gradient(ζ::ROHFState) = rohf_energy_and_gradient(ζ.Φ, ζ)
 
 # function tensor_slice(mol::PyObject, i, j, type)
 #     shls_slice = nothing
@@ -133,11 +134,11 @@ end
 #     N = size(Pd,1)
 #     for j in 1:N
 #         for i in j:N
-# 	    A_J = A[i,j,:,:] # Remplacer par la slice ci dessus
+#             A_J = A[i,j,:,:] # Remplacer par la slice ci dessus
 #             A_K = A[i,:,:,j] # Remplacer par la slice ci dessus
-# 	    Jd[i,j] = tr(A_J*Pd); Jd[j,i] = Jd[i,j] # Jd = J(Pd)
-# 	    Js[i,j] = tr(A_J*Ps); Js[j,i] = Js[i,j] # Js = J(Ps)
-# 	    Kd[i,j] = tr(A_K*Pd); Kd[j,i] = Kd[i,j] # Kd = K(Pd)
+#             Jd[i,j] = tr(A_J*Pd); Jd[j,i] = Jd[i,j] # Jd = J(Pd)
+#             Js[i,j] = tr(A_J*Ps); Js[j,i] = Js[i,j] # Js = J(Ps)
+#             Kd[i,j] = tr(A_K*Pd); Kd[j,i] = Kd[i,j] # Kd = K(Pd)
 #             Ks[i,j] = tr(A_K*Ps); Ks[j,i] = Ks[i,j] # Ks = K(Ps)
 #         end
 #     end
