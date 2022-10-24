@@ -1,6 +1,6 @@
 # Define ROHF manifold, associated methods and objects
 
-import Base.+, Base.-, Base.*, Base.adjoint
+import Base.+, Base.-, Base.*, Base.adjoint, Base.vec
 import LinearAlgebra.norm
 
 #Structure that only serves to match OptimKit.jl standards.
@@ -93,10 +93,11 @@ ROHFTangentVector(ζ::ROHFState) = ROHFTangentVector(ζ.Φ, Φ)
 (-)(X::ROHFTangentVector) = -X.vec
 norm(X::ROHFTangentVector) = norm(X.vec)
 (adjoint)(X::ROHFTangentVector) = X.vec'
+(vec)(X::ROHFTangentVector) = vec(X.vec)
 
 function reset_state!(ζ::ROHFState; guess=:minao)
-    Φ_init, E = init_guess(ζ.Σ.mol, guess)
-    ζ.Φ = Φ_init; ζ.energy = E; ζ.isortho=false;
+    Φ_init = init_guess(ζ.Σ, ζ.M, guess)
+    ζ.Φ = Φ_init; ζ.isortho=false; rohf_energy!(ζ); 
     nothing
 end
 
@@ -154,7 +155,7 @@ function retract(Ψ::ROHFTangentVector)
     ROHFState(Ψ.base, RΨ)
 end
 
-function force_retract(M::ROHFManifold, Ψ::AbstractMatrix{T}) where {T<:Real}
+function enforce_retract(M::ROHFManifold, Ψ::AbstractMatrix{T}) where {T<:Real}
     Nb, Nd, Ns = M.mo_numbers
     D, U = eigen(Symmetric(Ψ*Ψ'))
     D = map(x-> (x<1/2) ? zero(T) : one(T), D)

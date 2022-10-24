@@ -3,7 +3,6 @@ pyscf = pyimport("pyscf")
 
 using ROHFToolkit
 
-
 basis = "cc-pvdz"
 list_E = []
 

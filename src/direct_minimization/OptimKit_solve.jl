@@ -18,11 +18,12 @@ function direct_minimization_OptimKit(ζ::ROHFState;
     ζ0, E0, ∇E0, history = optimize(rohf_energy_and_gradient, ζ,
                                     solver(; gradtol=tol, maxiter, verbosity=0);
                                     optim_kwargs(;preconditioned)...)
+    # orthonormal AO -> non-orthonormal AO convention
     deorthonormalize_state!(ζ0)
     (norm(∇E0)>tol) && (@warn "Not converged")
     @info "Final energy: $(E0) Ha"
 
-    ζ0, E0, ∇E0, history
+    (;ζ=ζ0, energy=E0, residual=norm(∇E0), history)
 end
 
 """
@@ -36,8 +37,8 @@ end
 
 function precondition(ζ::ROHFState, η) where {T<:Real}
     prec_grad = ROHFTangentVector(preconditioned_gradient(ζ), ζ)
-    #return gradient if not a descent direction
-    (tr(prec_grad'η) ≤ 0) && (@warn "No prec"; return η)
+    #return gradient if not a descent direction. Avoid errors in L-BFGS far from minimum
+    (tr(prec_grad'η) ≤ 0) && (@warn "No preconditioning"; return η)
     prec_grad
 end
 

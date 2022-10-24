@@ -1,12 +1,9 @@
-using PyCall;
-pyscf = pyimport("pyscf")
-
 using ROHFToolkit
 
 basis = "6-31g"
 list_E = []
 
-oxygen = pyscf.M(atom = "O 0.0 0.0 0.0",
+oxygen = ROHFToolkit.pyscf.M(atom = "O 0.0 0.0 0.0",
     basis = "$basis", # A modifier
     symmetry = true,
     unit="bohr",

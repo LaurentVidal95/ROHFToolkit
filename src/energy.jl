@@ -1,3 +1,5 @@
+# TODO: Change the name of gradient routines...
+
 """
 Assemble the Coulomb and exchange matrices J and K for doubly occupied
 and singly occupied densities, in non-orthogonal AO basis convention.
@@ -39,13 +41,13 @@ rohf_energy(Pd::Matrix, Ps::Matrix, ζ::ROHFState) =
 """
 Energy given only MOs and ROHFState.
 """
-function rohf_energy(Φ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}
+function rohf_energy(Φ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}  
     Pd, Ps = densities(Φ, ζ.M.mo_numbers)
     rohf_energy(Pd, Ps, collect(ζ)[1:end-1]...)
 end
 function rohf_energy!(ζ::ROHFState{T}) where {T<:Real}
     Φ = ζ.Φ
-    (ζ.isortho) && (Φ=ζ.Σ.Sm12*Φ)
+    (ζ.isortho) && (Φ = ζ.Σ.Sm12*Φ)
     E = rohf_energy(Φ, ζ)
     ζ.energy = E
     E
@@ -77,9 +79,10 @@ function compute_Fock_operators(Φ, Sm12, mo_numbers, eri, H)
     Jd, Js, Kd, Ks = assemble_CX_operators(eri, Pd, Ps)
     compute_Fock_operators(Jd, Js, Kd, Ks, H, Sm12, mo_numbers)
 end
-function compute_Fock_operators(Φ, ζ::ROHFState)
+compute_Fock_operators(Φ, ζ::ROHFState) = compute_Fock_operators(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
+function compute_Fock_operators(ζ::ROHFState)
     @assert(ζ.isortho)
-    compute_Fock_operators(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
+    compute_Fock_operators(ζ.Φ, ζ)
 end
 
 """
@@ -114,11 +117,13 @@ function rohf_energy_and_gradient(Φ, Sm12, mo_numbers, eri, H, mol)
     E, ∇E
 end
 function rohf_energy_and_gradient(Φ, ζ::ROHFState)
-    @assert(ζ.isortho)
     E, ∇E = rohf_energy_and_gradient(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
     E, ROHFTangentVector(∇E, ζ)
 end
-rohf_energy_and_gradient(ζ::ROHFState) = rohf_energy_and_gradient(ζ.Φ, ζ)
+function rohf_energy_and_gradient(ζ::ROHFState)
+    @assert(ζ.isortho)
+    rohf_energy_and_gradient(ζ.Φ, ζ)
+end
 
 # function tensor_slice(mol::PyObject, i, j, type)
 #     shls_slice = nothing

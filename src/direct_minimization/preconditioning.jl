@@ -7,6 +7,7 @@ function preconditioned_gradient(ζ::ROHFState{T}) where {T<:Real}
     L, b = build_prec_grad_system(Φd, Φs, Fd, Fs, mo_numbers)
 
     # Compute newton direction by solving a Sylverster system with BICGStab l=3
+    # Replace by GMRES if L is still non-positive definite
     XYvZv = bicgstabl(L, b, 3, reltol=1e-14, abstol=1e-14)
     X, Yv, Zv = vec_to_mat(XYvZv, mo_numbers)
     tmp_mat = hcat(Φs*X' + Yv, -Φd*X + Zv)

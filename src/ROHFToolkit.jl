@@ -2,10 +2,10 @@ module ROHFToolkit
 
 using LinearAlgebra
 using LinearMaps
-using IterativeSolvers
 using Printf
 using OptimKit
-
+# preconditioning system. Replace maybe by OptimKit routines
+using IterativeSolvers
 using PyCall
 # Import pyscf globaly
 const pyscf = PyNULL()
