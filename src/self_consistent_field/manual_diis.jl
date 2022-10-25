@@ -11,33 +11,36 @@ DIIS(;m=10) = DIIS(m, [], [])
 depth(diis::DIIS) = length(diis.iterates)
 
 # Actualize diis lists and remove old iterates if needed
-function Base.push!(diis::DIIS, xₙ, Rₙ)
+function Base.push!(diis::DIIS, Pdₙ, Psₙ, Rₙ)
     if depth(diis) + 1 > diis.m
         norms = norm.(M.residuals)
         _, idx = findmax(norms)
         deleteat!(diis.iterates)
         deleteat!(diis.residuals)
     end
-    push!(diis.iterates,  deepcopy(vec(xₙ)))
-    push!(diis.residuals, deepcopy(vec(Rₙ)))
+    push!(diis.iterates,  deepcopy(hcat(vec(Pdₙ), vec(Psₙ))))
+    push!(diis.residuals, deepcopy(hcat(vec.(Rₙ)...)))
     @assert depth(diis) <= diis.m + 1
     @assert length(diis.residuals) == depth(diis)
 end
 
-function (diis::DIIS)(Pd, Ps, R)
+function (diis::DIIS)(info)
+    Pdₙ, Psₙ = info.DMs
+    Rₙ = info.∇E
+
     # Special case, no DIIS
-    (diis.m == 0) && return (Pd, Ps)
+    (diis.m == 0) && return (Pdₙ, Psₙ)
 
     # First iteration
     if depth(diis) < 2
-        push!(diis, xₙ, Rₙ)
-        return xₙ
+        push!(diis, Pdₙ, Psₙ, Rₙ)
+        return Pdₙ, Psₙ
     end
 
     # Subsequant iterations
-    𝐗 = diis.iterates
+    𝐏 = diis.iterates
     𝐑 = diis.residuals
-    T = eltype(xₙ)
+    T = eltype(Pdₙ)
     
     # Solve DIIS extrapolation system
     N_eq = depth(diis) + 1
@@ -46,9 +49,9 @@ function (diis::DIIS)(Pd, Ps, R)
     @show α = 𝐒\𝚪
 
     # Assemble new point
-    x_diis = sum(α[1:end-1] .* 𝐗)
-    x_diis = reshape(x_diis, size(xₙ))
-    (test_MOs(x_diis, info.ζ.M.mo_numbers) > 1e-8) && (@warn "DIIS MOs may be too far from"*
-                                                       " the Manifold. Try launching DIIS closer to a minimum")
-    x_diis
+    Pds_diis = sum(α[1:end-1] .* 𝐏)
+    (Nb, Nd, Ns) = info.ζ.Σ.mo_numbers
+    Pd_diis = reshape(Pds_diis[1:Nb*Nb], (Nb, Nb))
+    Ps_diis = reshape(Pds_diis[Nb*Nb+1:end],(Nb, Nb))
+    Pd_diis, Ps_diis
 end

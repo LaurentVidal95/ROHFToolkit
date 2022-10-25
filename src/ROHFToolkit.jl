@@ -28,16 +28,9 @@ include("ROHFState.jl")
 include("energy.jl")
 include("compute_ground_state.jl")
 
-#### Direct Minimization
+#### Direct Minimization solvers
 include("direct_minimization/preconditioning.jl")
 include("direct_minimization/OptimKit_solve.jl")
-
-# old
-# export steepest_descent
-# export conjugate_gradient
-# include("direct_minimization/old/main_direct_minimization.jl")
-# include("direct_minimization/old/linesearch.jl")
-# include("direct_minimization/old/direct_min_solvers.jl")
 
 #### Self consistent field
 export scf
@@ -46,6 +39,7 @@ include("self_consistent_field/effective_hamiltonians.jl")
 include("self_consistent_field/scf_solvers.jl")
 include("self_consistent_field/main_scf.jl")
 include("self_consistent_field/manual_diis.jl")
+include("self_consistent_field/DM_manifold_tools.jl")
 
 export generate_virtual_MOs_T
 export generate_molden

@@ -10,18 +10,19 @@ function self_consistent_field(ζ::ROHFState;
 
     # Populate info with initial data
     n_iter       = zero(Int64)
-    E, ∇E        = rohf_energy_and_gradient(ζ.Φ, ζ)
+    DMs          = densities(ζ)
+    E, ∇E        = energy_and_gradient_DM_metric(DMs..., ζ)
     E_prev       = NaN
-    residual     = norm(∇E)
+    residual     = norm(∇E) # √(tr(∇Ed'∇Ed) + tr(∇Es'∇Es))
     converged    = (residual < tol)
 
-    info = (; n_iter, ζ, E, E_prev, ∇E, effective_hamiltonian, converged, tol)
+    info = (; n_iter, ζ, DMs, E, E_prev, ∇E, effective_hamiltonian, converged, tol)
 
-    # SCF DIIS loop
+    # SCF-type loop. See "scf_solvers.jl" for all implemented solvers.
     info = solver(info; solver_kwargs...)
 
+    # Return non-orthonormal state
     deorthonormalize_state!(ζ)
     (info.converged) ? println("CONVERGED") : println("----Maximum interation reached")
-
     clean(info)
 end

@@ -83,15 +83,6 @@ function Fock_operators(ζ::ROHFState)
     Fock_operators(ζ.Φ, ζ)
 end
 
-### DM formalism
-function Fock_operators(PdT, PsT, ζ::ROHFState{T}) where {T<:Real}
-    _, eri, H = collect(ζ)[1:end-2]
-    Sm12 = ζ.Σ.Sm12
-    Pd = Symmetric(Sm12*PdT*Sm12); Ps = Symmetric(Sm12*PsT*Sm12)
-    Jd, Js, Kd, Ks = assemble_CX_operators(eri, Pd, Ps)
-    Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
-end
-
 
 """
 Compute the gradient of the energy in MO formalism for the metric: 
@@ -100,9 +91,9 @@ For a state Φ = (Φd, Φs), the gradient lies in the horizontal tangent space a
 ∇gE_MO(y) = ( Φs[Φs'2(Fd-Fs)Φd] + Φv[4Φv'FdΦd],  -Φd[Φd'2(Fd-Fs)Φs] + Φv[4Φv'FsΦs] )
 """
 function ambiant_space_gradient(Φ, Sm12, mo_numbers, eri, H)
-    FdT, FsT = Fock_operators(Φ, Sm12, mo_numbers, eri, H)
-    ΦdT, ΦsT = split_MOs(Φ, mo_numbers);
-    hcat(4*FdT*ΦdT, 4*FsT*ΦsT)    
+    Fdᵒ, Fsᵒ = Fock_operators(Φ, Sm12, mo_numbers, eri, H)
+    Φdᵒ, Φsᵒ = split_MOs(Φ, mo_numbers);
+    hcat(4*Fdᵒ*Φdᵒ, 4*Fsᵒ*Φsᵒ)    
 end
 function gradient_MO_metric(Φ, Sm12, mo_numbers, eri, H)
     ∇E = ambiant_space_gradient(Φ, Sm12, mo_numbers, eri, H)
@@ -114,17 +105,16 @@ function gradient_MO_metric(Φ, ζ::ROHFState)
     ROHFTangentVector(∇E, ζ)
 end
 
-function energy_and_gradient(Φ, Sm12, mo_numbers, eri, H, mol)
+function energy_and_gradient(Φᵒ, Sm12, mo_numbers, eri, H, mol)
     # Compute Jd, Js, Kd, Ks
-    Pd, Ps = densities(Sm12*Φ, mo_numbers) # Densities in non-orthonormal AOs convention.
+    Pd, Ps = densities(Sm12*Φᵒ, mo_numbers) # Densities in non-orthonormal AOs convention.
     Jd, Js, Kd, Ks = assemble_CX_operators(eri, Pd, Ps)
     # energy
     E = energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol)
     # gradient
-    FdT, FsT = Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
-    ΦdT, ΦsT = split_MOs(Φ, mo_numbers);
-    ∇E = project_tangent(mo_numbers, Φ, hcat(4*FdT*ΦdT, 4*FsT*ΦsT))
-    #
+    Fdᵒ, Fsᵒ = Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
+    Φdᵒ, Φsᵒ = split_MOs(Φ, mo_numbers);
+    ∇E = project_tangent(mo_numbers, Φ, hcat(4*Fdᵒ*Φdᵒ, 4*Fsᵒ*Φsᵒ))
     E, ∇E
 end
 function energy_and_gradient(Φ, ζ::ROHFState)
@@ -169,3 +159,4 @@ end
 # Liens doc PySCF
 # https://pyscf.org/_modules/pyscf/gto/moleintor.html
 # https://pyscf.org/_modules/pyscf/scf/hf.html
+

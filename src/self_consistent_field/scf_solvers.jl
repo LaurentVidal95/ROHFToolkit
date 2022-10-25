@@ -13,26 +13,26 @@ function SCF_DIIS(info;
 
         # Compute current densities (or DIIS extrapolation if activated)
         ζ = info.ζ
-        R = info.∇E
-        Pd, Ps = diis(densities(ζ)..., R) # DIIS extrapolation if needed
+        Pd, Ps = diis(info)
 
         # Assemble effective Hamiltonian
         Fd, Fs = Fock_operators(Pd, Ps, ζ)
         H_eff = assemble_H_eff(H_eff_coeffs(info.effective_hamiltonian, ζ.Σ.mol)...,
                                Pd, Ps, Fd, Fs)
-        # Compute new MOs
+        # Compute new DMs with aufbau
         Φ_out = eigvecs(Symmetric(H_eff))[:,1:size(ζ.Φ,1)]
         ζ.Φ = Φ_out
-        
+        Pd_out, Ps_out = densities(ζ)
+
         # Compute new energy and residual
         E_prev = info.E
-        E, ∇E = energy_and_gradient(ζ)
+        E, ∇E = energy_and_gradient_DM_metric(Pd_out, Ps_out, ζ)
         
         # check for convergence
         residual = norm(∇E)
         (residual < info.tol) && (converged = true)
 
-        info = merge(info, (; ζ=ζ, n_iter=n_iter, E=E, ∇E=∇E, E_prev=E_prev,
+        info = merge(info, (; ζ=ζ, n_iter=n_iter, DMs = (Pd_out, Ps_out), E=E, ∇E=∇E, E_prev=E_prev,
                             residual=residual, converged=converged))
         callback(info)
 
