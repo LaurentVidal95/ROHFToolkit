@@ -24,31 +24,31 @@ Energy given doubly and singly occupied states density and
 coulomb/exchange operators.
 The core hamiltonian as well as the PySCF molecule is also needed.
 """
-rohf_energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol) =
+energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol) =
     tr(H*(2Pd+Ps)) + tr((2Jd-Kd)*(Pd+Ps)) + 1/2*tr((Js-Ks)*Ps) + mol.energy_nuc()
 
 """
 Energy given only densities, core Hamiltonian and molecule.
 """
-function rohf_energy(Pd::Matrix{T}, Ps::Matrix{T}, mo_numbers,
+function energy(Pd::Matrix{T}, Ps::Matrix{T}, mo_numbers,
                      eri::Vector{T},  H::Matrix{T}, mol) where {T<:Real}
     Jd, Js, Kd, Ks = assemble_CX_operators(eri, Pd, Ps)
-    rohf_energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol)
+    energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol)
 end
-rohf_energy(Pd::Matrix, Ps::Matrix, ζ::ROHFState) =
-    rohf_energy(Pd, Ps, collect(ζ)[1:end-1]...)
+energy(Pd::Matrix, Ps::Matrix, ζ::ROHFState) =
+    energy(Pd, Ps, collect(ζ)[1:end-1]...)
 
 """
 Energy given only MOs and ROHFState.
 """
-function rohf_energy(Φ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}  
-    Pd, Ps = densities(Φ, ζ.M.mo_numbers)
-    rohf_energy(Pd, Ps, collect(ζ)[1:end-1]...)
+function energy(Φ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}  
+    Pd, Ps = densities(Φ, ζ.Σ.mo_numbers)
+    energy(Pd, Ps, collect(ζ)[1:end-1]...)
 end
-function rohf_energy!(ζ::ROHFState{T}) where {T<:Real}
+function energy!(ζ::ROHFState{T}) where {T<:Real}
     Φ = ζ.Φ
     (ζ.isortho) && (Φ = ζ.Σ.Sm12*Φ)
-    E = rohf_energy(Φ, ζ)
+    E = energy(Φ, ζ)
     ζ.energy = E
     E
 end
@@ -62,28 +62,36 @@ given all necessary matrices:
     - Coulomb and exchange operators Jd, Js, Kd and Ks
     - The core hamiltonian matrix H
     - The square-root inverse of the overlap S^{-1/2}
-    - The number of total, resp. doubly and singly occupied AOs.
 """
-function compute_Fock_operators(Jd, Js, Kd, Ks, H, Sm12, mo_numbers)
+function Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
     FdT = H .+ 2Jd .- Kd .+ Js .- 0.5 .* Ks
     FsT = 0.5 .*(H .+ 2Jd .- Kd .+ Js .- Ks)
     Sm12*FdT*Sm12, Sm12*FsT*Sm12
 end
-
 """
 Computes the Fock operators Fd and Fs for a given state
 in the ROHF manifold, in orthonormal AO basis.
 """
-function compute_Fock_operators(Φ, Sm12, mo_numbers, eri, H)
+function Fock_operators(Φ, Sm12, mo_numbers, eri, H)
     Pd, Ps = densities(Sm12*Φ, mo_numbers)
     Jd, Js, Kd, Ks = assemble_CX_operators(eri, Pd, Ps)
-    compute_Fock_operators(Jd, Js, Kd, Ks, H, Sm12, mo_numbers)
+    Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
 end
-compute_Fock_operators(Φ, ζ::ROHFState) = compute_Fock_operators(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
-function compute_Fock_operators(ζ::ROHFState)
+Fock_operators(Φ, ζ::ROHFState) = Fock_operators(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
+function Fock_operators(ζ::ROHFState)
     @assert(ζ.isortho)
-    compute_Fock_operators(ζ.Φ, ζ)
+    Fock_operators(ζ.Φ, ζ)
 end
+
+### DM formalism
+function Fock_operators(PdT, PsT, ζ::ROHFState{T}) where {T<:Real}
+    _, eri, H = collect(ζ)[1:end-2]
+    Sm12 = ζ.Σ.Sm12
+    Pd = Symmetric(Sm12*PdT*Sm12); Ps = Symmetric(Sm12*PsT*Sm12)
+    Jd, Js, Kd, Ks = assemble_CX_operators(eri, Pd, Ps)
+    Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
+end
+
 
 """
 Compute the gradient of the energy in MO formalism for the metric: 
@@ -91,38 +99,41 @@ g_y(Ψd, Ψs) = ⟨Ψd,Ψs⟩_{MO}
 For a state Φ = (Φd, Φs), the gradient lies in the horizontal tangent space at y:
 ∇gE_MO(y) = ( Φs[Φs'2(Fd-Fs)Φd] + Φv[4Φv'FdΦd],  -Φd[Φd'2(Fd-Fs)Φs] + Φv[4Φv'FsΦs] )
 """
-function grad_E_MO_metric(Φ, Sm12, mo_numbers, eri, H)
-    FdT, FsT = compute_Fock_operators(Φ, Sm12, mo_numbers, eri, H)
+function ambiant_space_gradient(Φ, Sm12, mo_numbers, eri, H)
+    FdT, FsT = Fock_operators(Φ, Sm12, mo_numbers, eri, H)
     ΦdT, ΦsT = split_MOs(Φ, mo_numbers);
-    ∇E = hcat(4*FdT*ΦdT, 4*FsT*ΦsT)
-    project_tangent(Φ, ∇E, mo_numbers)
+    hcat(4*FdT*ΦdT, 4*FsT*ΦsT)    
 end
-function grad_E_MO_metric(Φ, ζ::ROHFState)
+function gradient_MO_metric(Φ, Sm12, mo_numbers, eri, H)
+    ∇E = ambiant_space_gradient(Φ, Sm12, mo_numbers, eri, H)
+    project_tangent(mo_numbers, Φ, ∇E)
+end
+function gradient_MO_metric(Φ, ζ::ROHFState)
     @assert(ζ.isortho)
-    ∇E = grad_E_MO_metric(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
+    ∇E = gradient_MO_metric(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
     ROHFTangentVector(∇E, ζ)
 end
 
-function rohf_energy_and_gradient(Φ, Sm12, mo_numbers, eri, H, mol)
+function energy_and_gradient(Φ, Sm12, mo_numbers, eri, H, mol)
     # Compute Jd, Js, Kd, Ks
     Pd, Ps = densities(Sm12*Φ, mo_numbers) # Densities in non-orthonormal AOs convention.
     Jd, Js, Kd, Ks = assemble_CX_operators(eri, Pd, Ps)
     # energy
-    E = rohf_energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol)
+    E = energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol)
     # gradient
-    FdT, FsT = compute_Fock_operators(Jd, Js, Kd, Ks, H, Sm12, mo_numbers)
+    FdT, FsT = Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
     ΦdT, ΦsT = split_MOs(Φ, mo_numbers);
-    ∇E = project_tangent(Φ, hcat(4*FdT*ΦdT, 4*FsT*ΦsT), mo_numbers)
+    ∇E = project_tangent(mo_numbers, Φ, hcat(4*FdT*ΦdT, 4*FsT*ΦsT))
     #
     E, ∇E
 end
-function rohf_energy_and_gradient(Φ, ζ::ROHFState)
-    E, ∇E = rohf_energy_and_gradient(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
+function energy_and_gradient(Φ, ζ::ROHFState)
+    E, ∇E = energy_and_gradient(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
     E, ROHFTangentVector(∇E, ζ)
 end
-function rohf_energy_and_gradient(ζ::ROHFState)
+function energy_and_gradient(ζ::ROHFState)
     @assert(ζ.isortho)
-    rohf_energy_and_gradient(ζ.Φ, ζ)
+    energy_and_gradient(ζ.Φ, ζ)
 end
 
 # function tensor_slice(mol::PyObject, i, j, type)

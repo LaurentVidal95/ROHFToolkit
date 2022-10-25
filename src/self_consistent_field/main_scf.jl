@@ -18,7 +18,7 @@ function self_consistent_field(ζ::ROHFState;
     info = (; n_iter, ζ, E, E_prev, ∇E, effective_hamiltonian, converged, tol)
 
     # SCF DIIS loop
-    Φ_out, info = solver(info; solver_kwargs...)
+    info = solver(info; solver_kwargs...)
 
     deorthonormalize_state!(ζ)
     (info.converged) ? println("CONVERGED") : println("----Maximum interation reached")

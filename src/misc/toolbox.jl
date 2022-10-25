@@ -3,29 +3,25 @@
 """
 sym(A::AbstractArray) = Symmetric( 1/2 .*(A .+ transpose(A)) )
 
-function split_MOs(Φ, N_bds)
-    Nb,Nd,Ns = N_bds
+function split_MOs(Φ, mo_numbers)
+    Nb,Nd,Ns = mo_numbers
     Φd = Φ[:,1:Nd]; Φs = Φ[:,Nd+1:Nd+Ns]
     Φd, Φs
 end
-split_MOs(ζ::ROHFState) = split_MOs(ζ.Φ, ζ.M.mo_numbers)
-function split_MOs(Ψ::ROHFTangentVector)
-    mo_numbers = Ψ.base.M.mo_numbers
-    Φ = Ψ.base.Φ
-    split_MOs(Ψ.vec, mo_numbers), split_MOs(Φ, mo_numbers)
-end
+split_MOs(ζ::ROHFState) = split_MOs(ζ.Φ, ζ.Σ.mo_numbers)
+split_MOs(Ψ::ROHFTangentVector) = split_MOs(Ψ.vec, Ψ.base.Σ.mo_numbers), split_MOs(Ψ.base)
 
 """
     Compute densities PdT = ΦT*Id*ΦT', PsT = ΦT*Is*ΦT'
     from MOs in orthonormal AO basis.
 """
-function densities(ΦT, N_bds)
+function densities(ΦT, mo_numbers)
     # Extract needed integers
-    Nb,Nd,Ns = N_bds
+    Nb,Nd,Ns = mo_numbers
     ΦdT = ΦT[:,1:Nd]; ΦsT = ΦT[:,Nd+1:Nd+Ns]
     ΦdT*ΦdT', ΦsT*ΦsT'
 end
-densities(ζ::ROHFState) = densities(ζ.Φ, ζ.M.mo_numbers)
+densities(ζ::ROHFState) = densities(ζ.Φ, ζ.Σ.mo_numbers)
 
 """
 Concatenate all columns of given matrices X, Y and Z into a single
@@ -69,3 +65,4 @@ function test_MOs(Φ::Matrix{T}, mo_numbers) where {T<:Real}
 
     test
 end
+test_MOs(ζ::ROHFState) = test_MOs(ζ.Φ, ζ.Σ.mo_numbers)

@@ -8,16 +8,18 @@ function direct_minimization_OptimKit(ζ::ROHFState;
                                       tol=1e-5,
                                       solver=ConjugateGradient,
                                       preconditioned=true,
+                                      verbose=true,
                                       kwargs...)
     # non-orthonormal AO -> orthonormal AO convention
+    # TODO add fix in case of high conditioning number
     (cond(ζ.Σ.overlap_matrix) > 1e6) && @warn("Conditioning of the "*
                                  "overlap: $(cond(ζ.Σ.overlap_matrix))")
     orthonormalize_state!(ζ)
 
     # Optimization via OptimKit
-    ζ0, E0, ∇E0, history = optimize(rohf_energy_and_gradient, ζ,
+    ζ0, E0, ∇E0, history = optimize(energy_and_gradient, ζ,
                                     solver(; gradtol=tol, maxiter, verbosity=0);
-                                    optim_kwargs(;preconditioned)...)
+                                    optim_kwargs(;preconditioned, verbose)...)
     # orthonormal AO -> non-orthonormal AO convention
     deorthonormalize_state!(ζ0)
     (norm(∇E0)>tol) && (@warn "Not converged")
@@ -29,14 +31,15 @@ end
 """
 All manifold routines in a format readable by OptimKit.
 """
-function optim_kwargs(;preconditioned=true)
-    kwargs = (; retract, inner, transport!, scale!, add!, finalize!)
+function optim_kwargs(;preconditioned=true, verbose=true)
+    kwargs = (; retract, inner, transport!, scale!, add!)
+    (verbose) && (kwargs=merge(kwargs, (; finalize!)))
     (preconditioned) && (kwargs=merge(kwargs, (;precondition)))
     kwargs
 end
 
 function precondition(ζ::ROHFState, η) where {T<:Real}
-    prec_grad = ROHFTangentVector(preconditioned_gradient(ζ), ζ)
+    prec_grad = ROHFTangentVector(preconditioned_gradient_MO_metric(ζ), ζ)
     #return gradient if not a descent direction. Avoid errors in L-BFGS far from minimum
     (tr(prec_grad'η) ≤ 0) && (@warn "No preconditioning"; return η)
     prec_grad
@@ -44,7 +47,7 @@ end
 
 function retract(ζ::ROHFState{T}, η::ROHFTangentVector{T}, α) where {T<:Real}
     @assert(η.base.Φ == ζ.Φ) # check that ζ is the base of η
-    Rη = ROHFState(ζ, retract(ζ.M, α*η, ζ.Φ))
+    Rη = ROHFState(ζ, retract(ζ, α*η, ζ.Φ))
     τη = transport_vec_along_himself(η, α, Rη)
     Rη, τη
 end
@@ -60,7 +63,7 @@ end
 
 function transport!(η1::ROHFTangentVector{T}, ζ::ROHFState{T},
                     η2::ROHFTangentVector{T}, α::T, Rη2::ROHFState{T}) where {T<:Real}
-    τη1_vec = project_tangent(ζ.M, Rη2.Φ, η1.vec)
+    τη1_vec = project_tangent(ζ, Rη2.Φ, η1.vec)
     ROHFTangentVector(τη1_vec, Rη2)
 end
 
@@ -88,7 +91,7 @@ function finalize!(ζ, E, ∇E, n_iter)
     flush(stdout)
 
     # Actualize energy
-    rohf_energy!(ζ)
+    energy!(ζ)
 
     # Return entry to match OptimKit.jl conventions
     ζ, E, ∇E

@@ -3,20 +3,12 @@
 import Base.+, Base.-, Base.*, Base.adjoint, Base.vec
 import LinearAlgebra.norm
 
-#Structure that only serves to match OptimKit.jl standards.
-#Contains almost no information but is attached to the retraction
-#and projection methods.
-struct ROHFManifold
-    mo_numbers :: Tuple{Int64,Int64,Int64}
-end
-
 #
 #Molecular orbitals belonging to a specified ROHF manifold.
 #
 mutable struct ROHFState{T<:Real}
     Φ       ::AbstractMatrix{T}
     Σ       ::ChemicalSystem{T}
-    M       ::ROHFManifold
     energy  ::T
     #
     isortho ::Bool
@@ -32,7 +24,7 @@ The guess is one of the following (see PySCF API doc):
 The hcore guess of PySCF ("1e") is somehow very bad so it is handled manualy.
 See the "core_guess" function bellow.
 """
-function init_guess(Σ::ChemicalSystem{T}, M::ROHFManifold, guess::Symbol) where {T<:Real}
+function init_guess(Σ::ChemicalSystem{T}, guess::Symbol) where {T<:Real}
     # Define PySCF rohf object
     rohf = pyscf.scf.ROHF(Σ.mol)
 
@@ -44,18 +36,18 @@ function init_guess(Σ::ChemicalSystem{T}, M::ROHFManifold, guess::Symbol) where
                         :hcore_pyscf      => rohf.init_guess_by_1e,
                         :chkfile          => rohf.init_guess_by_chkfile)
     # Handle core guess manualy because the PySCF core guess is somehow very bad..
-    (guess == :hcore) && (return core_guess(Σ, M.mo_numbers))
+    (guess == :hcore) && (return core_guess(Σ))
     # Other guesses via PySCF
     P_ortho = Symmetric(init_guesses[guess]()[1,:,:])
-    No = sum(M.mo_numbers[2:3])
+    No = sum(Σ.mo_numbers[2:3])
     Φ_ortho = eigen(-P_ortho).vectors[:,1:No]
 
     # Deorthonormalize
     inv(sqrt(Symmetric(Σ.overlap_matrix))) * Φ_ortho
 end
 
-function core_guess(Σ::ChemicalSystem{T}, mo_numbers) where {T<:Real}
-    No = sum(mo_numbers[2:3])
+function core_guess(Σ::ChemicalSystem{T}) where {T<:Real}
+    No = sum(Σ.mo_numbers[2:3])
     F = eigen(Symmetric(Σ.core_hamiltonian), Symmetric(Σ.overlap_matrix))
     normalize_col(col) = col ./ sqrt(col'*Σ.overlap_matrix*col)
     hcat(normalize_col.(eachcol(F.vectors[:,1:No]))...)
@@ -65,17 +57,13 @@ end
 All ROHFSate structure constructors
 """
 function ROHFState(Σ::ChemicalSystem{T}; guess=:minao) where {T<:Real}
-    mol = Σ.mol
-    # Create Manifold and ChemicalSystem
-    No, Nd = mol.nelec; Ns = No - Nd; Nb = convert(Int64, mol.nao);
-    M = ROHFManifold((Nb, Nd, Ns))
     # Compute guess
-    Φ_init = init_guess(Σ, M, guess)
-    E_init = rohf_energy(densities(Φ_init, M.mo_numbers)..., M.mo_numbers, collect(Σ)[1:3]...)
-    ROHFState(Φ_init, Σ, M, E_init, false, guess)
+    Φ_init = init_guess(Σ, guess)
+    E_init = energy(densities(Φ_init, Σ.mo_numbers)..., collect(Σ)[1:4]...)
+    ROHFState(Φ_init, Σ, E_init, false, guess)
 end
 ROHFState(mol::PyObject; guess=:minao) = ROHFState(ChemicalSystem(mol); guess)
-ROHFState(ζ::ROHFState, Φ::Matrix) = ROHFState(Φ, ζ.Σ, ζ.M, ζ.energy, ζ.isortho, ζ.guess)
+ROHFState(ζ::ROHFState, Φ::Matrix) = ROHFState(Φ, ζ.Σ, ζ.energy, ζ.isortho, ζ.guess)
 
 #
 # If vec = base.Φ, ROHFTangentVector is just a ROHFState
@@ -96,17 +84,16 @@ norm(X::ROHFTangentVector) = norm(X.vec)
 (vec)(X::ROHFTangentVector) = vec(X.vec)
 
 function reset_state!(ζ::ROHFState; guess=:minao)
-    Φ_init = init_guess(ζ.Σ, ζ.M, guess)
-    ζ.Φ = Φ_init; ζ.isortho=false; rohf_energy!(ζ); 
+    Φ_init = init_guess(ζ.Σ, guess)
+    ζ.Φ = Φ_init; ζ.isortho=false; energy!(ζ); 
     nothing
 end
 
 function orthonormalize_state!(ζ::ROHFState)
     # If MOs are already orthonormal do nothing
     (ζ.isortho) && (@info "The state is already orthonomal")
-    S12 = ζ.Σ.S12
     if !(ζ.isortho)
-        ζ.Φ = S12*ζ.Φ
+        ζ.Φ = ζ.Σ.S12*ζ.Φ
         ζ.isortho = true
     end
     nothing
@@ -114,9 +101,8 @@ end
 orthonormalize_state!(Ψ::ROHFTangentVector) = orthonormalize_state!(Ψ.base)
 function deorthonormalize_state!(ζ::ROHFState)
     !(ζ.isortho) && (@info "The state is already non-orthonomal")
-    Sm12=ζ.Σ.Sm12
     if (ζ.isortho)
-        ζ.Φ = Sm12*ζ.Φ
+        ζ.Φ = ζ.Σ.Sm12*ζ.Φ
         ζ.isortho = false
     end
     nothing
@@ -125,14 +111,14 @@ end
 """
 Gathers all informations except the MOs Φ
 """
-Base.collect(ζ::ROHFState) = (ζ.M.mo_numbers, collect(ζ.Σ)...)
+Base.collect(ζ::ROHFState) = collect(ζ.Σ)
 
 
 #
 # Retraction and vector transports on the ROHF manifold.
 #
-function retract(M::ROHFManifold, Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
-    Nb, Nd, Ns = M.mo_numbers
+function retract(mo_numbers::Tuple{Int64, Int64, Int64}, Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
+    Nb, Nd, Ns = mo_numbers
     No = Nd+Ns
     Ψd, Ψs = split_MOs(Ψ, (Nb,Nd,Ns))
     Φd, Φs = split_MOs(Φ, (Nb,Nd,Ns))
@@ -149,14 +135,15 @@ function retract(M::ROHFManifold, Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
 
     (Φ*V2*cos(Σ) + V1*sin(Σ))*V2' * exp(W)
 end
+retract(ζ::ROHFState, Ψ, Φ) = retract(ζ.Σ.mo_numbers, Ψ, Φ)
+
 function retract(Ψ::ROHFTangentVector)
-    M = Ψ.base.M
-    RΨ = retract(M, Ψ.vec, Ψ.base.Φ)
+    RΨ = retract(Ψ.base, Ψ.vec, Ψ.base.Φ)
     ROHFState(Ψ.base, RΨ)
 end
 
-function enforce_retract(M::ROHFManifold, Ψ::AbstractMatrix{T}) where {T<:Real}
-    Nb, Nd, Ns = M.mo_numbers
+function enforce_retract(mo_numbers, Ψ::AbstractMatrix{T}) where {T<:Real}
+    Nb, Nd, Ns = mo_numbers
     D, U = eigen(Symmetric(Ψ*Ψ'))
     D = map(x-> (x<1/2) ? zero(T) : one(T), D)
     P_ret = U'*diagm(D)*U
@@ -173,14 +160,15 @@ the orthogonal projector on the horizontal tangent space at y is defined by
 If Φ is no the base of Ψ, may serve as an alternative to transport
 Ψ in the tangent plane to Φ.
 """
-function project_tangent(Φ::Matrix{T}, Ψ::Matrix{T}, mo_numbers) where {T<:Real}
+function project_tangent(mo_numbers::Tuple{Int64, Int64, Int64}, Φ::Matrix{T},
+                         Ψ::Matrix{T}) where {T<:Real}
     Ψd, Ψs = split_MOs(Ψ, mo_numbers)
     Φd, Φs = split_MOs(Φ, mo_numbers)
     X = 1/2 .* (Ψd'Φs + Φd'Ψs);
     hcat(-Φs*X' + (I - Φd*Φd')*Ψd, -Φd*X + (I - Φs*Φs')*Ψs)
 end
-project_tangent(M::ROHFManifold, Φ::Matrix, Ψ::Matrix) =
-    project_tangent(Φ, Ψ, M.mo_numbers)
+project_tangent(ζ::ROHFState, Φ::Matrix, Ψ::Matrix) =
+    project_tangent(ζ.Σ.mo_numbers, Φ, Ψ)
 
 """
 Transport a direction p along t*p. Used as default transport for SD and CG
@@ -191,7 +179,7 @@ function transport_vec_along_himself(Ψ::ROHFTangentVector{T}, t::T,
     # Check that the targeted point is in orthonormal AO convention
     @assert (ζ_next.isortho)
 
-    Nb, Nd, Ns = ζ_next.M.mo_numbers
+    Nb, Nd, Ns = ζ_next.Σ.mo_numbers
     No = Nd+Ns
     (Ψd, Ψs), (Φd, Φs) = split_MOs(Ψ)
     Φd_next, Φs_next = split_MOs(ζ_next)
