@@ -105,16 +105,16 @@ function gradient_MO_metric(Φ, ζ::ROHFState)
     ROHFTangentVector(∇E, ζ)
 end
 
-function energy_and_gradient(Φᵒ, Sm12, mo_numbers, eri, H, mol)
+function energy_and_gradient(Φ, Sm12, mo_numbers, eri, H, mol)
     # Compute Jd, Js, Kd, Ks
-    Pd, Ps = densities(Sm12*Φᵒ, mo_numbers) # Densities in non-orthonormal AOs convention.
+    Pd, Ps = densities(Sm12*Φ, mo_numbers) # Densities in non-orthonormal AOs convention.
     Jd, Js, Kd, Ks = assemble_CX_operators(eri, Pd, Ps)
     # energy
     E = energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol)
     # gradient
-    Fdᵒ, Fsᵒ = Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
-    Φdᵒ, Φsᵒ = split_MOs(Φ, mo_numbers);
-    ∇E = project_tangent(mo_numbers, Φ, hcat(4*Fdᵒ*Φdᵒ, 4*Fsᵒ*Φsᵒ))
+    Fd, Fs = Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
+    Φd, Φs = split_MOs(Φ, mo_numbers);
+    ∇E = project_tangent(mo_numbers, Φ, hcat(4*Fd*Φd, 4*Fs*Φs))
     E, ∇E
 end
 function energy_and_gradient(Φ, ζ::ROHFState)

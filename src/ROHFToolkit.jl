@@ -23,29 +23,31 @@ export rohf_energy!
 export orthonormalize_state!
 export deorthonormalize_state!
 export compute_ground_state
-include("ChemicalSystem.jl")
-include("ROHFState.jl")
-include("energy.jl")
-include("compute_ground_state.jl")
+include("common/ChemicalSystem.jl")
+include("common/ROHFState.jl")
+include("common/energy.jl")
+include("common/compute_ground_state.jl")
 
 #### Direct Minimization solvers
 include("direct_minimization/preconditioning.jl")
 include("direct_minimization/OptimKit_solve.jl")
+include("direct_minimization/MO_manifold_tools.jl")
 
 #### Self consistent field
-export scf
+export SCF_DIIS
+export DIIS
 # export scf_anderson_solver
 include("self_consistent_field/effective_hamiltonians.jl")
 include("self_consistent_field/scf_solvers.jl")
-include("self_consistent_field/main_scf.jl")
-include("self_consistent_field/manual_diis.jl")
+include("self_consistent_field/scf.jl")
+include("self_consistent_field/diis.jl")
 include("self_consistent_field/DM_manifold_tools.jl")
+include("self_consistent_field/callback_info.jl")
 
 export generate_virtual_MOs_T
 export generate_molden
 include("misc/toolbox.jl")
 include("misc/generate_virtual_mos.jl")
 include("misc/pyscf.jl")
-include("misc/prompt_info.jl")
 
 end # Module

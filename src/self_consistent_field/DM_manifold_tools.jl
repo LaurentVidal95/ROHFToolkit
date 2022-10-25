@@ -1,3 +1,7 @@
+#
+# In this file the exponent ᵒ denote objects in orthonormal AOs convention
+#
+
 sym(A::AbstractMatrix) = Symmetric(0.5 .* (A + transpose(A)))
 function project_tangent_DM(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T},
                             A::Matrix{T}, B::Matrix{T}) where {T<:Real}
@@ -17,8 +21,8 @@ end
 
 function gradient_DM_metric(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}
     # ortho -> non-ortho densities
-    Fd, Fs = Fock_operators(Pdᵒ, Psᵒ, ζ)
-    project_tangent_DM(Pdᵒ, Psᵒ, 2*Fd, 2*Fs)
+    Fdᵒ, Fsᵒ = Fock_operators(Pdᵒ, Psᵒ, ζ)
+    project_tangent_DM(Pdᵒ, Psᵒ, 2*Fdᵒ, 2*Fsᵒ)
 end
 
 function energy_and_gradient_DM_metric(Pdᵒ, Psᵒ, Sm12, mo_numbers, eri, H, mol)
@@ -27,8 +31,8 @@ function energy_and_gradient_DM_metric(Pdᵒ, Psᵒ, Sm12, mo_numbers, eri, H, m
     # energy
     E = energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol)
     # gradient
-    Fd, Fs = Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
-    ∇E = project_tangent_DM(Pdᵒ, Psᵒ, 2*Fd, 2*Fs)
+    Fdᵒ, Fsᵒ = Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
+    ∇E = project_tangent_DM(Pdᵒ, Psᵒ, 2*Fdᵒ, 2*Fsᵒ)
     E, ∇E
 end
 function energy_and_gradient_DM_metric(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}

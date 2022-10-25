@@ -20,7 +20,7 @@ function SCF_DIIS(info;
         H_eff = assemble_H_eff(H_eff_coeffs(info.effective_hamiltonian, ζ.Σ.mol)...,
                                Pd, Ps, Fd, Fs)
         # Compute new DMs with aufbau
-        Φ_out = eigvecs(Symmetric(H_eff))[:,1:size(ζ.Φ,1)]
+        Φ_out = eigvecs(Symmetric(H_eff))[:,1:size(ζ.Φ,2)]
         ζ.Φ = Φ_out
         Pd_out, Ps_out = densities(ζ)
 
@@ -35,7 +35,6 @@ function SCF_DIIS(info;
         info = merge(info, (; ζ=ζ, n_iter=n_iter, DMs = (Pd_out, Ps_out), E=E, ∇E=∇E, E_prev=E_prev,
                             residual=residual, converged=converged))
         callback(info)
-
         info
     end
 
