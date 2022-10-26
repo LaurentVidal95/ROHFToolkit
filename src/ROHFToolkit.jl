@@ -34,7 +34,7 @@ include("direct_minimization/OptimKit_solve.jl")
 include("direct_minimization/MO_manifold_tools.jl")
 
 #### Self consistent field
-export SCF_DIIS
+export scf_diis
 export DIIS
 # export scf_anderson_solver
 include("self_consistent_field/effective_hamiltonians.jl")
@@ -48,6 +48,6 @@ export generate_virtual_MOs_T
 export generate_molden
 include("misc/toolbox.jl")
 include("misc/generate_virtual_mos.jl")
-include("misc/pyscf.jl")
+include("misc/molden.jl")
 
 end # Module

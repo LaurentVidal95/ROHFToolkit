@@ -1,5 +1,3 @@
-
-
 #
 # Retraction and vector transports on the ROHF manifold.
 #
@@ -28,13 +26,17 @@ function retract(Ψ::ROHFTangentVector)
     ROHFState(Ψ.base, RΨ)
 end
 
-function enforce_retract(mo_numbers, Ψ::AbstractMatrix{T}) where {T<:Real}
-    Nb, Nd, Ns = mo_numbers
-    D, U = eigen(Symmetric(Ψ*Ψ'))
-    D = map(x-> (x<1/2) ? zero(T) : one(T), D)
-    P_ret = U'*diagm(D)*U
-    println("forced"); flush(stdout)
-    eigen(Symmetric(P_ret)).vectors[:,1:Nd+Ns]
+"""
+Very unstable retraction
+"""
+function enforce_retract(Ψ::AbstractMatrix{T}) where {T<:Real}
+    P = Ψ*Ψ'
+    No = round(Int,tr(P))
+    Io = diagm(ones(No))
+    U = eigen(-Symmetric(P)).vectors
+    P_ret = Symmetric(U[:,1:No]*Io*U[:,1:No]')
+    @warn "forced restraction"
+    eigen(Symmetric(P_ret)).vectors[:,1:No]
 end
 
 """

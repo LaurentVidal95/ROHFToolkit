@@ -38,3 +38,15 @@ end
 function energy_and_gradient_DM_metric(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}
     energy_and_gradient_DM_metric(Pdᵒ, Psᵒ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
 end
+
+"""
+Mapping from a tangent space at M_DM to a tangent space at M_MO.
+"""
+function TDM_to_TMO(η::ROHFTangentVector{T}) where {T<:Real}
+    (Nb, Nd, Ns) = η.base.Σ.mo_numbers
+    Φd, Φs = split_MOs(η.base)    
+    Pd, Ps = Φd*Φd', Φs*Φs'
+    Qd, Qs = η.vec[:, 1:Nb], η.vec[:,Nb+1:end]
+    hcat( (I-Pd)*Qd*Φd, (I-Ps)*Qs*Φs )
+end
+
