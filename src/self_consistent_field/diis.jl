@@ -14,7 +14,7 @@ depth(diis::DIIS) = length(diis.iterates)
 # Actualize diis lists and remove old iterates if needed
 function Base.push!(diis::DIIS, Pdₙ, Psₙ, Rₙ)
     push!(diis.iterates,  (Pdₙ, Psₙ))
-    push!(diis.residuals, deepcopy(vcat(vec.(Rₙ)...)))
+    push!(diis.residuals, vec(Rₙ))
     if depth(diis) > diis.m + 1
         popfirst!(diis.iterates)
         popfirst!(diis.residuals)

@@ -58,7 +58,6 @@ end
 # TODO
 
 function hybrid_SCF_optimization_args(ζ₀::ROHFState)
-
     Pd₀, Ps₀ = densities(ζ₀)
     Fd₀, Fs₀ = Fock_operators(Pd₀, Ps₀, ζ₀)
 
