@@ -83,6 +83,14 @@ function Fock_operators(ζ::ROHFState)
     Fock_operators(ζ.Φ, ζ)
 end
 
+# Same but in DM convention
+function Fock_operators(Pdᵒ, Psᵒ, ζ::ROHFState{T}) where {T<:Real}
+    _, eri, H = collect(ζ)[1:end-2]
+    Sm12 = ζ.Σ.Sm12
+    Pd = Symmetric(Sm12*Pdᵒ*Sm12); Ps = Symmetric(Sm12*Psᵒ*Sm12)
+    Jd, Js, Kd, Ks = assemble_CX_operators(eri, Pd, Ps)
+    Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
+end
 
 """
 Compute the gradient of the energy in MO formalism for the metric: 

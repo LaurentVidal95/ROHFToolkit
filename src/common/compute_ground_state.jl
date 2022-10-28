@@ -7,7 +7,7 @@ function compute_ground_state(ζ::ROHFState; solver=ConjugateGradient, solver_kw
         return direct_minimization_OptimKit(ζ; solver, solver_kwargs...)
     # Self consistent field
     else
-        return self_consistent_field(ζ; solver, solver_kwargs...)
+        return scf_method(ζ; solver, solver_kwargs...)
     end
     error("Solver not handled")
 end

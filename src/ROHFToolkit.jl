@@ -27,21 +27,22 @@ include("common/ChemicalSystem.jl")
 include("common/ROHFState.jl")
 include("common/energy.jl")
 include("common/compute_ground_state.jl")
+include("common/DM_manifold_tools.jl")
+include("common/MO_manifold_tools.jl")
 
 #### Direct Minimization solvers
 include("direct_minimization/preconditioning.jl")
 include("direct_minimization/OptimKit_solve.jl")
-include("direct_minimization/MO_manifold_tools.jl")
 
 #### Self consistent field
-export scf_diis
+export scf
+export hybrid_scf
 export DIIS
 # export scf_anderson_solver
 include("self_consistent_field/effective_hamiltonians.jl")
 include("self_consistent_field/scf_solvers.jl")
 include("self_consistent_field/scf.jl")
 include("self_consistent_field/diis.jl")
-include("self_consistent_field/DM_manifold_tools.jl")
 include("self_consistent_field/callback_info.jl")
 
 export generate_virtual_MOs_T

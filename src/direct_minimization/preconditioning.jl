@@ -1,10 +1,11 @@
-function preconditioned_gradient_MO_metric(ζ::ROHFState{T}) where {T<:Real}
+# Allow different Fock operators than the one associated to ζ for preconditioning of the
+# hybrid SCF
+function preconditioned_gradient_MO_metric(Fd₀::Matrix{T}, Fs₀::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}
     mo_numbers = ζ.Σ.mo_numbers
 
     # Construct preconditioned grad system
-    Fd, Fs = Fock_operators(ζ.Φ, ζ)
-    Φd, Φs = split_MOs(ζ.Φ, mo_numbers)
-    L, b = build_prec_grad_system(Φd, Φs, Fd, Fs, mo_numbers)
+    Φd, Φs = split_MOs(ζ)
+    L, b = build_prec_grad_system_MO(Φd, Φs, Fd₀, Fs₀, mo_numbers)
 
     # Compute newton direction by solving a Sylverster system with BICGStab l=3
     # Replace by GMRES if L is still non-positive definite
@@ -15,20 +16,20 @@ function preconditioned_gradient_MO_metric(ζ::ROHFState{T}) where {T<:Real}
     # Project preconditioned gradient on horizontal tangent space
     prec_grad = project_tangent(mo_numbers, ζ.Φ, tmp_mat)
 end
+preconditioned_gradient_MO_metric(ζ::ROHFState) = preconditioned_gradient_MO_metric(Fock_operators(ζ)..., ζ)
 
 """
 Build the system to solve to compute preconditioned gradient.
 The system is defined as L⋅X=b, in which L is never assembled but define
 through matrix-vector products thanks to LinearMaps.jl
 """
-function build_prec_grad_system(Φd::Matrix{T}, Φs::Matrix{T},
-                                Fd::Matrix{T}, Fs::Matrix{T}, mo_numbers,
-                                safety = 1e-4) where {T<:Real}
+function build_prec_grad_system_MO(Φd::Matrix{T}, Φs::Matrix{T},
+                                   Fd::Matrix{T}, Fs::Matrix{T}, mo_numbers,
+                                   safety = 1e-4) where {T<:Real}
     Nb, Nd, Ns = mo_numbers
     Nn = Nd*Ns + Nb*Nd + Nb*Ns
 
     # Precomputations
-    Pd, Ps = densities(hcat(Φd, Φs), mo_numbers)
     Fd_dd = Φd'Fd*Φd; Fd_ss = Φs'Fd*Φs; Fd_ds = Φd'Fd*Φs
     Fs_dd = Φd'Fs*Φd; Fs_ss = Φs'Fs*Φs; Fs_ds = Φd'Fs*Φs
 
@@ -39,8 +40,7 @@ function build_prec_grad_system(Φd::Matrix{T}, Φs::Matrix{T},
 
     # L⋅X (left hand term)
     A_ds, B_ds, A_bd, B_bd, A_bs, B_bs, (shift_ds, shift_bd, shift_bs) =
-        compute_L_blocs_and_shift(Φd, Φs, Pd, Ps, Fd, Fs,
-                                  Fd_dd, Fs_dd, Fd_ss, Fs_ss, mo_numbers)
+      compute_L_MO_blocs_and_shift(Φd, Φs, Fd, Fs, Fd_dd, Fs_dd, Fd_ss, Fs_ss, mo_numbers)
     # Add shift to avoid conditioning issues. This part is from numerical experiment only.
     shift = max(shift_ds, shift_bd, shift_bs) + safety
 
@@ -58,8 +58,9 @@ Also computes the smallest eigenvalue of XA - BX which is numerically found to
 be the sum of the smallest eigenvalue of A and -B. Used as a shift
 to correct the conditioning of the system.
 """
-function compute_L_blocs_and_shift(Φd, Φs, Pd, Ps, Fd, Fs, Fd_dd, Fs_dd,
+function compute_L_MO_blocs_and_shift(Φd, Φs, Fd, Fs, Fd_dd, Fs_dd,
                                    Fd_ss, Fs_ss, mo_numbers)
+    Pd, Ps = densities(hcat(Φd, Φs), mo_numbers)
     smallest_eigval(M,N) = eigen(Symmetric(M)).values[1] + eigen(Symmetric(-N)).values[1]
     tab_shift = Float64[]
 
