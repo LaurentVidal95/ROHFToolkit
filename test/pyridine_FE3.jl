@@ -3,7 +3,7 @@ using ROHFToolkit
 basis = "6-31G"
 list_E = []
 
-pyridine_FE2 = pyscf.M(
+pyridine_FE3 = pyscf.M(
     atom = "C -2.1853 -1.50067 0.662721;
     N -2.7965 -2.55019 1.26604;
     C -2.4724 -1.10719 -0.670485;
@@ -19,8 +19,8 @@ pyridine_FE2 = pyscf.M(
     basis = "$basis", # A modifier
     symmetry = true,
     unit="angstrom",
-    spin=4,
-    charge=2,
+    spin=5,
+    charge=3,
 )
 
-ζ = ROHFState(pyridine_FE2);
+ζ = ROHFState(pyridine_FE3);

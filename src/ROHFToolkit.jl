@@ -38,13 +38,13 @@ include("direct_minimization/OptimKit_solve.jl")
 export scf
 export hybrid_scf
 export DIIS
+export ODA
 # export scf_anderson_solver
 include("self_consistent_field/effective_hamiltonians.jl")
 include("self_consistent_field/scf_solvers.jl")
 include("self_consistent_field/scf.jl")
-include("self_consistent_field/diis.jl")
+include("self_consistent_field/acceleration.jl")
 include("self_consistent_field/callback_info.jl")
-
 export generate_virtual_MOs_T
 export generate_molden
 include("misc/toolbox.jl")

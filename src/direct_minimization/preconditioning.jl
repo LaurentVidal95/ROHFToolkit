@@ -1,6 +1,7 @@
 # Allow different Fock operators than the one associated to ζ for preconditioning of the
 # hybrid SCF
-function preconditioned_gradient_MO_metric(Fd₀::Matrix{T}, Fs₀::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}
+function preconditioned_gradient_MO_metric(Fd₀::Matrix{T}, Fs₀::Matrix{T},
+                                           ζ::ROHFState{T}) where {T<:Real}
     mo_numbers = ζ.Σ.mo_numbers
 
     # Construct preconditioned grad system
@@ -16,7 +17,8 @@ function preconditioned_gradient_MO_metric(Fd₀::Matrix{T}, Fs₀::Matrix{T}, �
     # Project preconditioned gradient on horizontal tangent space
     prec_grad = project_tangent(mo_numbers, ζ.Φ, tmp_mat)
 end
-preconditioned_gradient_MO_metric(ζ::ROHFState) = preconditioned_gradient_MO_metric(Fock_operators(ζ)..., ζ)
+preconditioned_gradient_MO_metric(ζ::ROHFState) =
+    preconditioned_gradient_MO_metric(Fock_operators(ζ)..., ζ)
 
 """
 Build the system to solve to compute preconditioned gradient.

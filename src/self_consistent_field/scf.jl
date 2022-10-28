@@ -1,6 +1,6 @@
 function scf_method(ζ::ROHFState;
                     solver = scf,
-                    diis = DIIS(;m=15),
+                    acceleration = DIIS(;m=15), # DIIS or ODA
                     effective_hamiltonian=:Guest_Saunders,
                     tol=1e-5,
                     callback=SCF_default_callback(),
@@ -10,7 +10,10 @@ function scf_method(ζ::ROHFState;
                                      "overlap: $(cond(ζ.Σ.overlap_matrix))")
     orthonormalize_state!(ζ)
 
-    (diis.m==0) && (@warn "Beware: DIIS is inactive")
+    if typeof(acceleration)==DIIS
+        (acceleration.m==0) && (@warn "Beware: DIIS is inactive")
+    end
+    (typeof(acceleration)==ODA) && (@assert (solver==hybrid_scf))
 
     # Populate info with initial data
     n_iter       = zero(Int64)
@@ -32,8 +35,7 @@ function scf_method(ζ::ROHFState;
 
         # Compute current densities (or DIIS extrapolation if activated)
         ζ = info.ζ
-        Pd, Ps = diis(info)
-        Fd, Fs = Fock_operators(Pd, Ps, ζ)
+        Pd, Ps, Fd, Fs = acceleration(info)
 
         # n -> n+1 densities and state
         ζ, Pd_out, Ps_out = g_update(Pd, Ps, Fd, Fs, ζ, info)

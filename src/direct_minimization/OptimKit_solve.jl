@@ -17,15 +17,15 @@ function direct_minimization_OptimKit(ζ::ROHFState;
     orthonormalize_state!(ζ)
 
     # Optimization via OptimKit
-    ζ0, E0, ∇E0, history = optimize(energy_and_gradient, ζ,
-                                    solver(; gradtol=tol, maxiter, verbosity=0);
-                                    optim_kwargs(;preconditioned, verbose)...)
+    ζ0, E0, ∇E0, _ = optimize(energy_and_gradient, ζ,
+                              solver(; gradtol=tol, maxiter, verbosity=0);
+                              optim_kwargs(;preconditioned, verbose)...)
     # orthonormal AO -> non-orthonormal AO convention
     deorthonormalize_state!(ζ0)
     (norm(∇E0)>tol) && (@warn "Not converged")
     @info "Final energy: $(E0) Ha"
 
-    (;ζ=ζ0, energy=E0, residual=norm(∇E0), history)
+    (;ζ=ζ0, energy=E0, residual=norm(∇E0))
 end
 
 """
