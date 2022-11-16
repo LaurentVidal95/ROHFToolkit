@@ -13,6 +13,9 @@ mutable struct ROHFState{T<:Real}
     #
     isortho ::Bool
     guess   ::Symbol
+    # All the history of minimizing precedure is contained in ζ
+    # so that it can be updated by OptimKit
+    history ::Matrix{T}
 end
 
 """
@@ -60,10 +63,11 @@ function ROHFState(Σ::ChemicalSystem{T}; guess=:minao) where {T<:Real}
     # Compute guess
     Φ_init = init_guess(Σ, guess)
     E_init = energy(densities(Φ_init, Σ.mo_numbers)..., collect(Σ)[1:4]...)
-    ROHFState(Φ_init, Σ, E_init, false, guess)
+    history = reshape([0, E_init, NaN, NaN], 1, 4)
+    ROHFState(Φ_init, Σ, E_init, false, guess, history)
 end
 ROHFState(mol::PyObject; guess=:minao) = ROHFState(ChemicalSystem(mol); guess)
-ROHFState(ζ::ROHFState, Φ::Matrix) = ROHFState(Φ, ζ.Σ, ζ.energy, ζ.isortho, ζ.guess)
+ROHFState(ζ::ROHFState, Φ::Matrix) = ROHFState(Φ, ζ.Σ, ζ.energy, ζ.isortho, ζ.guess, ζ.history)
 
 #
 # If vec = base.Φ, ROHFTangentVector is just a ROHFState
@@ -85,7 +89,9 @@ norm(X::ROHFTangentVector) = norm(X.vec)
 
 function reset_state!(ζ::ROHFState; guess=:minao)
     Φ_init = init_guess(ζ.Σ, guess)
-    ζ.Φ = Φ_init; ζ.isortho=false; energy!(ζ); 
+    ζ.Φ = Φ_init; ζ.isortho=false; energy!(ζ);
+    history = reshape([0, ζ.energy, NaN, NaN], 1, 4)
+    ζ.history = history
     nothing
 end
 

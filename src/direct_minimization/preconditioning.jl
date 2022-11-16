@@ -9,11 +9,19 @@ function preconditioned_gradient_MO_metric(Fd₀::Matrix{T}, Fs₀::Matrix{T},
     L, b = build_prec_grad_system_MO(Φd, Φs, Fd₀, Fs₀, mo_numbers)
 
     # Compute newton direction by solving a Sylverster system with BICGStab l=3
-    # Replace by GMRES if L is still non-positive definite
-    XYvZv = bicgstabl(L, b, 3, reltol=1e-14, abstol=1e-14)
+    # Replace by Minres if L is still non-positive definite with level shift
+    XYvZv, history = bicgstabl(L, b, 3, reltol=1e-14, abstol=1e-14, log=true)
+
+    # Return standard gradient if not converged
+    if !history.isconverged
+        @warn "Preconditioning linear solver did not converge. No preconditioning."
+        X, Yv, Zv = vec_to_mat(-b, mo_numbers)
+        return project_tangent(mo_numbers, ζ.Φ, hcat(Φs*X' + Yv, -Φd*X + Zv))
+    end
+
     X, Yv, Zv = vec_to_mat(XYvZv, mo_numbers)
     tmp_mat = hcat(Φs*X' + Yv, -Φd*X + Zv)
-
+    
     # Project preconditioned gradient on horizontal tangent space
     prec_grad = project_tangent(mo_numbers, ζ.Φ, tmp_mat)
 end
@@ -26,8 +34,8 @@ The system is defined as L⋅X=b, in which L is never assembled but define
 through matrix-vector products thanks to LinearMaps.jl
 """
 function build_prec_grad_system_MO(Φd::Matrix{T}, Φs::Matrix{T},
-                                   Fd::Matrix{T}, Fs::Matrix{T}, mo_numbers,
-                                   safety = 1e-4) where {T<:Real}
+                                   Fd::Matrix{T}, Fs::Matrix{T}, mo_numbers;
+                                   safety = 1e-6) where {T<:Real}
     Nb, Nd, Ns = mo_numbers
     Nn = Nd*Ns + Nb*Nd + Nb*Ns
 
@@ -45,6 +53,7 @@ function build_prec_grad_system_MO(Φd::Matrix{T}, Φs::Matrix{T},
       compute_L_MO_blocs_and_shift(Φd, Φs, Fd, Fs, Fd_dd, Fs_dd, Fd_ss, Fs_ss, mo_numbers)
     # Add shift to avoid conditioning issues. This part is from numerical experiment only.
     shift = max(shift_ds, shift_bd, shift_bs) + safety
+    # shift = iszero(shift) ? zero(Float64) : shift + safety
 
     f = XYZ -> L_as_linear_map(XYZ, A_ds, B_ds, A_bd, B_bd, A_bs, B_bs, shift, mo_numbers)
     L = LinearMap(f, Nn)

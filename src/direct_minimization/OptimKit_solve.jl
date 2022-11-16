@@ -41,7 +41,10 @@ end
 function precondition(ζ::ROHFState, η) where {T<:Real}
     prec_grad = ROHFTangentVector(preconditioned_gradient_MO_metric(ζ), ζ)
     #return gradient if not a descent direction. Avoid errors in L-BFGS far from minimum
-    (tr(prec_grad'η) ≤ 0) && (@warn "No preconditioning"; return η)
+    if (tr(prec_grad'η)/(norm(prec_grad)*norm(η))) ≤ 0.01
+        @warn "No preconditioning"
+        return η
+    end
     prec_grad
 end
 
@@ -79,7 +82,7 @@ function finalize!(ζ, E, ∇E, n_iter)
         println(@sprintf("%-5s  %-16s  %-16s  %-16s", header...))
         println("-"^58)
 
-        info_out = [n_iter, ζ.energy, " "^16, " "^16]
+        info_out = [n_iter-1, ζ.energy, " "^16, " "^16]
         println(@sprintf("%5i %16.12f %16s %16s", info_out...))
         flush(stdout)
     end
@@ -92,6 +95,8 @@ function finalize!(ζ, E, ∇E, n_iter)
 
     # Actualize energy
     energy!(ζ)
+    # Update history
+    ζ.history = vcat(ζ.history, reshape(info_out, 1, 4))
 
     # Return entry to match OptimKit.jl conventions
     ζ, E, ∇E

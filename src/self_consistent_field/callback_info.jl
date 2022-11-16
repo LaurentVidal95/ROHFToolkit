@@ -17,7 +17,10 @@ function SCF_default_callback(; show_dir_angle=false)
             log_ΔE = log(10, abs(info.E  - info.E_prev))
             info_out = [info.n_iter, info.E, log_ΔE, log10(info.residual)]
             println(@sprintf("%5i %16.12f %16.12f %16.12f", info_out...))
-
+            # update history
+            ζ = info.ζ
+            ζ.history = vcat(ζ.history, reshape(info_out, 1, 4))
+            info = merge(info, (;ζ=ζ))
             flush(stdout)
         end
     end

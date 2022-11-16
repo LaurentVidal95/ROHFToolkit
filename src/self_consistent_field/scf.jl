@@ -43,7 +43,8 @@ function scf_method(ζ::ROHFState;
         # Compute new energy and residual
         E_prev = info.E
         E, ∇E = energy_and_gradient_DM_metric(Pd_out, Ps_out, ζ)
-        
+        ζ.energy = E
+
         # check for convergence
         residual = norm(∇E)
         (residual < info.tol) && (converged = true)
@@ -55,16 +56,17 @@ function scf_method(ζ::ROHFState;
     end
     
     callback(info) # Initial print
+
     # SCF-type loop. See "scf_solvers.jl" for all implemented solvers.
     info = solver(info; fixpoint_map, kwargs...)
 
+    # Print final infos
+    !(converged) && (@warn "Not converged")
+    @info "Final energy: $(info.E) Ha"
     # Return non-orthonormal state
     ζ = info.ζ
     deorthonormalize_state!(ζ)
-
-    # To be removed. Have to do so that the solver doesn't change ζ in place.
-    reset_state!(ζ, guess=ζ.guess)
     info = merge(info, (; ζ=ζ))
-
+    
     clean(info)
 end

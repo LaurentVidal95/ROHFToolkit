@@ -17,7 +17,7 @@ export ChemicalSystem
 export ROHFManifold
 export ROHFState
 export ROHFTangentVector
-export reset_system!
+export reset_state!
 export rohf_energy
 export rohf_energy!
 export orthonormalize_state!
