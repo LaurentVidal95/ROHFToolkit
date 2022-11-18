@@ -35,7 +35,7 @@ function hybrid_scf(info; fixpoint_map, maxiter=500)
             prec_grad = ROHFTangentVector(hybrid_SCF_preconditioned_grad(Pd, Ps, ζ), ζ)
             # @show (norm(η)/norm(prec_grad))
             # @show tr(prec_grad'η)/(norm(η)*norm(prec_grad))
-            if (tr(prec_grad'η)/(norm(prec_grad)*norm(η))) ≤ 0.005
+            if (tr(prec_grad'η)/(norm(prec_grad)*norm(η))) ≤ 1e-5
                 @warn "No preconditioning"
                 return η
             end
@@ -47,14 +47,14 @@ function hybrid_scf(info; fixpoint_map, maxiter=500)
                        (; precondition=hybrid_SCF_precondition))
         
         ζ, _, _, history = optimize(fg, ζ_init,
-                           ConjugateGradient(;verbosity=2, gradtol=1e-7);
+                           GradientDescent(;verbosity=2, gradtol=1e-7);
                            kwargs...)
 
-        if (test_MOs(ζ) ≥ 1e-8)
+        if (test_MOs(ζ) ≥ 1e-9)
             @warn "Trying new guess"
             fg, ζ_init = hybrid_SCF_optimization_args(Pd, Ps, Fd, Fs, ζ, :Euler)
             ζ, _, _, history = optimize(fg, ζ_init,
-                                        ConjugateGradient(;verbosity=2, gradtol=1e-7);
+                                        GradientDescent(;verbosity=2, gradtol=1e-7);
                                         kwargs...)
         end
         ζ, densities(ζ)...

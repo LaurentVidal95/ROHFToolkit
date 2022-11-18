@@ -66,3 +66,11 @@ function test_MOs(Φ::Matrix{T}, mo_numbers) where {T<:Real}
     test
 end
 test_MOs(ζ::ROHFState) = test_MOs(ζ.Φ, ζ.Σ.mo_numbers)
+
+function rand_unitary_matrix(mo_numbers)
+    Nb, Nd, Ns = mo_numbers
+    No = Nd+Ns
+    A = rand(No, No)
+    exp((1/2)*(A-A'))
+end
+rand_unitary_matrix(ζ::ROHFState) = rand_unitary_matrix(ζ.Σ.mo_numbers)

@@ -9,13 +9,14 @@ function direct_minimization_OptimKit(ζ::ROHFState;
                                       solver=ConjugateGradient,
                                       preconditioned=true,
                                       verbose=true,
+                                      break_symmetry=false,
                                       kwargs...)
     # non-orthonormal AO -> orthonormal AO convention
     # TODO add fix in case of high conditioning number
     (cond(ζ.Σ.overlap_matrix) > 1e6) && @warn("Conditioning of the "*
                                  "overlap: $(cond(ζ.Σ.overlap_matrix))")
     orthonormalize_state!(ζ)
-
+    (break_symmetry) && (@warn "Broken symmetry"; ζ.Φ = ζ.Φ*rand_unitary_matrix(ζ))
     # Optimization via OptimKit
     ζ0, E0, ∇E0, _ = optimize(energy_and_gradient, ζ,
                               solver(; gradtol=tol, maxiter, verbosity=0);
@@ -41,7 +42,7 @@ end
 function precondition(ζ::ROHFState, η) where {T<:Real}
     prec_grad = ROHFTangentVector(preconditioned_gradient_MO_metric(ζ), ζ)
     #return gradient if not a descent direction. Avoid errors in L-BFGS far from minimum
-    if (tr(prec_grad'η)/(norm(prec_grad)*norm(η))) ≤ 0.01
+    if (tr(prec_grad'η)/(norm(prec_grad)*norm(η))) ≤ 1e-5
         @warn "No preconditioning"
         return η
     end
@@ -66,6 +67,9 @@ end
 
 function transport!(η1::ROHFTangentVector{T}, ζ::ROHFState{T},
                     η2::ROHFTangentVector{T}, α::T, Rη2::ROHFState{T}) where {T<:Real}
+    # η1 = η2 case
+    (η1.vec==η2.vec) && (return transport_vec_along_himself(η1, α, Rη2))
+    # Otherwise transport with projection1;5D
     τη1_vec = project_tangent(ζ, Rη2.Φ, η1.vec)
     ROHFTangentVector(τη1_vec, Rη2)
 end
