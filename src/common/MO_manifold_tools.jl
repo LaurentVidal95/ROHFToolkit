@@ -17,8 +17,19 @@ function retract(mo_numbers::Tuple{Int64, Int64, Int64}, Ψ::Matrix{T}, Φ::Matr
     V1,D,V2 = svd(hcat(Ψd_tilde, Ψs_tilde))
     Σ = diagm(D)
 
-    (Φ*V2*cos(Σ) + V1*sin(Σ))*V2' * exp(W)
+    ret = (Φ*V2*cos(Σ) + V1*sin(Σ))*V2' * exp(W)
+    @show test_MOs(ret, mo_numbers)
+    ret
 end
+# function retract(mo_numbers::Tuple{Int64, Int64, Int64}, Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
+#     V1,D,V2 = svd(Ψ)
+#     Σ = diagm(D)
+
+#     Φ_ret = (Φ*V2*cos(Σ) + V1*sin(Σ))*V2'
+#     @show test_MOs(Φ_ret, mo_numbers)
+#     Φ_ret
+# end
+
 retract(ζ::ROHFState, Ψ, Φ) = retract(ζ.Σ.mo_numbers, Ψ, Φ)
 
 function retract(Ψ::ROHFTangentVector)
@@ -45,7 +56,7 @@ the orthogonal projector on the horizontal tangent space at y is defined by
 
 Π_y(Ψd|Ψs) = ( 1/2*Φs[Φs'Ψd - Ψs'Φd] + Φv(Φv'Ψd) | -1/2*Φd[Ψd'Φs - Φd'Ψs] + Φv(Φv'Ψs) )
 
-If Φ is no the base of Ψ, may serve as an alternative to transport
+If Φ is not the base of Ψ, may serve as an alternative to transport
 Ψ in the tangent plane to Φ.
 """
 function project_tangent(mo_numbers::Tuple{Int64, Int64, Int64}, Φ::Matrix{T},

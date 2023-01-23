@@ -1,4 +1,5 @@
-Ti₂O₄(basis::String; symmetry=false) = ROHFToolkit.pyscf.M(
+Ti₂O₄(basis::String; symmetry=false) =
+    ROHFToolkit.pyscf.M(
     atom = "Ti 1.730 0.000 0.000;
             Ti -1.730 0.000 0.000;
             O 0.000 1.224 0.000;

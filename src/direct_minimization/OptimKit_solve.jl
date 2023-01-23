@@ -42,7 +42,7 @@ end
 function precondition(ζ::ROHFState, η) where {T<:Real}
     prec_grad = ROHFTangentVector(preconditioned_gradient_MO_metric(ζ), ζ)
     #return gradient if not a descent direction. Avoid errors in L-BFGS far from minimum
-    if (tr(prec_grad'η)/(norm(prec_grad)*norm(η))) ≤ 1e-5
+    if (tr(prec_grad'η)/(norm(prec_grad)*norm(η))) ≤ 1e-4
         @warn "No preconditioning"
         return η
     end

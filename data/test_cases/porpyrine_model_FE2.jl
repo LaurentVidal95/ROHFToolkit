@@ -1,4 +1,5 @@
-porphyrine_model_FE2(basis::String) = ROHFToolkit.pyscf.M(
+porphyrine_model_FE2(basis::String; symmetry=false) =
+    ROHFToolkit.pyscf.M(
     atom = "FE 0.0 0.0 0.0;
             N  1.406727 1.406727 0.0;
             N -1.406727 1.406727 0.0;
@@ -29,7 +30,7 @@ porphyrine_model_FE2(basis::String) = ROHFToolkit.pyscf.M(
             H 3.27765  -2.181081 0.0;
             H -3.27765  -2.181081 0.0;",
     basis = "$basis", # A modifier
-    symmetry = true,
+    symmetry = symmetry,
     unit="angstrom",
     spin=4,
     charge=2,
