@@ -4,8 +4,8 @@
 Retraction on the ROHF flag manifold in MO coordinates that doesn't use virtual orbitals.
    - mo_numbers: tuple (Nb, Nd, Ns), respectively the total number, the number
         of doubly-occupied and the number singly occupied MOs.
-   - ```Φ=[Φ_d|Φ_s]```: Matrix of MO coefficients, representing a point on the MO manifold
-   - ```Ψ=[Ψ_d|Ψ_s]```: Matrix representing a point on the tangent space at Φ to the MO manifold
+   - ``Φ=[Φ_d|Φ_s]``: Matrix of MO coefficients, representing a point on the MO manifold
+   - ``Ψ=[Ψ_d|Ψ_s]``: Matrix representing a point on the tangent space at Φ to the MO manifold
 
 The exact formula of this retraction is given in equations (17) of the documentation.
 """
@@ -41,21 +41,26 @@ end
     enforce_retract(Ψ::Matrix{T}) where {T<:Real}
 
 Very unstable MO retraction. For a given matrix Ψ, compute the density
- ```P=Ψ Ψ^T```, diagonalize and set the eigenvalues close to 1 to exactly 1, 
+ ``P=Ψ Ψ^T``, diagonalize and set the eigenvalues close to 1 to exactly 1, 
 and those close to 0 to exactly 0.  Only works if Ψ is close to the MO manifold.
 """
-function enforce_retract(Ψ::AbstractMatrix{T}) where {T<:Real} P = Ψ*Ψ' No =
-round(Int,tr(P)) Io = diagm(ones(No)) U = eigen(-Symmetric(P)).vectors P_ret =
-Symmetric(U[:,1:No]*Io*U[:,1:No]') @warn "forced restraction"
-eigen(Symmetric(P_ret)).vectors[:,1:No] end
+function enforce_retract(Ψ::AbstractMatrix{T}) where {T<:Real}
+    P = Ψ*Ψ'
+    No = round(Int,tr(P))
+    Io = diagm(ones(No))
+    U = eigen(-Symmetric(P)).vectors
+    P_ret = Symmetric(U[:,1:No]*Io*U[:,1:No]')
+    @warn "forced restraction"
+    eigen(Symmetric(P_ret)).vectors[:,1:No]
+end
 
 @doc raw""" 
     project_tangent(mo_numbers::Tuple{Int64, Int64, Int64}, Φ::Matrix{T},
                          Ψ::Matrix{T}) where {T<:Real}
 
-For a point ```Φ=[Φ_d|Φ_s]``` on the MO manifold and point
-```[Ψd|Ψs]``` in ```\mathbb{R}^{Nb×Nd}×\mathbb{R}^{Nb×Ns}``` the orthogonal
-projector on the horizontal tangent space at ```Φ``` is defined by
+For a point ``Φ=[Φ_d|Φ_s]`` on the MO manifold and point
+``[Ψd|Ψs]`` in ``\mathbb{R}^{Nb×Nd}×\mathbb{R}^{Nb×Ns}`` the orthogonal
+projector on the horizontal tangent space at ``Φ`` is defined by
 ```math
     Π_Φ(Ψ) = [1/2*Φ_s(Φ_s^{T} Ψ_d - Ψ_s^{T} Φ_d) + Φ_v(Φ_v^{T} Ψ_d) |
          -\frac{1}{2} Φ_d(Ψ_d^{T} Φ_s - Φ_d^{T} Ψ_s] + Φ_v(Φ_v^{T} Ψ_s) ]

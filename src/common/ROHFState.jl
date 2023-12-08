@@ -7,7 +7,7 @@ import LinearAlgebra.norm
     ROHFState(Φ::Matrix, Σ::ChemicalSystem, energy::Real, isortho::Bool,
                          guess::String, history::Matrix)
 
- Molecular orbitals belonging to a specified ROHF manifold.
+Molecular orbitals belonging to a specified ROHF manifold.
 """
 mutable struct ROHFState{T<:Real}
     Φ       ::AbstractMatrix{T}

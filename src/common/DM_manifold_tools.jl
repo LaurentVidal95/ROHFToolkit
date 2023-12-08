@@ -2,12 +2,11 @@
 # In this file the exponent ᵒ denote objects in orthonormal AOs convention
 
 sym(A::AbstractMatrix) = Symmetric(0.5 .* (A + transpose(A)))
-@doc row"""
+@doc raw""" 
     project_tangent_DM(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T},
                             A::Matrix{T}, B::Matrix{T}) where {T<:Real}
-
-For a given point ```(P_d^ᵒ, P_s^ᵒ)``` on the DM manifold (in orthonormal MO convention),
-project the couple ```(A,B)``` on the tangent space at ```(P_d^ᵒ, P_s^ᵒ)```.
+For a given point ``(P_d^ᵒ, P_s^ᵒ)`` on the DM manifold (in orthonormal MO convention),
+project the couple ``(A,B)`` on the tangent space at ``(P_d^ᵒ, P_s^ᵒ)``.
 """
 function project_tangent_DM(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T},
                             A::Matrix{T}, B::Matrix{T}) where {T<:Real}
@@ -17,10 +16,10 @@ function project_tangent_DM(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T},
     Πdᵒ, Πsᵒ
 end
 
-@doc row"""
+@doc raw"""
     gradient_DM_metric(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}
 
-Gradient of the energy at point ```(P_d^ᵒ, P_s^ᵒ)``` on the DM manifold (in 
+Gradient of the energy at point ``(P_d^ᵒ, P_s^ᵒ)`` on the DM manifold (in 
 orthonormal MO convention).
 """
 function gradient_DM_metric(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}
@@ -30,10 +29,10 @@ function gradient_DM_metric(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T}, ζ::ROHFState{T}
     hcat(project_tangent_DM(Pdᵒ, Psᵒ, 2*Fdᵒ, 2*Fsᵒ)...)
 end
 
-@doc row"""
+@doc raw"""
     energy_and_gradient_DM_metric(Pdᵒ, Psᵒ, Sm12, mo_numbers, eri, H, mol)
 
-Energy and gradient of the energy at point ```(P_d^ᵒ, P_s^ᵒ)``` on the DM manifold (in 
+Energy and gradient of the energy at point ``(P_d^ᵒ, P_s^ᵒ)`` on the DM manifold (in 
 orthonormal MO convention).
 """
 function energy_and_gradient_DM_metric(Pdᵒ, Psᵒ, Sm12, mo_numbers, eri, H, mol)
