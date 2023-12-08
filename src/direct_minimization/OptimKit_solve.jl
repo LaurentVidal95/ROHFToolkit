@@ -38,7 +38,7 @@ function direct_minimization_OptimKit(ζ::ROHFState;
     (norm(∇E0)>tol) && (@warn "Not converged")
     @info "Final energy: $(E0) Ha"
 
-    (;ζ=ζ0, energy=E0, residual=norm(∇E0))
+    (;final_state=ζ0, energy=E0, residual=norm(∇E0))
 end
 
 @doc raw"""

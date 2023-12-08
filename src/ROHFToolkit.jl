@@ -23,6 +23,7 @@ export rohf_energy!
 export orthonormalize_state!
 export deorthonormalize_state!
 export compute_ground_state
+export generate_molden
 include("common/ChemicalSystem.jl")
 include("common/ROHFState.jl")
 include("common/energy.jl")

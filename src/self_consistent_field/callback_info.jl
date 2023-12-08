@@ -33,4 +33,4 @@ function SCF_default_callback(; show_dir_angle=false)
 end
 
 # Select in "info" only the argmunents returned by the minimization procedure.
-clean(info) = (;energy=info.E, ζ=info.ζ, n_iter=info.n_iter, residual=norm(info.∇E))
+clean(info) = (;energy=info.E, final_state=info.ζ, n_iter=info.n_iter, residual=norm(info.∇E))
