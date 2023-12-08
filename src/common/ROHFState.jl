@@ -27,6 +27,17 @@ Gathers all informations except the MOs Φ.
 Base.collect(ζ::ROHFState) = collect(ζ.Σ)
 
 @doc raw"""
+    generate_molden(ζ::ROHFState, filename::String)
+
+Save the MOs contained in the state ``ζ`` in a molden file
+for visualization.
+"""
+function generate_molden(ζ::ROHFState, filename::String)
+    pyscf.tools.molden.from_mo(ζ.Σ.mol, filename, ζ.Φ)
+    nothing
+end
+
+@doc raw"""
     init_guess(Σ::ChemicalSystem{T}, guess::Symbol) where {T<:Real}
 
 Returns initial guess MOs and energies in non-orthonormal convention.

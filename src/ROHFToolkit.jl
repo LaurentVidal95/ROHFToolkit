@@ -29,6 +29,7 @@ include("common/energy.jl")
 include("common/compute_ground_state.jl")
 include("common/DM_manifold_tools.jl")
 include("common/MO_manifold_tools.jl")
+include("common/toolbox.jl")
 
 #### Direct Minimization solvers
 include("direct_minimization/preconditioning.jl")
@@ -44,10 +45,5 @@ include("self_consistent_field/scf_solvers.jl")
 include("self_consistent_field/scf.jl")
 include("self_consistent_field/acceleration.jl")
 include("self_consistent_field/callback_info.jl")
-export generate_virtual_MOs_T
-export generate_molden
-include("misc/toolbox.jl")
-include("misc/generate_virtual_mos.jl")
-include("misc/molden.jl")
 
 end # Module

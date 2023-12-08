@@ -122,7 +122,7 @@ end
 
 #     Ψd, Ψs = split_MOs(Ψ, (Nb,Nd,Ns))
 #     Φd, Φs = split_MOs(Φ, (Nb,Nd,Ns))
-#     Φv = generate_virtual_MOs_T(Φd, Φs, (Nb,Nd,Ns))
+#     Φv = generate_virtual_MOs(Φd, Φs, (Nb,Nd,Ns))
 #     Φ_tot = hcat(Φd, Φs, Φv)
 
 #     X = -Φd'Ψs
