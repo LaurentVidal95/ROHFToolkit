@@ -12,6 +12,8 @@ function __init__()
 end
 using Printf           # nice prints
 
+import OptimKit: GradientDescent, ConjugateGradient, LBFGS
+
 #### Common data structures and routines
 export ChemicalSystem
 export ROHFManifold
