@@ -1,11 +1,21 @@
-# Class containing all info on the system:
-#  - mol = molecule as a pyscf object, containing data
-#    on atoms and number and spin of electrons.
-#  - the overlap matrix
-#  - the four index tensor
-#  - the core hamiltonian matrix
-#  - MOs in non orthogonal AO basis
-#  - E_rohf: the ROHF energy.
+@doc raw""" 
+    ChemicalSystem(mol::PyObject, mo_numbers::Tuple(Int64,Int64,Int64),
+        overlap_matrix::Matrix{T}, eri::Vector{T}, core_hamiltonian::Matrix{T},
+        S12::Matrix{T}, Sm12::Matrix{T}) where {T<:Real}
+
+Class built above a pyscf molecule object that
+contains all the data needed for optimization:
+  - mol: molecule as a pyscf object, containing data on atoms and number and
+    spin of electrons.
+  - mo_numbers: tuple (Nb, Nd, Ns), respectively the total number, the number of
+    doubly-occupied and the number singly occupied MOs.
+  - overlap_matrix: the overlap matrix for the given GTO basis
+  - eri: the four index tensor in a compressed format
+  - core_hamiltonian: the core hamiltonian matrix
+  - S12: square root of the overlap matrix for MO (de)orthonormalization
+  - Sm12: inverse square root of the overlap matrix for MO
+    (de)orthonormalization
+"""
 struct ChemicalSystem{T <: Real}
     # Molecule containing the geometry and numbers Nb, Nd, Ns
     mol               ::PyObject
@@ -14,13 +24,13 @@ struct ChemicalSystem{T <: Real}
     overlap_matrix    ::AbstractMatrix{T}
     eri               ::Vector{T}
     core_hamiltonian  ::AbstractMatrix{T}
-    # overlap dependant
+    # overlap dependent
     S12               ::AbstractMatrix{T}
     Sm12              ::AbstractMatrix{T}
 end
 
-"""
-Construct a chemical system directly from a file
+@doc raw"""
+Construct a ChemicalSystem for a pyscf molecule object.
 """
 function ChemicalSystem(mol::PyObject)
     No, Nd = mol.nelec; Ns = No - Nd; Nb = convert(Int64, mol.nao);
@@ -36,5 +46,8 @@ function ChemicalSystem(mol::PyObject)
     Σ = ChemicalSystem{eltype(S)}(mol, mo_numbers, S, eri, H, S12, Sm12)
 end
 
+"""
+Overload of collect to quickly extract the needed information
+"""
 Base.collect(Σ::ChemicalSystem) = (Σ.mo_numbers, Σ.eri, Σ.core_hamiltonian,
                                    Σ.mol, Σ.overlap_matrix)

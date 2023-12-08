@@ -1,10 +1,15 @@
-# TODO: Change the name of gradient routines...
+@doc raw"""
+    assemble_CX_operators(eri::Vector{T}, Pd::AbstractMatrix{T},
+                               Ps::AbstractMatrix{T}) where {T<:Real}
 
-"""
 Assemble the Coulomb and exchange matrices J and K for doubly occupied
 and singly occupied densities, in non-orthogonal AO basis convention.
 Arguments are the molecular integrals in a vector shape (reduced by symmetry)
 and the densities Pd and Ps.
+
+Links toward PySCF doc:
+ - https://pyscf.org/_modules/pyscf/gto/moleintor.html
+ - https://pyscf.org/_modules/pyscf/scf/hf.html
 """
 function assemble_CX_operators(eri::Vector{T}, Pd::AbstractMatrix{T},
                                Ps::AbstractMatrix{T}) where {T<:Real}
@@ -20,15 +25,19 @@ end
 ##!!! !! !  !                       Energy                         !  ! !! !!!##
 ###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
 """
-Energy given doubly and singly occupied states density and
-coulomb/exchange operators.
+Low level ROHF energy function. Arguments are the 
+doubly and singly occupied states density and coulomb/exchange operators. 
 The core hamiltonian as well as the PySCF molecule is also needed.
 """
 energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol) =
     tr(H*(2Pd+Ps)) + tr((2Jd-Kd)*(Pd+Ps)) + 1/2*tr((Js-Ks)*Ps) + mol.energy_nuc()
 
-"""
-Energy given only densities, core Hamiltonian and molecule.
+@doc raw"""
+    energy(Pd::Matrix{T}, Ps::Matrix{T}, mo_numbers,
+                     eri::Vector{T},  H::Matrix{T}, mol)
+
+ROHF energy given only densities, core Hamiltonian and the molecule
+as a pyscf object.
 """
 function energy(Pd::Matrix{T}, Ps::Matrix{T}, mo_numbers,
                      eri::Vector{T},  H::Matrix{T}, mol) where {T<:Real}
@@ -38,8 +47,10 @@ end
 energy(Pd::Matrix, Ps::Matrix, ζ::ROHFState) =
     energy(Pd, Ps, collect(ζ)[1:end-1]...)
 
-"""
-Energy given only MOs and ROHFState.
+@doc raw"""
+    energy(Φ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real} 
+
+Higher level ROHF energy function, given only a set of MOs and a ROHFState.
 """
 function energy(Φ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}  
     Pd, Ps = densities(Φ, ζ.Σ.mo_numbers)
@@ -53,30 +64,35 @@ function energy!(ζ::ROHFState{T}) where {T<:Real}
     E
 end
 
-###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
-##!!! !! !  !                   Energy gradients                   !  ! !! !!!##
-###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
-"""
-Computes the Fock operators Fd and Fs given in orthonormal AO basis,
+
+@doc raw"""
+    Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
+
+Computes the Fock operators Fd and Fs in orthonormal AO basis,
 given all necessary matrices:
     - Coulomb and exchange operators Jd, Js, Kd and Ks
     - The core hamiltonian matrix H
-    - The square-root inverse of the overlap S^{-1/2}
+    - The square-root inverse of the overlap ```S^{-1/2}```.
 """
 function Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
     FdT = H .+ 2Jd .- Kd .+ Js .- 0.5 .* Ks
     FsT = 0.5 .*(H .+ 2Jd .- Kd .+ Js .- Ks)
     Sm12*FdT*Sm12, Sm12*FsT*Sm12
 end
-"""
-Computes the Fock operators Fd and Fs for a given state
-in the ROHF manifold, in orthonormal AO basis.
-"""
+
+
 function Fock_operators(Φ, Sm12, mo_numbers, eri, H)
     Pd, Ps = densities(Sm12*Φ, mo_numbers)
     Jd, Js, Kd, Ks = assemble_CX_operators(eri, Pd, Ps)
     Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
 end
+
+@doc raw"""
+    Fock_operators(Φ, ζ::ROHFState)
+
+Compact routine to compute the Fock operators Fd and Fs
+for a given state in the ROHF manifold, in orthonormal AO basis.
+"""
 Fock_operators(Φ, ζ::ROHFState) = Fock_operators(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
 function Fock_operators(ζ::ROHFState)
     @assert(ζ.isortho)
@@ -92,27 +108,47 @@ function Fock_operators(Pdᵒ, Psᵒ, ζ::ROHFState{T}) where {T<:Real}
     Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
 end
 
+@doc raw"""
+    ambiant_space_MO_gradient(Φ, Sm12, mo_numbers, eri, H)
+
+Compute the gradient of the ROHF energy in MO formalism in the ambiant vector
+space. The ambiant space gradient is given in equation (28) of the documentation.
 """
-Compute the gradient of the energy in MO formalism for the metric: 
-g_y(Ψd, Ψs) = ⟨Ψd,Ψs⟩_{MO}
-For a state Φ = (Φd, Φs), the gradient lies in the horizontal tangent space at y:
-∇gE_MO(y) = ( Φs[Φs'2(Fd-Fs)Φd] + Φv[4Φv'FdΦd],  -Φd[Φd'2(Fd-Fs)Φs] + Φv[4Φv'FsΦs] )
-"""
-function ambiant_space_gradient(Φ, Sm12, mo_numbers, eri, H)
+function ambiant_space_MO_gradient(Φ, Sm12, mo_numbers, eri, H)
     Fdᵒ, Fsᵒ = Fock_operators(Φ, Sm12, mo_numbers, eri, H)
     Φdᵒ, Φsᵒ = split_MOs(Φ, mo_numbers);
     hcat(4*Fdᵒ*Φdᵒ, 4*Fsᵒ*Φsᵒ)    
 end
-function gradient_MO_metric(Φ, Sm12, mo_numbers, eri, H)
-    ∇E = ambiant_space_gradient(Φ, Sm12, mo_numbers, eri, H)
-    project_tangent(mo_numbers, Φ, ∇E)
-end
+@doc raw"""
+     gradient_MO_metric(Φ, ζ::ROHFState)
+
+Compute the gradient of the ROHF energy in MO formalism for the metric:
+g(Ψ₁, Ψ₂]) = ⟨Ψ₁,Ψ₂⟩_{MO}
+For a state Φ = (Φd, Φs), the gradient lies in the horizontal tangent space at Φ:
+```math
+ ∇_{\mathfrak{g}}E_{\rm MO}(Φ) = [Φ_s(Φ_s^{T} 2(F_d-F_s)Φ_d) + Φ_v(4Φ_v^{T} F_dΦ_d) |
+     -Φ_d(Φ_d^{T} 2(F_d-F_s)Φ_s) + Φ_v(4Φ_v^{T} F_sΦ_s) ]
+```
+"""
 function gradient_MO_metric(Φ, ζ::ROHFState)
     @assert(ζ.isortho)
     ∇E = gradient_MO_metric(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
     ROHFTangentVector(∇E, ζ)
 end
+function gradient_MO_metric(Φ, Sm12, mo_numbers, eri, H)
+    ∇E = ambiant_space_MO_gradient(Φ, Sm12, mo_numbers, eri, H)
+    project_tangent(mo_numbers, Φ, ∇E)
+end
 
+@doc raw"""
+    energy_and_gradient(Φ, ζ::ROHFState)
+
+Computes both energy and gradient at point [Φ] on the MO manifold.
+"""
+function energy_and_gradient(Φ, ζ::ROHFState)
+    E, ∇E = energy_and_gradient(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
+    E, ROHFTangentVector(∇E, ζ)
+end
 function energy_and_gradient(Φ, Sm12, mo_numbers, eri, H, mol)
     # Compute Jd, Js, Kd, Ks
     Pd, Ps = densities(Sm12*Φ, mo_numbers) # Densities in non-orthonormal AOs convention.
@@ -125,15 +161,12 @@ function energy_and_gradient(Φ, Sm12, mo_numbers, eri, H, mol)
     ∇E = project_tangent(mo_numbers, Φ, hcat(4*Fd*Φd, 4*Fs*Φs))
     E, ∇E
 end
-function energy_and_gradient(Φ, ζ::ROHFState)
-    E, ∇E = energy_and_gradient(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
-    E, ROHFTangentVector(∇E, ζ)
-end
 function energy_and_gradient(ζ::ROHFState)
     @assert(ζ.isortho)
     energy_and_gradient(ζ.Φ, ζ)
 end
 
+### Old functions for XC operators
 # function tensor_slice(mol::PyObject, i, j, type)
 #     shls_slice = nothing
 #     n_ao = mol.nao
@@ -163,8 +196,3 @@ end
 # test = mol.intor("int2e", shls_slice=(0, 1, 0, 1, 0, 5, 0, 5), aosym="2ij")
 # dropdims(test, dims=1) donne A[1,1,:,:]
 # """
-
-# Liens doc PySCF
-# https://pyscf.org/_modules/pyscf/gto/moleintor.html
-# https://pyscf.org/_modules/pyscf/scf/hf.html
-

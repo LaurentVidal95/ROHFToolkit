@@ -49,7 +49,7 @@ function hybrid_scf(info; fixpoint_map, maxiter=500)
         ζ, _, _, history = optimize(fg, ζ_init,
                            GradientDescent(;verbosity=2, gradtol=1e-7);
                            kwargs...)
-
+        # Problem... Ne pas faire un restart avec le ζ juste au dessus.
         if (test_MOs(ζ) ≥ 1e-9)
             @warn "Trying new guess"
             fg, ζ_init = hybrid_SCF_optimization_args(Pd, Ps, Fd, Fs, ζ, :Euler)

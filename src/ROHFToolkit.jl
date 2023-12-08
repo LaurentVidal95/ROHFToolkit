@@ -1,18 +1,18 @@
 module ROHFToolkit
 
 using LinearAlgebra
-using LinearMaps
-using Printf
-using OptimKit
-# preconditioning system. Replace maybe by OptimKit routines
-using IterativeSolvers
+using OptimKit         # Riemaniann optimization routines
+using LinearMaps       # For preconditioning system. Replace maybe by OptimKit routines
+using IterativeSolvers # For preconditioning system. Replace maybe by OptimKit routines
+# Handling PySCF
 using PyCall
-# Import pyscf globaly
-const pyscf = PyNULL()
+const pyscf = PyNULL() # Import pyscf globaly
 function __init__()
     copy!(pyscf, pyimport("pyscf"))
 end
+using Printf           # nice prints
 
+#### Common data structures and routines
 export ChemicalSystem
 export ROHFManifold
 export ROHFState
@@ -39,7 +39,6 @@ export scf
 export hybrid_scf
 export DIIS
 export ODA
-# export scf_anderson_solver
 include("self_consistent_field/effective_hamiltonians.jl")
 include("self_consistent_field/scf_solvers.jl")
 include("self_consistent_field/scf.jl")

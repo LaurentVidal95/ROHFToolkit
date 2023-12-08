@@ -3,9 +3,12 @@
 import Base.+, Base.-, Base.*, Base.adjoint, Base.vec
 import LinearAlgebra.norm
 
-#
-#Molecular orbitals belonging to a specified ROHF manifold.
-#
+@doc raw"""
+    ROHFState(Φ::Matrix, Σ::ChemicalSystem, energy::Real, isortho::Bool,
+                         guess::String, history::Matrix)
+
+ Molecular orbitals belonging to a specified ROHF manifold.
+"""
 mutable struct ROHFState{T<:Real}
     Φ       ::AbstractMatrix{T}
     Σ       ::ChemicalSystem{T}
@@ -19,11 +22,21 @@ mutable struct ROHFState{T<:Real}
 end
 
 """
-Returns initial guess MOs and energies in non-orthonormal convention
+Gathers all informations except the MOs Φ.
+"""
+Base.collect(ζ::ROHFState) = collect(ζ.Σ)
 
+@doc raw"""
+    init_guess(Σ::ChemicalSystem{T}, guess::Symbol) where {T<:Real}
+
+Returns initial guess MOs and energies in non-orthonormal convention.
 The guess is one of the following (see PySCF API doc):
-:minao, :atom, :huckel, :hcore, :hcore_pyscf (1e in PySCF doc), :chkfile
-
+    - :minao
+    - :atom
+    - :huckel
+    - :hcore
+    - :hcore_pyscf (1e in PySCF doc).
+    - :chkfile
 The hcore guess of PySCF ("1e") is somehow very bad so it is handled manualy.
 See the "core_guess" function bellow.
 """
@@ -48,7 +61,12 @@ function init_guess(Σ::ChemicalSystem{T}, guess::Symbol) where {T<:Real}
     # Deorthonormalize
     inv(sqrt(Symmetric(Σ.overlap_matrix))) * Φ_ortho
 end
+@doc raw"""
+    core_guess(Σ::ChemicalSystem{T}) where {T<:Real}
 
+Initial guess obtained by diagonalizing the core hamiltonian matrix,
+and using the Aufbau principle.
+"""
 function core_guess(Σ::ChemicalSystem{T}) where {T<:Real}
     No = sum(Σ.mo_numbers[2:3])
     F = eigen(Symmetric(Σ.core_hamiltonian), Symmetric(Σ.overlap_matrix))
@@ -69,14 +87,22 @@ end
 ROHFState(mol::PyObject; guess=:minao) = ROHFState(ChemicalSystem(mol); guess)
 ROHFState(ζ::ROHFState, Φ::Matrix) = ROHFState(Φ, ζ.Σ, ζ.energy, ζ.isortho, ζ.guess, ζ.history)
 
-#
-# If vec = base.Φ, ROHFTangentVector is just a ROHFState
-#
+@doc raw"""
+     ROHFTangentVector(vec::AbstractMatrix{T}, base::ROHFState{T})
+
+The base vector is a point on the MO manifold, and vec is a vector in
+the tangent space the base to the MO manifold.
+Mainly serve to match the conventions of the OptimKit optimization library.
+Note that if vec = base.Φ, the ROHFTangentVector is just a ROHFState.
+"""
 struct ROHFTangentVector{T<:Real}
     vec::AbstractMatrix{T}
     base::ROHFState{T}
 end
 
+"""
+Overloading basic operations for ROHFTangentVectors.
+"""
 ROHFTangentVector(ζ::ROHFState) = ROHFTangentVector(ζ.Φ, Φ)
 (+)(A::Matrix, X::ROHFTangentVector) = (+)(A, X.vec)
 (+)(X::ROHFTangentVector, A::Matrix) = (+)(X.vec, A)
@@ -87,6 +113,11 @@ norm(X::ROHFTangentVector) = norm(X.vec)
 (adjoint)(X::ROHFTangentVector) = X.vec'
 (vec)(X::ROHFTangentVector) = vec(X.vec)
 
+@doc raw"""
+    reset_state!(ζ::ROHFState; guess=:minao)
+
+
+"""
 function reset_state!(ζ::ROHFState; guess=:minao)
     Φ_init = init_guess(ζ.Σ, guess)
     ζ.Φ = Φ_init; ζ.isortho=false; energy!(ζ);
@@ -95,6 +126,12 @@ function reset_state!(ζ::ROHFState; guess=:minao)
     nothing
 end
 
+@doc raw"""
+    orthonormalize_state!(ζ::ROHFState)
+
+Use the square root of the overlap matrix to orthonormalize the
+MOs of a given state.
+"""
 function orthonormalize_state!(ζ::ROHFState)
     # If MOs are already orthonormal do nothing
     (ζ.isortho) && (@info "The state is already orthonomal")
@@ -105,6 +142,13 @@ function orthonormalize_state!(ζ::ROHFState)
     nothing
 end
 orthonormalize_state!(Ψ::ROHFTangentVector) = orthonormalize_state!(Ψ.base)
+
+@doc raw"""
+    deorthonormalize_state!(ζ::ROHFState)
+
+Use the inverse square root of the overlap matrix to deorthonormalize the
+MOs of a given state.
+"""
 function deorthonormalize_state!(ζ::ROHFState)
     !(ζ.isortho) && (@info "The state is already non-orthonomal")
     if (ζ.isortho)
@@ -113,8 +157,3 @@ function deorthonormalize_state!(ζ::ROHFState)
     end
     nothing
 end
-
-"""
-Gathers all informations except the MOs Φ
-"""
-Base.collect(ζ::ROHFState) = collect(ζ.Σ)

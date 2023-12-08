@@ -1,4 +1,4 @@
-oxygen(basis::String; symmmetry=false) =
+oxygen(basis::String; symmetry=false) =
     ROHFToolkit.pyscf.M(atom = "O 0.0 0.0 0.0",
                         basis = "$basis", # A modifier
                         symmetry = symmetry,

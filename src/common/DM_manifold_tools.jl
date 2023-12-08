@@ -1,10 +1,14 @@
-"""
-All routines on the DM manifold. Used only for DIIS.
-"""
-#
+# All routines on the DM manifold. Used only for DIIS acceleration.
 # In this file the exponent ᵒ denote objects in orthonormal AOs convention
-#
+
 sym(A::AbstractMatrix) = Symmetric(0.5 .* (A + transpose(A)))
+@doc row"""
+    project_tangent_DM(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T},
+                            A::Matrix{T}, B::Matrix{T}) where {T<:Real}
+
+For a given point ```(P_d^ᵒ, P_s^ᵒ)``` on the DM manifold (in orthonormal MO convention),
+project the couple ```(A,B)``` on the tangent space at ```(P_d^ᵒ, P_s^ᵒ)```.
+"""
 function project_tangent_DM(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T},
                             A::Matrix{T}, B::Matrix{T}) where {T<:Real}
     Pvᵒ = Symmetric(I - Pdᵒ - Psᵒ)
@@ -13,6 +17,12 @@ function project_tangent_DM(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T},
     Πdᵒ, Πsᵒ
 end
 
+@doc row"""
+    gradient_DM_metric(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}
+
+Gradient of the energy at point ```(P_d^ᵒ, P_s^ᵒ)``` on the DM manifold (in 
+orthonormal MO convention).
+"""
 function gradient_DM_metric(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}
     @assert(ζ.isortho)
     # ortho -> non-ortho densities
@@ -20,6 +30,12 @@ function gradient_DM_metric(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T}, ζ::ROHFState{T}
     hcat(project_tangent_DM(Pdᵒ, Psᵒ, 2*Fdᵒ, 2*Fsᵒ)...)
 end
 
+@doc row"""
+    energy_and_gradient_DM_metric(Pdᵒ, Psᵒ, Sm12, mo_numbers, eri, H, mol)
+
+Energy and gradient of the energy at point ```(P_d^ᵒ, P_s^ᵒ)``` on the DM manifold (in 
+orthonormal MO convention).
+"""
 function energy_and_gradient_DM_metric(Pdᵒ, Psᵒ, Sm12, mo_numbers, eri, H, mol)
     Pd, Ps = Symmetric(Sm12*Pdᵒ*Sm12), Symmetric(Sm12*Psᵒ*Sm12)
     Jd, Js, Kd, Ks = assemble_CX_operators(eri, Pd, Ps)
@@ -34,6 +50,7 @@ function energy_and_gradient_DM_metric(Pdᵒ::Matrix{T}, Psᵒ::Matrix{T}, ζ::R
     energy_and_gradient_DM_metric(Pdᵒ, Psᵒ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
 end
 
+### OLD for numerical tests.
 # """
 # Mapping from a tangent space at M_DM to a tangent space at M_MO.
 # """
@@ -67,8 +84,3 @@ end
 #     τη1_vec = hcat(project_tangent_DM(Pd1, Ps1, Pd2, Ps2)...)
 #     ROHFTangentVector(τη1_vec, Rη2)
 # end
-
-# function precondition(ζ::ROHFState{T}, η) where {T<:Real}
-    
-# end
-

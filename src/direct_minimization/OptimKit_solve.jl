@@ -1,5 +1,3 @@
-using OptimKit
-
 """
 Wrapper around OptimKit "optimize" function.
 """
@@ -31,6 +29,7 @@ end
 
 """
 All manifold routines in a format readable by OptimKit.
+See `src/common/MO_manifold_tools.jl`
 """
 function optim_kwargs(;preconditioned=true, verbose=true)
     kwargs = (; retract, inner, transport!, scale!, add!)
@@ -39,10 +38,11 @@ function optim_kwargs(;preconditioned=true, verbose=true)
     kwargs
 end
 
-function precondition(ζ::ROHFState, η) where {T<:Real}
+function precondition(ζ::ROHFState, η)
     prec_grad = ROHFTangentVector(preconditioned_gradient_MO_metric(ζ), ζ)
-    #return gradient if not a descent direction. Avoid errors in L-BFGS far from minimum
-    if (tr(prec_grad'η)/(norm(prec_grad)*norm(η))) ≤ 1e-4
+    # Return standard gradient if not a descent direction.
+    # Avoid errors when starting far from the minimum.
+    if (tr(prec_grad'η)/(norm(prec_grad)*norm(η))) ≤ 1e-2 # set experimentaly
         @warn "No preconditioning"
         return η
     end
@@ -69,7 +69,7 @@ function transport!(η1::ROHFTangentVector{T}, ζ::ROHFState{T},
                     η2::ROHFTangentVector{T}, α::T, Rη2::ROHFState{T}) where {T<:Real}
     # η1 = η2 case
     (η1.vec==η2.vec) && (return transport_vec_along_himself(η1, α, Rη2))
-    # Otherwise transport with projection1;5D
+    # Otherwise transport with projection
     τη1_vec = project_tangent(ζ, Rη2.Φ, η1.vec)
     ROHFTangentVector(τη1_vec, Rη2)
 end
