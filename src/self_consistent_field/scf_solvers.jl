@@ -1,6 +1,9 @@
-#
-# Standard SCF with DIIS by default.
-#
+@doc raw"""
+     scf(info; fixpoint_map, maxiter=500)
+
+Standard SCF iteration. The SCF depends on the choice of effective ROHF
+Hamiltonian (see ``src/self_consistent_field/effective_hamiltonians.jl``).  
+"""
 function scf(info; fixpoint_map, maxiter=500)
     # Define standard scf update function
     function g_std(Pd, Ps, Fd, Fs, ζ::ROHFState, info)
@@ -21,9 +24,15 @@ function scf(info; fixpoint_map, maxiter=500)
     info
 end
 
-"""
-Choose next densities in the argmin of the SCF iteration problem.
-Use to be called g_new diis
+@doc raw"""
+    hybrid_scf(info; fixpoint_map, maxiter=500)
+
+Hybrid SCF solver, where the next density is given by:
+```math
+    g(xₙ) = {\rm argmin}\left\{ {\rm Tr}\left(F_d^{n}P_d+F_s^{n}P_s\right),
+            \quad (P_d,P_s)\in\mathcal{M}_{\rm DM}\right\}
+```
+which is solved by a direct minimization method.
 """
 function hybrid_scf(info; fixpoint_map, maxiter=500)
     # Define hybrid scf update function
@@ -67,6 +76,15 @@ function hybrid_scf(info; fixpoint_map, maxiter=500)
     end
     info
 end
+@doc raw"""
+    hybrid_SCF_optimization_args(Pd₀::Matrix{T}, Ps₀::Matrix{T},
+                                      Fd₀::Matrix{T}, Fs₀::Matrix{T},
+                                      ζ₀::ROHFState{T},
+                                      guess::Symbol) where {T<:Real}
+
+Fixes the arguments of the Riemannian optimization problem of the
+hybrid SCF in OptimKit convention.
+"""
 function hybrid_SCF_optimization_args(Pd₀::Matrix{T}, Ps₀::Matrix{T},
                                       Fd₀::Matrix{T}, Fs₀::Matrix{T},
                                       ζ₀::ROHFState{T},

@@ -1,4 +1,10 @@
 # Add show angle of current direction w.r. to -∇E
+@doc raw"""
+    SCF_default_callback(; show_dir_angle=false)
+
+Defines the standard callback for SCF iterations.
+Nothing fancy to say here.
+"""
 function SCF_default_callback(; show_dir_angle=false)
     function callback(info)
         if info.n_iter == 0

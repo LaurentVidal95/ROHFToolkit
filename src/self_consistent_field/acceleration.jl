@@ -3,10 +3,11 @@
 #
 import Base.collect
 
-"""
+@doc raw"""
+     DIIS(m::Int, iterates::Vector{Any}, residuals::Vector{Any})
+
 Standard fixed depth DIIS as described e.g. in [https://doi.org/10.1051/m2an/2021069]
-(Its a review, see Pulay for the introduction of DIIS I think)
-DIIS is applied in DM conventions to match the ROHF paper writing.
+Note that DIIS is applied in DM conventions.
 """
 struct DIIS
     m::Int                            # maximal history size
@@ -29,7 +30,9 @@ function Base.push!(diis::DIIS, Pdₙ, Psₙ, Rₙ)
     diis
 end
 
-"""
+@doc raw"""
+    diis(info)
+
 Returns the DIIS extrapolated densities and corresponding Fock operators
 from densities contained in info and history in the DIIS struct.
 """
@@ -62,10 +65,12 @@ function (diis::DIIS)(info)
     Pd_diis, Ps_diis, Fock_operators(Pd_diis, Ps_diis, info.ζ)...
 end
 
-"""
+@doc raw"""
+    ODA(densities::Matrix{T}, Fock_operators::Matrix{T}) where {T}
+
 Relaxed constrained interpolation of densities and Fock operators or "ODA".
-Have to work with hybrid_scf solver.
-TODO : Add changing guess when t=0..
+Have to work with hybrid_scf solver. Kind of bugged for now but used to
+work before changing the structure.
 """
 mutable struct ODA{T}
     densities::Matrix{T}      # (Pdₙᶜ|Psₙᶜ)
@@ -131,14 +136,20 @@ function oda_convex_combination_param(c₁::T,c₂::T) where {T<:Real}
     @show t_min
 end
 """
-Build c₁, c₂ such that
-  E((1-t)(Pdₙᶜ,Psₙᶜ) + t(Pdₙ₊₁,Psₙ₊₁)) = c₁*t² + c₂*t + c₃.
-We have:
-  c₁ = (Pdₙ₊₁-Pdₙᶜ, Psₙ₊₁-Psₙᶜ) ⋅ (Fdₙ₊₁-Fdₙᶜ, Fsₙ₊₁-Fsₙᶜ)
-  c₂ = 2(Pdₙ₊₁-Pdₙᶜ, Psₙ₊₁-Psₙᶜ) ⋅ (Fd, Fs)
-( c₃ = E(Pdₙᶜ, Psₙᶜ) is not usefull hence not computed )
+   oda_polynom_coefficients(Pdₙᶜ::Matrix{T}, Psₙᶜ::Matrix{T}, Fdₙᶜ::Matrix{T},
+                                  Fsₙᶜ::Matrix{T}, Pdₙ₊₁::Matrix{T}, Psₙ₊₁::Matrix{T},
+                                  ζ::ROHFState) where {T<:Real}
 
-#Also returns ∇E(Pdₙ₊₁,Psₙ₊₁) to avoid unnecessary computations
+Build c₁, c₂ such that
+```math
+  E((1-t)(Pdₙᶜ,Psₙᶜ) + t(Pdₙ₊₁,Psₙ₊₁)) = c₁*t² + c₂*t + c₃.
+```
+We have:
+  - ``c₁ = (Pdₙ₊₁-Pdₙᶜ, Psₙ₊₁-Psₙᶜ) ⋅ (Fdₙ₊₁-Fdₙᶜ, Fsₙ₊₁-Fsₙᶜ)``
+  - ``c₂ = 2(Pdₙ₊₁-Pdₙᶜ, Psₙ₊₁-Psₙᶜ) ⋅ (Fd, Fs)``
+  - ``c₃ = E(Pdₙᶜ, Psₙᶜ)`` is not usefull hence not computed
+
+Also returns Fdₙ₊₁ and Fsₙ₊₁ to avoid unnecessary computations.
 """
 function oda_polynom_coefficients(Pdₙᶜ::Matrix{T}, Psₙᶜ::Matrix{T}, Fdₙᶜ::Matrix{T},
                                   Fsₙᶜ::Matrix{T}, Pdₙ₊₁::Matrix{T}, Psₙ₊₁::Matrix{T},

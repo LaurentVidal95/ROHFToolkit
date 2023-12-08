@@ -1,3 +1,11 @@
+@doc raw"""
+     H_eff_coeffs(name, mol::PyObject)
+
+Contains the coefficients describing the main effective ROHF Hamiltonian
+described in the literature. We refer to table given in
+[Boris N Plakhutin and Ernest R Davidson. Canonical form of the hartree-fock orbitals
+in open-shell systems. The Journal of Chemical Physics, 140(1):014102, 2014.]
+"""
 function H_eff_coeffs(name, mol::PyObject)
     S = mol.spin
     # Standard coefficients, as given in the litterature
@@ -16,8 +24,11 @@ function H_eff_coeffs(name, mol::PyObject)
     2 .* coeffs[name] # multiply by 2 the litterature coeff to adapt to the code convention
 end
 
-"""
-Assemble the ROHF effective Hamiltonian, that is the matrix:
+@doc raw"""
+    assemble_H_eff(A_tt, B_tt, Pd, Ps, Fd, Fs)
+
+Given a set of coefficients (computed with ``H_eff_coeffs``),
+and the Fock operators, provide the ROHF effective Hamiltonian:
 +---------+---------+--------+
 |  R_dd   | Fd - Fs |   Fd   |
 +---------+---------+--------+

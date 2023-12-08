@@ -1,23 +1,32 @@
-using DelimitedFiles
+@doc raw"""
+    OLD: direct_minimization(ζ::ROHFState;  maxiter = 500, maxstep = 2*one(Float64),
+                           solver = conjugate_gradient(), # preconditioned
+                           tol = 1e-5, linesearch_type = HagerZhang(),
+                           prompt=default_prompt())
 
-"""
-ADD DOC: General direct minimization procedure.
-In two words:
-1) Choose dir according to the method provided in the solver arg.
-2) Linesearch along dir
-3) Check convergence
-4) Change Delimited files by JSON3, to save more data.
+General direct minimization procedure, which decomposes as such:
+    1) Choose a direction according to the method provided in the solver arg.
+    2) Linesearch along direction
+    3) Check convergence
+The arguments are 
+    - ζ: initial point of the optimization on the MO manifold
+    - maxiter: maximum number of iterations
+    - maxstep: maximum step size during linesearch
+    - solver: optimization algorithm. For now only (preconditioned) steepest descent
+    and conjugate_gradient.
+    - tol: the convergence is asserted when the gradient norm is bellow tol.
+    - linesearch_type: linesearch algorithm used at each iteration.
+    - prompt: modify prompt if needed. Default should be fine.
 """
 function direct_minimization(ζ::ROHFState;
-                             max_iter = 500,
-                             max_step = 2*one(Float64),
-                             solver = conjugate_gradient(), # preconditioned
+                             maxiter = 500,
+                             maxstep = 2*one(Float64),
+                             solver = conjugate_gradient(), # preconditioned by default
                              tol = 1e-5,
                              linesearch_type = HagerZhang(),
-                             prompt=default_prompt(),
-                             savefile="")
+                             prompt=default_prompt())
     # Linesearch.jl only handles Float64 step sisze
-    (typeof(max_step)≠Float64) && (max_step=Float64(max_step))
+    (typeof(maxstep)≠Float64) && (maxstep=Float64(maxstep))
 
     # non-orthonormal AO -> orthonormal AO convention
     (cond(ζ.Σ.overlap_matrix) > 1e6) && @warn("Conditioning of the "*
@@ -40,11 +49,11 @@ function direct_minimization(ζ::ROHFState;
     # Display header and initial data
     prompt.prompt(info)
 
-    while (!(info.converged) && (n_iter < max_iter))
+    while (!(info.converged) && (n_iter < maxiter))
         n_iter += 1
 
         # find next point ζ on ROHF manifold
-        step, E, ζ = rohf_manifold_linesearch(ζ, dir.vec; E, ∇E, max_step,
+        step, E, ζ = rohf_manifold_linesearch(ζ, dir.vec; E, ∇E, maxstep,
                                               linesearch_type)
 
         # Update "info" with the new ROHF point and related quantities

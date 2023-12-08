@@ -1,3 +1,8 @@
+@doc raw"""
+    OLD: steepest_descent(; preconditioned=true)
+
+(Preconditioned) Steepest descent algorithm on the MO manifold.
+"""
 function steepest_descent(; preconditioned=true)
     function next_dir(info)
         grad = preconditioned ? - preconditioned_gradient(info.ζ) : - info.∇E
@@ -8,6 +13,14 @@ function steepest_descent(; preconditioned=true)
     prefix = preconditioned ? "prec_SD" : "SD"
     (;next_dir, name, prefix, preconditioned)
 end
+
+@doc raw"""
+    OLD: conjugate_gradient(; preconditioned=true, cg_type="Fletcher-Reeves")
+
+(Preconditioned) conjugate gradient algorithm on the MO manifold.
+The ``cg_type`` for now is useless but will serve to launch other
+types of CG algorithms.
+"""
 
 function conjugate_gradient(; preconditioned=true, cg_type="Fletcher-Reeves")
     function next_dir(info)

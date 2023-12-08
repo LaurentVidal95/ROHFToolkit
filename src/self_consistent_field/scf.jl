@@ -1,3 +1,30 @@
+@doc raw"""
+    scf_method(ζ::ROHFState; solver = scf, acceleration = DIIS(;m=15), # DIIS or ODA
+                    effective_hamiltonian=:Guest_Saunders, tol=1e-5,
+                    callback=SCF_default_callback(), kwargs...)
+
+Generic SCF routine whose iteration writes:
+```math
+        xₙ₊₁ = g(A(xₙ, xₙ₋₁,…))
+```
+The function ``A`` is an acceleration method (DIIS, ODA) that depends on
+the previous iterates. The function g provides the next point given the
+result of the acceleration, and depends on the scf solver.
+
+The arguments are:
+    - ζ: initial point of the optimization on the MO manifold
+    - solver: type of scf algorithm. For now either one of the standard effective
+     ROHF Hamiltonian scf, or hybrid scf which also uses direct minimization.
+        See ``src/self_consistent_field/scf_solvers.jl``
+    - acceleration: set DIIS or ODA acceleration. The default is fixed depth
+    DIIS.
+    - effective_hamiltonian: choose between ROHF effective Hamiltonians.  The
+    default choice is "Guest and Saunders" which is the most stable numericaly
+    in our experiments.
+    - tol: the convergence is asserted when the gradient norm is bellow tol.
+    - callback: modify callback if needed. Default should be fine.
+    - kwargs: specific to the chosen scf solver.
+"""
 function scf_method(ζ::ROHFState;
                     solver = scf,
                     acceleration = DIIS(;m=15), # DIIS or ODA

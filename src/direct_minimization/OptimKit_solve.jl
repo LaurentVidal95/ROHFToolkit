@@ -1,5 +1,19 @@
-"""
-Wrapper around OptimKit "optimize" function.
+@doc raw"""
+    direct_minimization_OptimKit(ζ::ROHFState; maxiter=500, tol=1e-5, solver=ConjugateGradient, preconditioned=true,
+                                      verbose=true, break_symmetry=false, kwargs...)
+Wrapper around OptimKit "optimize" function. The arguments are:
+    - ζ: initial point of the optimization on the MO manifold
+    - maxiter: maximum number of iterations
+    - tol: the convergence is asserted when the gradient norm is bellow tol.
+    - solver: optimization method which can be any of the OptimKit routines that doesn't involve
+    the MO manifold connection.
+    - preconditioned: changes the metric of the MO manifold to compute the gradient, to accelerate
+    convergence. Default is true.
+    - verbose: true or false.
+    - break_symmetry: applies random unitary operation on initial MOs to test convergence
+    from random initial guess.
+    - kwargs: related to the choice of solver. See OptimKit documentation.
+Note that the final ROHFState is always returned in non orthonormal AOs convention.
 """
 function direct_minimization_OptimKit(ζ::ROHFState;
                                       maxiter=500,
@@ -27,8 +41,11 @@ function direct_minimization_OptimKit(ζ::ROHFState;
     (;ζ=ζ0, energy=E0, residual=norm(∇E0))
 end
 
-"""
-All manifold routines in a format readable by OptimKit.
+@doc raw"""
+    optim_kwargs(;preconditioned=true, verbose=true)
+
+Wraps all the tools needed for Riemannian optimization (retraction, projection,
+inner product, etc..) in a format readable by OptimKit.
 See `src/common/MO_manifold_tools.jl`
 """
 function optim_kwargs(;preconditioned=true, verbose=true)

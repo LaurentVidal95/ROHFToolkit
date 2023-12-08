@@ -1,7 +1,14 @@
 using LineSearches
 
-"""
+@doc raw"""
+        OLD: rohf_manifold_linesearch(ζ::ROHFState{T}, p::Matrix{T};
+                                      E, ∇E, linesearch_type,
+                                      max_step = one(Float64),
+                                      ) where {T<:Real}
+
 Armijo linesearch using the retraction in orthonormal MO formalism eq. (39) part II.
+The ``linesearch_type`` can be any of the linesearch algorithms in the LineSearches.jl
+library.
 """
 function rohf_manifold_linesearch(ζ::ROHFState{T}, p::Matrix{T};
                                   E, ∇E, linesearch_type,
