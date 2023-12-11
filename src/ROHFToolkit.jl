@@ -18,8 +18,6 @@ export ROHFManifold
 export ROHFState
 export ROHFTangentVector
 export reset_state!
-export rohf_energy
-export rohf_energy!
 export orthonormalize_state!
 export deorthonormalize_state!
 export compute_ground_state
