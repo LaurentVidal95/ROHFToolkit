@@ -44,7 +44,7 @@ The code should be running fine, and fast.
 Let us compute the ground state of oxygen in a 6-31G basis, from the core
 Hamiltonian guess, using a preconditioned Riemannian conjugate gradient
 algorithm. The oxygen molecule as a PySCF object has been defined in the 
-``test_cases`` directory. Then simply call
+``test_cases`` directory:
 ```
 using ROHFToolkit
 
@@ -52,7 +52,7 @@ include("test_cases/oxygen.jl")
 x_init = ROHFState(oxygen("6-31G"), guess=:hcore)
 
 # Launch minimization. (Note that these kwargs are the default one)
-output = compute_ground_state(x; solver=ConjugateGradient, preconditioned=true)
+output = compute_ground_state(x_init; solver=ConjugateGradient, preconditioned=true)
 
 # Extract final state and energy
 x_min = output.final_state
