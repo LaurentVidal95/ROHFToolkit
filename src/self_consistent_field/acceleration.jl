@@ -116,7 +116,7 @@ end
 Find the t_min ∈ [0,1] that minimizes the polynom c₁*x^2 + c₂*x + c₃
 Note that t_min is independant of c₃
 """
-function oda_convex_combination_param(c₁::T,c₂::T) where {T<:Real}
+function oda_convex_combination_param(c₁::T, c₂::T) where {T<:Real}
     t_min = zero(Int64)
     t_extremum = -c₂/(2*c₁) # t that gives the global min or max of the polynom
     if c₁ > 0

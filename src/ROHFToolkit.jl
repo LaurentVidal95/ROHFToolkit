@@ -28,7 +28,6 @@ include("common/ChemicalSystem.jl")
 include("common/ROHFState.jl")
 include("common/energy.jl")
 include("common/compute_ground_state.jl")
-include("common/DM_manifold_tools.jl")
 include("common/MO_manifold_tools.jl")
 include("common/toolbox.jl")
 
