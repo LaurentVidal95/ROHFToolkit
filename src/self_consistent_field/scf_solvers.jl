@@ -42,10 +42,8 @@ function hybrid_scf(info; fixpoint_map, maxiter=500, inner_loop_verbosity=0)
 
         function hybrid_SCF_precondition(ζ::ROHFState, η)
             prec_grad = ROHFTangentVector(hybrid_SCF_preconditioned_grad(Pd, Ps, ζ), ζ)
-            # @show (norm(η)/norm(prec_grad))
-            # @show tr(prec_grad'η)/(norm(η)*norm(prec_grad))
             if (tr(prec_grad'η)/(norm(prec_grad)*norm(η))) ≤ 1e-5
-                @warn "No preconditioning"
+                (inner_loop_verbosity≥3) && (@warn "No preconditioning")
                 return η
             end
             prec_grad

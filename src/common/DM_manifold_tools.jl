@@ -1,4 +1,4 @@
-# All routines on the DM manifold. Used only for DIIS acceleration.
+# All routines on the DM manifold. Used only for the residual in SCF routines.
 # In this file the exponent ᵒ denote objects in orthonormal AOs convention
 
 sym(A::AbstractMatrix) = Symmetric(0.5 .* (A + transpose(A)))

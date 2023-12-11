@@ -1,6 +1,7 @@
 @doc raw"""
     direct_minimization_OptimKit(ζ::ROHFState; maxiter=500, tol=1e-5, solver=ConjugateGradient, preconditioned=true,
                                       verbose=true, break_symmetry=false, kwargs...)
+
 Wrapper around OptimKit "optimize" function. The arguments are:
     - ζ: initial point of the optimization on the MO manifold
     - maxiter: maximum number of iterations
