@@ -12,8 +12,8 @@ function scf(info; fixpoint_map, maxiter=500)
                                Pd, Ps, Fd, Fs)
         # Compute new DMs with aufbau
         Φ_out = eigvecs(Symmetric(H_eff))[:,1:size(ζ.Φ,2)]
-        ζ.Φ = Φ_out
-        ζ, densities(ζ)...
+        ζ_out = ROHFState(Φ_out, ζ.Σ, ζ.energy, ζ.isortho, ζ.guess, ζ.history)
+        ζ_out, densities(ζ_out)...
     end
     
     # Actual loop
@@ -34,7 +34,7 @@ Hybrid SCF solver, where the next density is given by:
 ```
 which is solved by a direct minimization method.
 """
-function hybrid_scf(info; fixpoint_map, maxiter=500)
+function hybrid_scf(info; fixpoint_map, maxiter=500, inner_loop_verbosity=0)
     # Define hybrid scf update function
     function g_hybrid(Pd, Ps, Fd, Fs, ζ::ROHFState, info;
                       guess=info.effective_hamiltonian)
@@ -54,16 +54,16 @@ function hybrid_scf(info; fixpoint_map, maxiter=500)
         # Solve subproblem with CG
         kwargs = merge(optim_kwargs(;preconditioned=false, verbose=false),
                        (; precondition=hybrid_SCF_precondition))
-        
+
         ζ, _, _, history = optimize(fg, ζ_init,
-                           GradientDescent(;verbosity=2, gradtol=1e-7);
+                           GradientDescent(;verbosity=inner_loop_verbosity, gradtol=1e-7);
                            kwargs...)
         # Problem... Ne pas faire un restart avec le ζ juste au dessus.
         if (test_MOs(ζ) ≥ 1e-9)
             @warn "Trying new guess"
             fg, ζ_init = hybrid_SCF_optimization_args(Pd, Ps, Fd, Fs, ζ, :Euler)
             ζ, _, _, history = optimize(fg, ζ_init,
-                                        GradientDescent(;verbosity=2, gradtol=1e-7);
+                                        GradientDescent(;verbosity=inner_loop_verbosity, gradtol=1e-7);
                                         kwargs...)
         end
         ζ, densities(ζ)...

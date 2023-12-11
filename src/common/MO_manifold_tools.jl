@@ -83,7 +83,7 @@ project_tangent(ζ::ROHFState, Φ::Matrix, Ψ::Matrix) =
     transport_vec_along_himself(Ψ::ROHFTangentVector{T}, t::T,
                                      ζ_next::ROHFState{T}) where {T<:Real}
 
-Transport a direction p along t*p. Used as an alternative transport to
+Transport a direction Ψ along t*Ψ. Used as an alternative transport to
 orthogonal projection for SD and CG in the linesearch routine on
 the ROHF manifold.
 

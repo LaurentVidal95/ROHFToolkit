@@ -12,8 +12,6 @@ function __init__()
 end
 using Printf           # nice prints
 
-import OptimKit: GradientDescent, ConjugateGradient, LBFGS
-
 #### Common data structures and routines
 export ChemicalSystem
 export ROHFManifold
@@ -35,6 +33,7 @@ include("common/MO_manifold_tools.jl")
 include("common/toolbox.jl")
 
 #### Direct Minimization solvers
+export GradientDescent, ConjugateGradient, LBFGS # OptimKit functions
 include("direct_minimization/preconditioning.jl")
 include("direct_minimization/OptimKit_solve.jl")
 

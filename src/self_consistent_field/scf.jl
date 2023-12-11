@@ -37,10 +37,11 @@ function scf_method(ζ::ROHFState;
                                      "overlap: $(cond(ζ.Σ.overlap_matrix))")
     orthonormalize_state!(ζ)
 
+    T = eltype(ζ.Φ)
     if typeof(acceleration)==DIIS
         (acceleration.m==0) && (@warn "Beware: DIIS is inactive")
     end
-    (typeof(acceleration)==ODA) && (@assert (solver==hybrid_scf))
+    (typeof(acceleration)==ODA{T}) && (@assert (solver==hybrid_scf))
 
     # Populate info with initial data
     n_iter       = zero(Int64)
