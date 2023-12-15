@@ -70,7 +70,7 @@ end
 function retract(ζ::ROHFState{T}, η::ROHFTangentVector{T}, α) where {T<:Real}
     @assert(η.base.Φ == ζ.Φ) # check that ζ is the base of η
     Rη = ROHFState(ζ, retract(ζ, α*η, ζ.Φ))
-    τη = transport_vec_along_himself(η, α, Rη)
+    τη = transport_vec_along_himself(η, α, Rη) # transport associated to the retraction
     Rη, τη
 end
 
@@ -85,9 +85,7 @@ end
 
 function transport!(η1::ROHFTangentVector{T}, ζ::ROHFState{T},
                     η2::ROHFTangentVector{T}, α::T, Rη2::ROHFState{T}) where {T<:Real}
-    # η1 = η2 case
-    (η1.vec==η2.vec) && (return transport_vec_along_himself(η1, α, Rη2))
-    # Otherwise transport with projection
+    # Transport with projection for general vectors
     τη1_vec = project_tangent(ζ, Rη2.Φ, η1.vec)
     ROHFTangentVector(τη1_vec, Rη2)
 end
