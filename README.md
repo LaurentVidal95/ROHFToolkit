@@ -65,6 +65,5 @@ generate_molden(x_min, "oxygen_min_orbitals.mol")
 
 # Contact
 This is research code, not user-friendly, actively maintained, extremely robust
-or optimized.  It is designed to be called only once to produce a set of
-coefficient.  If you have questions contact me at:
+or optimized. If you have questions contact me at:
 Laurent(dot)vidal(at)enpc(dot)fr
