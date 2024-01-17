@@ -4,29 +4,37 @@ function extract_CFOUR_data(CFOUR_file::String)
     @assert isfile(CFOUR_file) "Not a file"
     # extract raw data
     data = readdlm(CFOUR_file)
+    multipop(tab, N) = map(x->pop!(tab), 1:N)
 
     # Extract MO numbers and energy
-    Ni, Na, Ne = Int.(data[1:3])
+    Ni, Na, Ne = multipop(data, 3)
     Nb = Ni+Na+Ne
     mo_numbers = (Nb, Ni, Na)
-    E = data[4]
+    E = pop!(data)
 
     # Check that the numbers match
     len_XYZ = Ni*Na + Ni*Ne + Na*Ne
-    data_lenght = (4 + len_XYZ + Nb^2)
+    data_lenght = (len_XYZ + 2*Nb^2)
 
     @assert length(data)==data_length "wrong data length"
 
     # Extract gradient blocs X, Y and Z as vector XYZ
-    XYZ = data[5:5+len_XYZ]
-    X = reshape(XYZ[1:Ni*Na],(Ni,Na))
-    Y = reshape(XYZ[Ni*Na+1:Ni*Na+Ni*Ne],(Ni, Ne))
-    Z = reshape(XYZ[Ni*Na+Ni*Na+1:len_XYZ],(Na,Ne))
+    XYZ = multipop(data, len_XYZ)
+    function reshape_XYZ(XYZ, N1, N2, N3)
+        X = reshape(multipop(XYZ, N1*N2), N1, N2)
+        Y = reshape(multipop(XYZ, N1*N3), N1, N3)
+        Z = reshape(XYZ, N2, N3)
+        X,Y,Z
+    end
+    X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
 
     # Reshape gradient and orbitals
     A = [zeros(Ni, Ni) X Y; -X' zeros(Na, Na) Z; -Y' -Z' zeros(Ne, Ne)]
-    Φ = reshape(data[6+len_XYZ:end], Nb, Nb)
+    Φ = reshape(multipop(data, Nb^2), Nb, Nb)
+    S = reshape(data, (Nb, Nb))
 
+    @assert issymetric(S)
+    
     # Remove external orbitals
     Iₒ = Matrix(I, Nb, Ni+Na)
     ∇E = Φ*A*Iₒ
