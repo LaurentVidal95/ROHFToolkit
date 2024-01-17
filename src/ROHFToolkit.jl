@@ -46,4 +46,7 @@ include("self_consistent_field/scf.jl")
 include("self_consistent_field/acceleration.jl")
 include("self_consistent_field/callback_info.jl")
 
+# CASSCF with cfour
+include("cfour.jl")
+
 end # Module
