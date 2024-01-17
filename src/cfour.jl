@@ -1,6 +1,6 @@
 # Hack to work with CFOUR
 function run_CFOUR(CFOUR_ex)
-    cmd = run(`$(CFOUR_ex)`)
+    res = read(`$(CFOUR_ex)`, String)
 end
 
 function CFOUR_init(CFOUR_ex)
@@ -85,5 +85,19 @@ function CASSCF_energy_and_gradient(ζ::ROHFState; CFOUR_ex="xcasscf")
     # run and extract CFOUR data
     _ = run_CFOUR(CFOUR_ex)
     _, _, _, E, ∇E = extract_CFOUR_data("energy_gradient.txt")
-    E, ROHFTangentVector(∇E, ζ.Φ)
+    @show E
+    E, ROHFTangentVector(∇E, ζ)
+end
+
+function energy_lanscape_along_gradient(ζ::ROHFState, ∇E::ROHFTangentVector; N_points=100)
+    Φ = ζ.Φ
+    E_landscape = []
+    for (i,t) in enumerate(LinRange(0, 1, N_points))
+        @show i
+        Φ_next = retract(ζ, -t*∇E, Φ)
+        E_next, _ = CASSCF_energy_and_gradient(ROHFState(ζ, Φ_next))
+        push!(E_landscape, E_next)
+        writedlm("E_lanscape", E_landscape)
+    end
+    E_lanscape
 end

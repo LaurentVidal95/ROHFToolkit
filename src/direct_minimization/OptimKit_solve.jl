@@ -32,7 +32,7 @@ function direct_minimization_OptimKit(ζ::ROHFState;
     orthonormalize_state!(ζ)
     (break_symmetry) && (@warn "Broken symmetry"; ζ.Φ = ζ.Φ*rand_unitary_matrix(ζ))
     # Optimization via OptimKit
-    ζ0, E0, ∇E0, _ = optimize(fg, ζ, solver(; gradtol=tol, maxiter, verbosity=0);
+    ζ0, E0, ∇E0, _ = optimize(fg, ζ, solver(; gradtol=tol, maxiter, verbosity=3);
                               optim_kwargs(;preconditioned, verbose)...)
     # orthonormal AO -> non-orthonormal AO convention
     deorthonormalize_state!(ζ0)
@@ -95,7 +95,7 @@ Equivalent of the prompt routine but with OptimKit conventions
 """
 function finalize!(ζ, E, ∇E, n_iter)
     if n_iter == 1
-        println("ROHF direct energy minimization")
+        println("Direct energy minimization")
         println("Initial guess: $(ζ.guess)")
         header = ["Iter", "Energy","log10(ΔE)", "log10(||Π∇E||)"]
         println("-"^58)
@@ -114,7 +114,8 @@ function finalize!(ζ, E, ∇E, n_iter)
     flush(stdout)
 
     # Actualize energy
-    energy!(ζ)
+    #energy!(ζ) # old
+    ζ.energy = E
     # Update history
     ζ.history = vcat(ζ.history, reshape(info_out, 1, 4))
 
