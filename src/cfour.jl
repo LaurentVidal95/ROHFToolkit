@@ -1,11 +1,11 @@
 # Hack to work with CFOUR
 function run_CFOUR(CFOUR_ex)
-    cmd = run(`CFOUR_ex`)
+    cmd = run(`$(CFOUR_ex)`)
 end
 
-function CFOUR_init(filename)
-    # @assert !isfile(filename)
-    run_CFOUR()
+function CFOUR_init(CFOUR_ex)
+    @warn "Have you removed the old file ?"
+    run_CFOUR(CFOUR_ex)
     mo_numbers, Φₒ, S, E, ∇E = extract_CFOUR_data("energy_gradient.txt")
 end
 
@@ -42,9 +42,9 @@ function extract_CFOUR_data(CFOUR_file::String)
     Φ = reshape(multipop(data, Nb^2), Nb, Nb)
     S = reshape(multipop(data, Nb^2), (Nb, Nb))
 
-    @assert isempty(data)    
+    @assert isempty(data)
     @assert norm(S-S') < 1e-10
-    
+
     # Remove external orbitals
     Iₒ = Matrix(I, Nb, Ni+Na)
     ∇E = Φ*A*Iₒ
@@ -64,7 +64,7 @@ function CASSCFState(mo_numbers, Φ::AbstractArray{T}, S::AbstractArray{T}, E_in
     H = S
     eri = T[]
     Σ_dummy = ChemicalSystem{eltype(Φ)}(mol, mo_numbers, S, eri, H, S12, Sm12)
-    
+
     guess=:external
     history = reshape([0, E_init, NaN, NaN], 1, 4)
 
@@ -77,7 +77,7 @@ function CASSCF_energy_and_gradient(ζ::ROHFState; CFOUR_ex="xcasscf")
     Φ_tot = hcat(ζ.Φ, Φe)
 
     # De-orthonormalize Φ_tot
-    Φ_tot = ζ.Σ.Sm12*Φ_tot    
+    Φ_tot = ζ.Σ.Sm12*Φ_tot
     open("current_orbitals.txt", "w") do file
         println.(Ref(file), Φ_tot)
     end
@@ -85,6 +85,5 @@ function CASSCF_energy_and_gradient(ζ::ROHFState; CFOUR_ex="xcasscf")
     # run and extract CFOUR data
     _ = run_CFOUR(CFOUR_ex)
     _, _, _, E, ∇E = extract_CFOUR_data("energy_gradient.txt")
-    E, ∇E
+    E, ROHFTangentVector(∇E, ζ.Φ)
 end
-

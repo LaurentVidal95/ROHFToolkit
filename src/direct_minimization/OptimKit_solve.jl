@@ -43,7 +43,7 @@ function direct_minimization_OptimKit(ζ::ROHFState;
 end
 
 @doc raw"""
-    optim_kwargs(;preconditioned=true, verbose=true)
+   optim_kwargs(;preconditioned=true, verbose=true)
 
 Wraps all the tools needed for Riemannian optimization (retraction, projection,
 inner product, etc..) in a format readable by OptimKit.

@@ -10,11 +10,11 @@ Wraps all ground state computation routines in a single routine.
 """
 function compute_ground_state(ζ::ROHFState; solver=ConjugateGradient,
                               CASSCF=false,
-                              CASSCF_ex="xcasscf",
+                              CFOUR_ex="xcasscf",
                               solver_kwargs...)
     # Direct minimization
     if (solver ∈ (GradientDescent, ConjugateGradient, LBFGS))
-        fg = CASSCF ? ζ->CASSCF_energy_and_gradient(ζ; CASSCF_ex) : energy_and_gradient
+        fg = CASSCF ? ζ->CASSCF_energy_and_gradient(ζ; CFOUR_ex) : energy_and_gradient
         return direct_minimization_OptimKit(ζ; solver, fg, solver_kwargs...)
     # Self consistent field
     else
