@@ -48,6 +48,10 @@ include("self_consistent_field/acceleration.jl")
 include("self_consistent_field/callback_info.jl")
 
 # CASSCF with cfour
+export CASSCF_energy_and_gradient
+export CFOUR_init
+export CASSCFState
+export energy_landscape_along_gradient
 include("cfour.jl")
 include("common/generate_virtual_mos.jl")
 

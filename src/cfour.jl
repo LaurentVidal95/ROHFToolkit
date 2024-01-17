@@ -16,7 +16,7 @@ function extract_CFOUR_data(CFOUR_file::String)
     multipop(tab, N) = [popfirst!(tab) for x in tab[1:N]]
 
     # Extract MO numbers and energy
-    @show Ni, Na, Ne = Int.(multipop(data, 3))
+    Ni, Na, Ne = Int.(multipop(data, 3))
     Nb = Ni+Na+Ne
     mo_numbers = (Nb, Ni, Na)
     E = popfirst!(data)
@@ -91,7 +91,7 @@ end
 
 # replace last line with
 # E, ∇E = CASSCF_energy_and_gradient(x_init)
-# E_landscape = energy_landscape_along_gradient(ζ, ∇E)
+# E_landscape = energy_landscape_along_gradient(x_init, ∇E)
 function energy_landscape_along_gradient(ζ::ROHFState, ∇E::ROHFTangentVector; N_points=100)
     Φ = ζ.Φ
     E_landscape = []
