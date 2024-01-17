@@ -49,5 +49,6 @@ include("self_consistent_field/callback_info.jl")
 
 # CASSCF with cfour
 include("cfour.jl")
+include("common/generate_virtual_mos.jl")
 
 end # Module

@@ -1,20 +1,29 @@
 # Hack to work with CFOUR
+function run_CFOUR(CFOUR_ex)
+    cmd = run(`CFOUR_ex`)
+end
+
+function CFOUR_init(filename)
+    # @assert !isfile(filename)
+    run_CFOUR()
+    mo_numbers, Φₒ, S, E, ∇E = extract_CFOUR_data("energy_gradient.txt")
+end
 
 function extract_CFOUR_data(CFOUR_file::String)
     @assert isfile(CFOUR_file) "Not a file"
     # extract raw data
-    data = readdlm(CFOUR_file)
-    multipop(tab, N) = map(x->pop!(tab), 1:N)
+    data = vec(readdlm(CFOUR_file))
+    multipop(tab, N) = [popfirst!(tab) for x in tab[1:N]]
 
     # Extract MO numbers and energy
-    Ni, Na, Ne = multipop(data, 3)
+    @show Ni, Na, Ne = Int.(multipop(data, 3))
     Nb = Ni+Na+Ne
     mo_numbers = (Nb, Ni, Na)
-    E = pop!(data)
+    E = popfirst!(data)
 
     # Check that the numbers match
     len_XYZ = Ni*Na + Ni*Ne + Na*Ne
-    data_lenght = (len_XYZ + 2*Nb^2)
+    data_length = (len_XYZ + 2*Nb^2)
 
     @assert length(data)==data_length "wrong data length"
 
@@ -31,26 +40,28 @@ function extract_CFOUR_data(CFOUR_file::String)
     # Reshape gradient and orbitals
     A = [zeros(Ni, Ni) X Y; -X' zeros(Na, Na) Z; -Y' -Z' zeros(Ne, Ne)]
     Φ = reshape(multipop(data, Nb^2), Nb, Nb)
-    S = reshape(data, (Nb, Nb))
+    S = reshape(multipop(data, Nb^2), (Nb, Nb))
 
-    @assert issymetric(S)
+    @assert isempty(data)    
+    @assert norm(S-S') < 1e-10
     
     # Remove external orbitals
     Iₒ = Matrix(I, Nb, Ni+Na)
     ∇E = Φ*A*Iₒ
     Φₒ = Φ*Iₒ
-    mo_numbers, Φₒ, E, ∇E
+    mo_numbers, Φₒ, S, E, ∇E
 end
 
 """
 Assemble dummy ROHFState to match the code convention
 """
-function CASSCFState(mo_numbers, Φ::AbstractArray{T}, E_init) where {T<:Real}
+function CASSCFState(mo_numbers, Φ::AbstractArray{T}, S::AbstractArray{T}, E_init) where {T<:Real}
     Nb, Ni, Na = mo_numbers
     # Assemble dumyy ROHFState
     mol = convert(PyObject, nothing)
-    S = zeros(T, Nb, Nb)
-    H = S; S12=S; Sm12=S
+    S12 = sqrt(Symmetric(S))
+    Sm12 = inv(S12)
+    H = S
     eri = T[]
     Σ_dummy = ChemicalSystem{eltype(Φ)}(mol, mo_numbers, S, eri, H, S12, Sm12)
     
@@ -60,17 +71,20 @@ function CASSCFState(mo_numbers, Φ::AbstractArray{T}, E_init) where {T<:Real}
     ROHFState(Φ, Σ_dummy, E_init, false, guess, history)
 end
 
-function CASSCF_energy_and_gradient(ζ::ROHFState)
-    Φ = ζ.Φ
+function CASSCF_energy_and_gradient(ζ::ROHFState; CFOUR_ex="xcasscf")
+    @assert ζ.isortho
+    Φe = generate_virtual_MOs_T(split_MOs(ζ)..., ζ.Σ.mo_numbers)
+    Φ_tot = hcat(ζ.Φ, Φe)
+
+    # De-orthonormalize Φ_tot
+    Φ_tot = ζ.Σ.Sm12*Φ_tot    
     open("current_orbitals.txt", "w") do file
-        println.(Ref(file), Φ)
+        println.(Ref(file), Φ_tot)
     end
 
-    # run CFOUR
-    CFOUR_file = run_CFOUR()
-
-    # Extract CFOUR data and return E, ∇E
-    _, _, E, ∇E = extract_CFOUR_data(CFOUR_file)
+    # run and extract CFOUR data
+    _ = run_CFOUR(CFOUR_ex)
+    _, _, _, E, ∇E = extract_CFOUR_data("energy_gradient.txt")
     E, ∇E
 end
 

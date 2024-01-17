@@ -55,7 +55,7 @@ function vec_to_mat(XYZ, mo_numbers)
     Nn = Nd*Ns + Nb*Nd + Nb*Ns
     # reshape
     X = reshape(XYZ[1:Nd*Ns],(Nd,Ns))
-    Y = reshape(XYZ[Nd*Ns+1:Nd*Ns+Nb*Nd],(Nb,Nd))
+    Y = reshape(XYZ[Nd*Ns+1:Nd*Ns+Nb*Nd],(Nb, Nd))
     Z = reshape(XYZ[Nd*Ns+Nb*Nd+1:Nn],(Nb,Ns))
     [X,Y,Z]
 end
