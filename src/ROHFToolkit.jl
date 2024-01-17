@@ -6,6 +6,7 @@ using LinearMaps       # For preconditioning system. Replace maybe by OptimKit r
 using IterativeSolvers # For preconditioning system. Replace maybe by OptimKit routines
 # Handling PySCF
 using PyCall
+using DelimitedFiles
 const pyscf = PyNULL() # Import pyscf globaly
 function __init__()
     copy!(pyscf, pyimport("pyscf"))
