@@ -89,7 +89,10 @@ function CASSCF_energy_and_gradient(ζ::ROHFState; CFOUR_ex="xcasscf")
     E, ROHFTangentVector(∇E, ζ)
 end
 
-function energy_lanscape_along_gradient(ζ::ROHFState, ∇E::ROHFTangentVector; N_points=100)
+# replace last line with
+# E, ∇E = CASSCF_energy_and_gradient(x_init)
+# E_landscape = energy_landscape_along_gradient(ζ, ∇E)
+function energy_landscape_along_gradient(ζ::ROHFState, ∇E::ROHFTangentVector; N_points=100)
     Φ = ζ.Φ
     E_landscape = []
     for (i,t) in enumerate(LinRange(0, 1, N_points))
