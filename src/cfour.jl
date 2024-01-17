@@ -4,21 +4,30 @@ function extract_CFOUR_data(CFOUR_file::String)
     @assert isfile(CFOUR_file) "Not a file"
     # extract raw data
     data = readdlm(CFOUR_file)
-    #
-    Ni, Na, Ne = data[1:3]
+
+    # Extract MO numbers and energy
+    Ni, Na, Ne = Int.(data[1:3])
     Nb = Ni+Na+Ne
     mo_numbers = (Nb, Ni, Na)
-    #
     E = data[4]
-    # Extract gradient blocs X, Y and Z as vector XYZ
+
+    # Check that the numbers match
     len_XYZ = Ni*Na + Ni*Ne + Na*Ne
+    data_lenght = (4 + len_XYZ + Nb^2)
+
+    @assert length(data)==data_length "wrong data length"
+
+    # Extract gradient blocs X, Y and Z as vector XYZ
     XYZ = data[5:5+len_XYZ]
-    X, Y, Z = vec_to_mat(XYZ, mo_numbers)
+    X = reshape(XYZ[1:Ni*Na],(Ni,Na))
+    Y = reshape(XYZ[Ni*Na+1:Ni*Na+Ni*Ne],(Ni, Ne))
+    Z = reshape(XYZ[Ni*Na+Ni*Na+1:len_XYZ],(Na,Ne))
+
+    # Reshape gradient and orbitals
     A = [zeros(Ni, Ni) X Y; -X' zeros(Na, Na) Z; -Y' -Z' zeros(Ne, Ne)]
-    # Extract orbitals
     Φ = reshape(data[6+len_XYZ:end], Nb, Nb)
 
-    # Reshape gradient
+    # Remove external orbitals
     Iₒ = Matrix(I, Nb, Ni+Na)
     ∇E = Φ*A*Iₒ
     Φₒ = Φ*Iₒ
@@ -48,12 +57,12 @@ function CASSCF_energy_and_gradient(ζ::ROHFState)
     open("current_orbitals.txt", "w") do file
         println.(Ref(file), Φ)
     end
-    
-    nothing
-end
-# function CASSCF_energy_and_gradient(CFOUR_dir)
-#     @assert isdir(CFOUR_dir)
-#     # Extract data
 
-#     # 
-# end
+    # run CFOUR
+    CFOUR_file = run_CFOUR()
+
+    # Extract CFOUR data and return E, ∇E
+    _, _, E, ∇E = extract_CFOUR_data(CFOUR_file)
+    E, ∇E
+end
+
