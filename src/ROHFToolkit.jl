@@ -12,6 +12,7 @@ function __init__()
     copy!(pyscf, pyimport("pyscf"))
 end
 using Printf           # nice prints
+using ProgressMeter
 
 #### Common data structures and routines
 export ChemicalSystem
