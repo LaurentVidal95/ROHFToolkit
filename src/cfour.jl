@@ -175,7 +175,7 @@ function test_gradient_CFOUR(ζ::ROHFState, t; ∇E_init=nothing)
 
     # Test by finite difference
     Φ_next = Φ_tot*exp(t*B)*Matrix(I, Nb, Ni+Na)
-    @æssert norm(Φ_next'Φ_next - I) < 1e-10
+    @assert norm(Φ_next'Φ_next - I) < 1e-10
     @assert test_MOs(Φ_next, (11,4,1)) < 1e-10
     ζ_next = ROHFState(Φ_next, ζ)
     
