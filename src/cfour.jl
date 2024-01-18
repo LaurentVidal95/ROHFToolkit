@@ -23,7 +23,7 @@ function extract_CFOUR_data(CFOUR_file::String)
 
     # Check that the numbers match
     len_XYZ = Ni*Na + Ni*Ne + Na*Ne
-    data_length = (len_XYZ + 2*Nb^2)
+    data_length = (2*len_XYZ + 2*Nb^2)
 
     @assert length(data)==data_length "wrong data length"
 
@@ -36,20 +36,27 @@ function extract_CFOUR_data(CFOUR_file::String)
         X,Y,Z
     end
     X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
+    ∇E_cfour = [zeros(Ni, Ni) X Y; -X' zeros(Na, Na) Z; -Y' -Z' zeros(Ne, Ne)]
 
-    # Reshape gradient and orbitals
-    A = [zeros(Ni, Ni) X Y; -X' zeros(Na, Na) Z; -Y' -Z' zeros(Ne, Ne)]
+    # Extract K matrix bloc and reshape
+    XYZ = multipop(data, len_XYZ)
+    X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
+    K = [zeros(Ni, Ni) X Y; -X' zeros(Na, Na) Z; -Y' -Z' zeros(Ne, Ne)]
+
+    # Extract orbitals and overlap
     Φ = reshape(multipop(data, Nb^2), Nb, Nb)
     S = reshape(multipop(data, Nb^2), (Nb, Nb))
 
+    @assert norm(Φ'S*Φ - I) < 1e-10
     @assert isempty(data)
     @assert norm(S-S') < 1e-10
 
-    # Remove external orbitals
+    # Remove external orbitals and assemble Stiefel gradient
     Iₒ = Matrix(I, Nb, Ni+Na)
-    ∇E = sqrt(Symmetric(S))*Φ*A*Iₒ
+    # ∇E = sqrt(Symmetric(S))*Φ*K*Iₒ
+    ∇E = sqrt(Symmetric(S))*∇E_cfour*Iₒ
     Φₒ = Φ*Iₒ
-    mo_numbers, Φₒ, S, E, ∇E
+    (;mo_numbers, Φₒ, overlap=S, energy=E, gradient=∇E)
 end
 
 """
@@ -84,7 +91,9 @@ function CASSCF_energy_and_gradient(ζ::ROHFState; CFOUR_ex="xcasscf")
 
     # run and extract CFOUR data
     _ = run_CFOUR(CFOUR_ex)
-    _, _, _, E, ∇E = extract_CFOUR_data("energy_gradient.txt")
+    data = extract_CFOUR_data("energy_gradient.txt")
+    E = data.energy
+    ∇E = data.gradient
     E, ROHFTangentVector(∇E, ζ)
 end
 
