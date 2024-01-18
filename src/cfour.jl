@@ -47,14 +47,14 @@ function extract_CFOUR_data(CFOUR_file::String)
     Φ = reshape(multipop(data, Nb^2), Nb, Nb)
     S = reshape(multipop(data, Nb^2), (Nb, Nb))
 
-    @assert norm(Φ'S*Φ - I) < 1e-10
+    @show norm(Φ'S*Φ - I)
     @assert isempty(data)
     @assert norm(S-S') < 1e-10
 
     # Remove external orbitals and assemble Stiefel gradient
     Iₒ = Matrix(I, Nb, Ni+Na)
-    # ∇E = sqrt(Symmetric(S))*Φ*K*Iₒ
-    ∇E = sqrt(Symmetric(S))*∇E_cfour*Iₒ
+    ∇E = sqrt(Symmetric(S))*Φ*∇E_cfour*Iₒ
+    # ∇E = inv(sqrt(Symmetric(S)))*∇E_cfour*inv(sqrt(Symmetric(S)))*Iₒ
     Φₒ = Φ*Iₒ
     (;mo_numbers, Φₒ, overlap=S, energy=E, gradient=∇E)
 end

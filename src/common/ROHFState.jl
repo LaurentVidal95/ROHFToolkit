@@ -10,15 +10,16 @@ import LinearAlgebra.norm
 Molecular orbitals belonging to a specified ROHF manifold.
 """
 mutable struct ROHFState{T<:Real}
-    Φ       ::AbstractMatrix{T}
-    Σ       ::ChemicalSystem{T}
-    energy  ::T
+    Φ        ::AbstractMatrix{T}
+    Σ        ::ChemicalSystem{T}
+    energy   ::T
     #
-    isortho ::Bool
-    guess   ::Symbol
+    isortho  ::Bool
+    guess    ::Symbol
     # All the history of minimizing precedure is contained in ζ
     # so that it can be updated by OptimKit
-    history ::Matrix{T}
+    manifold ::Symbol
+    history  ::Matrix{T}
 end
 
 """

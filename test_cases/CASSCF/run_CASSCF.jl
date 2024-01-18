@@ -2,7 +2,6 @@
 ROHFPATH = "/home/..."
 using Pkg: Pkg.activate(ROHFPATH)
 using ROHFToolkit
-using Plots
 
 # initialize state
 CFOUR_ex="xccasscf"
