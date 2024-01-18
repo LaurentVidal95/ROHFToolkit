@@ -117,7 +117,7 @@ space. The ambiant space gradient is given in equation (28) of the documentation
 function ambiant_space_MO_gradient(Φ, Sm12, mo_numbers, eri, H)
     Fdᵒ, Fsᵒ = Fock_operators(Φ, Sm12, mo_numbers, eri, H)
     Φdᵒ, Φsᵒ = split_MOs(Φ, mo_numbers);
-    hcat(4*Fdᵒ*Φdᵒ, 4*Fsᵒ*Φsᵒ)    
+    hcat(4*Fdᵒ*Φdᵒ, 4*Fsᵒ*Φsᵒ)
 end
 @doc raw"""
      gradient_MO_metric(Φ, ζ::ROHFState)
