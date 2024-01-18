@@ -47,7 +47,7 @@ function extract_CFOUR_data(CFOUR_file::String)
 
     # Remove external orbitals
     Iₒ = Matrix(I, Nb, Ni+Na)
-    ∇E = Φ*A*Iₒ
+    ∇E = inv(sqrt(Symmetric(S)))*Φ*A*Iₒ
     Φₒ = Φ*Iₒ
     mo_numbers, Φₒ, S, E, ∇E
 end
@@ -85,13 +85,9 @@ function CASSCF_energy_and_gradient(ζ::ROHFState; CFOUR_ex="xcasscf")
     # run and extract CFOUR data
     _ = run_CFOUR(CFOUR_ex)
     _, _, _, E, ∇E = extract_CFOUR_data("energy_gradient.txt")
-    @show E
     E, ROHFTangentVector(∇E, ζ)
 end
 
-##
-# E, ∇E = CASSCF_energy_and_gradient(x_init)
-# E_landscape = energy_landscape_along_gradient(x_init, ∇E)
 function energy_landscape(ζ::ROHFState, dir::ROHFTangentVector;
                           N_step=100,
                           max_step=1e-5)

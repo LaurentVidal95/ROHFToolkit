@@ -52,7 +52,7 @@ include("self_consistent_field/callback_info.jl")
 export CASSCF_energy_and_gradient
 export CFOUR_init
 export CASSCFState
-export energy_landscape_along_gradient
+export energy_landscape
 include("cfour.jl")
 include("common/generate_virtual_mos.jl")
 

@@ -10,6 +10,7 @@ init_data = CFOUR_init(CFOUR_ex)
 x_init = ROHFToolkit.CASSCFState(data[1:4]...)
 
 # Compute energy landscape
+orthonormalize_state!(x_init)
 max_step=1e-4
 N_step = 100
 _, ∇E_init = CASSCF_energy_and_gradient(x_init; CFOUR_ex)
