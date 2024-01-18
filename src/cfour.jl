@@ -47,7 +47,7 @@ function extract_CFOUR_data(CFOUR_file::String)
 
     # Remove external orbitals
     Iₒ = Matrix(I, Nb, Ni+Na)
-    ∇E = inv(sqrt(Symmetric(S)))*Φ*A*Iₒ
+    ∇E = sqrt(Symmetric(S))*Φ*A*Iₒ
     Φₒ = Φ*Iₒ
     mo_numbers, Φₒ, S, E, ∇E
 end
