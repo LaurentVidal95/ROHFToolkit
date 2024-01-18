@@ -6,7 +6,7 @@ end
 function CFOUR_init(CFOUR_ex)
     @warn "Have you removed the old file ?"
     run_CFOUR(CFOUR_ex)
-    mo_numbers, Φₒ, S, E, ∇E = extract_CFOUR_data("energy_gradient.txt")
+    extract_CFOUR_data("energy_gradient.txt")
 end
 
 function extract_CFOUR_data(CFOUR_file::String)
