@@ -74,7 +74,8 @@ function retract(ζ::State{T}, η::TangentVector{T}, α) where {T<:Real}
     @assert(η.base.Φ == ζ.Φ) # check that ζ is the base of η
     # Retract
     retraction = ζ.virtuals ? retract_AMO : retract_OMO
-    vector_transport =  ζ.virtuals ? transport_AMO_same_dir : transport_vec_along_himself_OMO
+    vector_transport =  ζ.virtuals ? transport_AMO_same_dir : transport_OMO_same_dir
+    
     Rη = State(ζ, retraction(ζ, α*η, ζ.Φ))
     τη = vector_transport(η, α, Rη)
     Rη, τη
@@ -93,7 +94,9 @@ function transport!(η1::TangentVector{T}, ζ::State{T},
                     η2::TangentVector{T}, α::T, Rη2::State{T}) where {T<:Real}
     # Transport with projection for general vectors
     if ζ.virtuals
-        return transport_AMO(η1, ζ, η2, α, Rη2)
+        @assert η1.vec == η2.vec
+        @assert η1.base.Φ == η2.base.Φ
+        return transport_AMO_same_dir(η1, α, Rη2)
     end
     τη1_vec = project_tangent(ζ, Rη2.Φ, α*η1.vec) # Recently modified (no alpha)
     TangentVector(τη1_vec, Rη2)

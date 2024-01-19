@@ -9,7 +9,8 @@ Retraction on the ROHF flag manifold in MO coordinates that doesn't use virtual 
 
 The exact formula of this retraction is given in equations (17) of the documentation.
 """
-function retract_OMO(mo_numbers::Tuple{Int64, Int64, Int64}, Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
+function retract_OMO(mo_numbers::Tuple{Int64, Int64, Int64},
+                     Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
     Nb, Nd, Ns = mo_numbers
     No = Nd+Ns
     Ψd, Ψs = split_MOs(Ψ, (Nb,Nd,Ns))
@@ -90,8 +91,8 @@ the ROHF manifold.
 The formula for this transport is given in the equation (24) of
 the documentation.
 """
-function transport_vec_along_himself_OMO(Ψ::TangentVector{T}, t::T,
-                                         ζ_next::State{T}) where {T<:Real}
+function transport_OMO_same_dir(Ψ::TangentVector{T}, t::T,
+                                ζ_next::State{T}) where {T<:Real}
     # Check that the targeted point is in orthonormal AO convention
     @assert (ζ_next.isortho)
 
