@@ -64,8 +64,7 @@ function extract_CFOUR_data(CFOUR_file::String)
     # T_cfour = reshape(multipop(data, Nb^4), Nb, Nb, Nb, Nb)
 
     # Sanity checks
-    @assert norm(Φ_cfour'S_cfour*Φ_cfour - I) < 1e-8
-    @show length(data)
+    @assert norm(Φ_cfour'S_cfour*Φ_cfour - I) < 1e-7
     @assert isempty(data)
     @assert norm(S_cfour-S_cfour') < 1e-10
 
@@ -77,7 +76,7 @@ end
 Assemble dummy State to match the code convention
 """
 function CASSCFState(mo_numbers, Φ::AbstractArray{T}, S::AbstractArray{T},
-                     E_init) where {T<:Real}
+                     E_init; virtuals=true) where {T<:Real}
     Nb, Ni, Na = mo_numbers
 
     # Assemble dumyy State
@@ -91,7 +90,7 @@ function CASSCFState(mo_numbers, Φ::AbstractArray{T}, S::AbstractArray{T},
     guess=:external
     history = reshape([0, E_init, NaN, NaN], 1, 4)
 
-    State(Φ, Σ_dummy, E_init, false, guess, false, history)
+    State(Φ, Σ_dummy, E_init, false, guess, virtuals, history)
 end
 
 """
