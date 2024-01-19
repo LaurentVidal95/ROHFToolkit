@@ -1,19 +1,35 @@
-# Hack to work with CFOUR
-function run_CFOUR(CFOUR_ex)
-    res = read(`$(CFOUR_ex)`, String)
+"""
+Small wrapper to run CFOUR in verbose or not verbose
+"""
+function run_CFOUR(CFOUR_ex; verbose=false)
+    run_cmd = verbose ? run : cmd->read(cmd, String)
+    res = run_cmd(`$(CFOUR_ex)`)
 end
 
+"""
+Small wrapper to remind you to remove the previous init files
+"""
 function CFOUR_init(CFOUR_ex)
     @warn "Have you removed the old file ?"
     run_CFOUR(CFOUR_ex)
     extract_CFOUR_data("energy_gradient.txt")
 end
 
+"""
+Parse the data in the file provide by CFOUR. The ouput is
+    • mo_numbers: number of basis functions, internal and active orbitals (Nb, Ni, Na)
+    • Φ_cfour: full set of MOs (i, a and e) in a non-orthonormal convention
+    • Φₒ: Same than Φ_cfour without the virtuals
+    • the overlap matrix for the CFOUR AO basis
+    • the energy at point Φ_cfour
+    • the gradient at point Φ_cfour
+    • the core hamiltonian and 4-index integral tensor
+"""
 function extract_CFOUR_data(CFOUR_file::String)
     @assert isfile(CFOUR_file) "Not a file"
-    # extract raw data
-    data = vec(readdlm(CFOUR_file))
     multipop(tab, N) = [popfirst!(tab) for x in tab[1:N]]
+
+    data = vec(readdlm(CFOUR_file))     # Extract raw data
 
     # Extract MO numbers and energy
     Ni, Na, Ne = Int.(multipop(data, 3))
@@ -21,13 +37,8 @@ function extract_CFOUR_data(CFOUR_file::String)
     mo_numbers = (Nb, Ni, Na)
     E = popfirst!(data)
 
-    # Check that the numbers match
-    len_XYZ = Ni*Na + Ni*Ne + Na*Ne
-    data_length = (2*len_XYZ + 2*Nb^2)
-
-    @assert length(data)==data_length "wrong data length"
-
     # Extract gradient blocs X, Y and Z as vector XYZ
+    len_XYZ = Ni*Na + Ni*Ne + Na*Ne
     XYZ = multipop(data, len_XYZ)
     function reshape_XYZ(XYZ, N1, N2, N3)
         X = reshape(multipop(XYZ, N1*N2), N1, N2)
@@ -37,42 +48,36 @@ function extract_CFOUR_data(CFOUR_file::String)
     end
     X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
     ∇E_cfour = -2 .* [zeros(Ni, Ni) X Y; -X' zeros(Na, Na) Z; -Y' -Z' zeros(Ne, Ne)]
- 
-    # Extract K matrix bloc and reshape
-    XYZ = multipop(data, len_XYZ)
-    X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
-    K = [zeros(Ni, Ni) X Y; -X' zeros(Na, Na) Z; -Y' -Z' zeros(Ne, Ne)]
 
     # Extract orbitals and overlap
-    Φ = reshape(multipop(data, Nb^2), Nb, Nb)
-    S = reshape(multipop(data, Nb^2), (Nb, Nb))
+    Φ_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
+    S_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
 
-    @show norm(Φ'S*Φ - I)
+    # Extract core Hamiltonian and tensor
+    H_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
+    T_cfour = reshape(multipop(data, Nb^4), Nb, Nb, Nb, Nb)
+
+    # Sanity checks
+    @assert norm(Φ_cfour'S_cfour*Φ_cfour - I)
     @assert isempty(data)
-    @assert norm(S-S') < 1e-10
+    @assert norm(S_cfour-S_cfour') < 1e-10
 
     # Remove external orbitals and assemble Stiefel gradient
+    Φ_cfour_ortho = sqrt(Symmetric(S_cfour))*Φ_cfour
     Iₒ = Matrix(I, Nb, Ni+Na)
-    foo = Φ'*S*∇E_cfour
-    X = foo[1:Ni, Ni+1:Ni+Na]
-    Y = foo[1:Ni, Ni+Na+1:end]
-    Z = foo[Ni+1:Ni+Na, Ni+Na+1:end]
-    K = [zeros(Ni, Ni) X Y; -X' zeros(Na, Na) Z; -Y' -Z' zeros(Ne, Ne)]
-    @show norm(K + K')
-    @show size(K)
-    @show K
-    Φ_ortho = sqrt(Symmetric(S))*Φ
-    ∇E = Φ_ortho*K*Iₒ
-    # ∇E = inv(sqrt(Symmetric(S)))*∇E_cfour*inv(sqrt(Symmetric(S)))*Iₒ
-    Φₒ = Φ_ortho*Iₒ
-    (;mo_numbers, Φ_ortho, Φₒ, overlap=S, energy=E, gradient=∇E)
+    ∇E = Φ_cfour_ortho*∇E_cfour*Iₒ
+    Φₒ = Φ_cfour*Iₒ
+    (;mo_numbers, Φ_cfour, Φₒ, overlap=S_cfour, energy=E,
+     gradient=∇E_cfour, core_hamiltonian=H_cfour, tensor=T_cfour)
 end
 
 """
 Assemble dummy ROHFState to match the code convention
 """
-function CASSCFState(mo_numbers, Φ::AbstractArray{T}, S::AbstractArray{T}, E_init) where {T<:Real}
+function CASSCFState(mo_numbers, Φ::AbstractArray{T}, S::AbstractArray{T},
+                     E_init) where {T<:Real}
     Nb, Ni, Na = mo_numbers
+
     # Assemble dumyy ROHFState
     mol = convert(PyObject, nothing)
     S12 = sqrt(Symmetric(S))
@@ -87,7 +92,11 @@ function CASSCFState(mo_numbers, Φ::AbstractArray{T}, S::AbstractArray{T}, E_in
     ROHFState(Φ, Σ_dummy, E_init, false, guess, false, history)
 end
 
-function CASSCF_energy_and_gradient(ζ::ROHFState; CFOUR_ex="xcasscf")
+"""
+Call CFOUR to compute the gradient and energies to the current set
+of orbitals
+"""
+function CASSCF_energy_and_gradient(ζ::ROHFState; CFOUR_ex="xcasscf", verbose=true)
     @assert ζ.isortho
     Φe = generate_virtual_MOs_T(split_MOs(ζ)..., ζ.Σ.mo_numbers)
     Φ_tot = hcat(ζ.Φ, Φe)
@@ -99,12 +108,14 @@ function CASSCF_energy_and_gradient(ζ::ROHFState; CFOUR_ex="xcasscf")
     end
 
     # run and extract CFOUR data
-    _ = run_CFOUR(CFOUR_ex)
+    _ = run_CFOUR(CFOUR_ex; verbose)
     data = extract_CFOUR_data("energy_gradient.txt")
     E = data.energy
     ∇E = data.gradient
     E, ROHFTangentVector(∇E, ζ)
 end
+
+#################################### TESTS
 
 function energy_landscape(ζ::ROHFState, dir::ROHFTangentVector;
                           N_step=100,
@@ -123,8 +134,8 @@ function energy_landscape(ζ::ROHFState, dir::ROHFTangentVector;
     E_landscape, steps
 end
 
-function rand_mmo_matrix(ζ)
-    Nb, Ni, Na = ζ.Σ.mo_numbers
+function rand_mmo_matrix(mo_numbers)
+    Nb, Ni, Na = mo_numbers
     Ne = Nb - (Na+Ni)
     X = rand(Ni, Na)
     Y = rand(Ni, Ne)
@@ -137,11 +148,12 @@ function test_gradient(ζ::ROHFState, t; ∇E_init=nothing)
     
     # Assemble Φ with virtual
     @assert ζ.isortho
+    @assert norm(ζ.Φ'ζ.Φ - I) < 1e-10
     Φe = generate_virtual_MOs_T(split_MOs(ζ)..., ζ.Σ.mo_numbers)
     Φ_tot = hcat(ζ.Φ, Φe)
 
     # Random direction in horizontal tangent space
-    B = rand_mmo_matrix(ζ)
+    B = rand_mmo_matrix(ζ.Σ.mo_numbers)
     p = Φ_tot*B*Matrix(I, Nb, Ni+Na)
     @assert norm(project_tangent(ζ, ζ.Φ, p) - p) < 1e-10
 
@@ -157,34 +169,40 @@ function test_gradient(ζ::ROHFState, t; ∇E_init=nothing)
     approx/expected, p
 end
 
-# data = ROHFToolkit.extract_CFOUR_data(file)
-# x_init = ROHFToolkit.CASSCFState(data.mo_numbers, data.Φₒ, data.overlap, data.energy)
-# ROHFToolkit.orthonormalize_state!(x_init)
-function test_gradient_CFOUR(ζ::ROHFState, t; ∇E_init=nothing)
-    Nb, Ni, Na = ζ.Σ.mo_numbers
+function test_gradient_CFOUR(data, t, mol; ∇E=nothing)
+    Nb, Ni, Na = data.mo_numbers
     
-    # Assemble Φ with virtual
-    @assert ζ.isortho
-    Φe = generate_virtual_MOs_T(split_MOs(ζ)..., ζ.Σ.mo_numbers)
-    Φ_tot = hcat(ζ.Φ, Φe)
+    # Orbitals
+    Φ_cfour = data.Φ_cfour
+    Pd, Ps = densities(Φ_cfour, data.mo_numbers)
+    Jd, Js, Kd, Ks = ROHFToolkit.manual_CX_operators(data.tensor, Pd, Ps)
+    E = energy(Pd, Ps, Jd, Js, Kd, Ks, data.core_hamiltonian, mol)
+    @assert norm(data.energy -  E) < 1e-6
+    
+    @assert norm(Φ_cfour'data.overlap*Φ_cfour - I) < 1e-10
+    Φₒ = Φ_cfour*Matrix(I, Nb, Ni+Na)
+    @assert norm(Φₒ'data.overlap*Φₒ - I) < 1e-10
+    S12 = sqrt(Symmetric(data.overlap))
+    Φₒ_ortho = S12*Φₒ
+    Φ_cfour_ortho = S12*Φ_cfour
 
-    # Random direction in horizontal tangent space
-    B = rand_mmo_matrix(ζ)
-    p = Φ_tot*B*Matrix(I, Nb, Ni+Na)
-    @assert norm(project_tangent(ζ, ζ.Φ, p) - p) < 1e-10
+    # Living in orthonormal world
+    B = rand_mmo_matrix(data.mo_numbers)     # Random direction in horizontal tangent space
+    p = Φ_cfour_ortho*B*Matrix(I, Nb, Ni+Na)
+    ∇E_cfour = isnothing(∇E) ? data.gradient : ∇E
+    @assert norm(project_tangent(data.mo_numbers, Φₒ_ortho, p) -p) < 1e-10
+    @assert norm(project_tangent(data.mo_numbers, Φₒ_ortho, ∇E_cfour) - ∇E_cfour) < 1e-10
 
-    # Test by finite difference
-    Φ_next = Φ_tot*exp(t*B)*Matrix(I, Nb, Ni+Na)
-    @assert norm(Φ_next'Φ_next - I) < 1e-10
-    @assert test_MOs(Φ_next, (11,4,1)) < 1e-10
-    ζ_next = ROHFState(Φ_next, ζ)
+    Φₒ_ortho_next = Φ_cfour_ortho*exp(t*B)*Matrix(I, Nb, Ni+Na)
+    @assert norm(Φₒ_ortho_next'Φₒ_ortho_next - I) < 1e-10
     
-    ∇E = isnothing(∇E_init) ? gradient_MO_metric(ζ.Φ, ζ) : ∇E_init
-    @assert norm(project_tangent(ζ, ζ.Φ, ∇E) - ∇E) < 1e-10
-    
-    E_next,_ = CASSCF_energy_and_gradient(ζ_next)
+    # Manual energy orthonormal -> non orthonormal
+    Φₒ_next = inv(S12)*Φₒ_ortho_next
+    Pd, Ps = densities(Φₒ_next, data.mo_numbers)
+    Jd, Js, Kd, Ks = ROHFToolkit.manual_CX_operators(data.tensor, Pd, Ps)
+    E_next = energy(Pd, Ps, Jd, Js, Kd, Ks, data.core_hamiltonian, mol)
     
     approx = (E_next - E)/t
-    expected = tr(∇E'p)
-    approx/expected, p
+    expected = tr(∇E_cfour'p)
+    (;test = norm(approx - expected), direction=p)
 end

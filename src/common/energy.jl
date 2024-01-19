@@ -175,22 +175,22 @@ end
 #     mol.intor("int2e", shls_slice=shls_slice)
 # end
 
-# function assemble_CX_operators(A::AbstractArray{T}, Pd::AbstractMatrix{T},
-#                                Ps::AbstractMatrix{T}) where {T<:Real}
-#     Jd = zero(Pd); Js = zero(Ps); Kd = zero(Pd); Ks = zero(Ps);
-#     N = size(Pd,1)
-#     for j in 1:N
-#         for i in j:N
-#             A_J = A[i,j,:,:] # Remplacer par la slice ci dessus
-#             A_K = A[i,:,:,j] # Remplacer par la slice ci dessus
-#             Jd[i,j] = tr(A_J*Pd); Jd[j,i] = Jd[i,j] # Jd = J(Pd)
-#             Js[i,j] = tr(A_J*Ps); Js[j,i] = Js[i,j] # Js = J(Ps)
-#             Kd[i,j] = tr(A_K*Pd); Kd[j,i] = Kd[i,j] # Kd = K(Pd)
-#             Ks[i,j] = tr(A_K*Ps); Ks[j,i] = Ks[i,j] # Ks = K(Ps)
-#         end
-#     end
-#     Jd, Js, Kd, Ks
-# end
+function manual_CX_operators(A::AbstractArray{T}, Pd::AbstractMatrix{T},
+                             Ps::AbstractMatrix{T}) where {T<:Real}
+    Jd = zero(Pd); Js = zero(Ps); Kd = zero(Pd); Ks = zero(Ps);
+    N = size(Pd,1)
+    for j in 1:N
+        for i in j:N
+            A_J = A[i,j,:,:] # Remplacer par la slice ci dessus
+            A_K = A[i,:,:,j] # Remplacer par la slice ci dessus
+            Jd[i,j] = tr(A_J*Pd); Jd[j,i] = Jd[i,j] # Jd = J(Pd)
+            Js[i,j] = tr(A_J*Ps); Js[j,i] = Js[i,j] # Js = J(Ps)
+            Kd[i,j] = tr(A_K*Pd); Kd[j,i] = Kd[i,j] # Kd = K(Pd)
+            Ks[i,j] = tr(A_K*Ps); Ks[j,i] = Ks[i,j] # Ks = K(Ps)
+        end
+    end
+    Jd, Js, Kd, Ks
+end
 
 # """
 # test = mol.intor("int2e", shls_slice=(0, 1, 0, 1, 0, 5, 0, 5), aosym="2ij")
