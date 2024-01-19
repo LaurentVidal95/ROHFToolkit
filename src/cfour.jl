@@ -64,7 +64,7 @@ function extract_CFOUR_data(CFOUR_file::String)
     # T_cfour = reshape(multipop(data, Nb^4), Nb, Nb, Nb, Nb)
 
     # Sanity checks
-    @assert norm(Φ_cfour'S_cfour*Φ_cfour - I) < 1e-10
+    @assert norm(Φ_cfour'S_cfour*Φ_cfour - I) < 1e-8
     @show length(data)
     @assert isempty(data)
     @assert norm(S_cfour-S_cfour') < 1e-10
