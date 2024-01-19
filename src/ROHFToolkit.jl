@@ -26,7 +26,8 @@ export generate_molden
 include("common/ChemicalSystem.jl")
 include("common/State.jl")
 include("common/ROHF_energy_gradient.jl")
-include("common/MO_manifold_tools.jl")
+include("common/OMO_manifold_tools.jl")
+include("common/AMO_manifold_tools.jl")
 include("common/DM_manifold_tools.jl")
 include("common/toolbox.jl")
 

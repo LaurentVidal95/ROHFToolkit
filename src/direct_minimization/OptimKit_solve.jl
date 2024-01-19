@@ -57,6 +57,9 @@ function optim_kwargs(;preconditioned=true, verbose=true)
 end
 
 function precondition(ζ::State, η)
+    # No preconditioning for now
+    @assert !(ζ.virtuals)
+
     prec_grad = TangentVector(preconditioned_gradient_MO_metric(ζ), ζ)
     # Return standard gradient if not a descent direction.
     # Avoid errors when starting far from the minimum.
@@ -69,8 +72,13 @@ end
 
 function retract(ζ::State{T}, η::TangentVector{T}, α) where {T<:Real}
     @assert(η.base.Φ == ζ.Φ) # check that ζ is the base of η
-    Rη = State(ζ, retract(ζ, α*η, ζ.Φ))
-    τη = transport_vec_along_himself(η, α, Rη) # transport associated to the retraction
+    # Retract
+    retraction = ζ.virtuals ? retract_AMO : retract_OMO
+    Rη = State(ζ, retraction(ζ, α*η, ζ.Φ))
+    # Associated transport
+    transport_AMO(ζ, vec, Φ_next) = transport_AMO(η, ζ, η, α, Rη)
+    vector_transport = ζ.virtuals ? transport_AMO : transport_vec_along_himself_OMO
+    τη = vector_transport(η, α, Rη)
     Rη, τη
 end
 
@@ -86,7 +94,10 @@ end
 function transport!(η1::TangentVector{T}, ζ::State{T},
                     η2::TangentVector{T}, α::T, Rη2::State{T}) where {T<:Real}
     # Transport with projection for general vectors
-    τη1_vec = project_tangent(ζ, Rη2.Φ, η1.vec)
+    if ζ.virtuals
+        return transport_AMO(η1, ζ, η2, α, Rη2)
+    end
+    τη1_vec = project_tangent(ζ, Rη2.Φ, α*η1.vec) # Recently modified (no alpha)
     TangentVector(τη1_vec, Rη2)
 end
 

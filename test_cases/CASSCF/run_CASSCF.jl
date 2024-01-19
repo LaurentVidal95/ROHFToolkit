@@ -4,7 +4,7 @@ using Pkg: Pkg.activate(ROHFPATH)
 using ROHFToolkit
 
 # Extract initial data
-CFOUR_ex="xccasscf"
+CFOUR_ex="xcasscf"
 data = CFOUR_init(CFOUR_ex)
 
 # Construct initial state

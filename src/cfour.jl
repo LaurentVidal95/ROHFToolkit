@@ -65,6 +65,7 @@ function extract_CFOUR_data(CFOUR_file::String)
 
     # Sanity checks
     @assert norm(Φ_cfour'S_cfour*Φ_cfour - I) < 1e-10
+    @show length(data)
     @assert isempty(data)
     @assert norm(S_cfour-S_cfour') < 1e-10
 

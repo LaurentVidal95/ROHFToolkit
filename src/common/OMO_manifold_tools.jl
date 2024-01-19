@@ -1,5 +1,5 @@
 @doc raw"""
-    retract(mo_numbers::Tuple(Int64,Int64,Int64), Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
+    retract_OMO(mo_numbers::Tuple(Int64,Int64,Int64), Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
 
 Retraction on the ROHF flag manifold in MO coordinates that doesn't use virtual orbitals.
    - mo_numbers: tuple (Nb, Nd, Ns), respectively the total number, the number
@@ -9,7 +9,7 @@ Retraction on the ROHF flag manifold in MO coordinates that doesn't use virtual 
 
 The exact formula of this retraction is given in equations (17) of the documentation.
 """
-function retract(mo_numbers::Tuple{Int64, Int64, Int64}, Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
+function retract_OMO(mo_numbers::Tuple{Int64, Int64, Int64}, Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
     Nb, Nd, Ns = mo_numbers
     No = Nd+Ns
     Ψd, Ψs = split_MOs(Ψ, (Nb,Nd,Ns))
@@ -31,9 +31,9 @@ end
 """
 Same retraction routines in compressed format
 """
-retract(ζ::State, Ψ, Φ) = retract(ζ.Σ.mo_numbers, Ψ, Φ)
-function retract(Ψ::TangentVector)
-    RΨ = retract(Ψ.base, Ψ.vec, Ψ.base.Φ)
+retract_OMO(ζ::State, Ψ, Φ) = retract_OMO(ζ.Σ.mo_numbers, Ψ, Φ)
+function retract_OMO(Ψ::TangentVector)
+    RΨ = retract_OMO(Ψ.base, Ψ.vec, Ψ.base.Φ)
     State(Ψ.base, RΨ)
 end
 
@@ -80,7 +80,7 @@ project_tangent(ζ::State, Φ::Matrix, Ψ::Matrix) =
 
 
 @doc raw"""
-    transport_vec_along_himself(Ψ::TangentVector{T}, t::T,
+    transport_vec_along_himself_OMO(Ψ::TangentVector{T}, t::T,
                                      ζ_next::State{T}) where {T<:Real}
 
 Transport a direction Ψ along t*Ψ. Used as an alternative transport to
@@ -90,8 +90,8 @@ the ROHF manifold.
 The formula for this transport is given in the equation (24) of
 the documentation.
 """
-function transport_vec_along_himself(Ψ::TangentVector{T}, t::T,
-                                     ζ_next::State{T}) where {T<:Real}
+function transport_vec_along_himself_OMO(Ψ::TangentVector{T}, t::T,
+                                         ζ_next::State{T}) where {T<:Real}
     # Check that the targeted point is in orthonormal AO convention
     @assert (ζ_next.isortho)
 
