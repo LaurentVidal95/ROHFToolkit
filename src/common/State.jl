@@ -4,12 +4,12 @@ import Base.+, Base.-, Base.*, Base.adjoint, Base.vec
 import LinearAlgebra.norm
 
 @doc raw"""
-    ROHFState(Φ::Matrix, Σ::ChemicalSystem, energy::Real, isortho::Bool,
+    State(Φ::Matrix, Σ::ChemicalSystem, energy::Real, isortho::Bool,
                          guess::String, history::Matrix)
 
-Molecular orbitals belonging to a specified ROHF manifold.
+Molecular orbitals belonging to a specified discrete state manifold.
 """
-mutable struct ROHFState{T<:Real}
+mutable struct State{T<:Real}
     Φ        ::AbstractMatrix{T}
     Σ        ::ChemicalSystem{T}
     energy   ::T
@@ -25,15 +25,15 @@ end
 """
 Gathers all informations except the MOs Φ.
 """
-Base.collect(ζ::ROHFState) = collect(ζ.Σ)
+Base.collect(ζ::State) = collect(ζ.Σ)
 
 @doc raw"""
-    generate_molden(ζ::ROHFState, filename::String)
+    generate_molden(ζ::State, filename::String)
 
 Save the MOs contained in the state ``ζ`` in a molden file
 for visualization.
 """
-function generate_molden(ζ::ROHFState, filename::String)
+function generate_molden(ζ::State, filename::String)
     pyscf.tools.molden.from_mo(ζ.Σ.mol, filename, ζ.Φ)
     nothing
 end
@@ -91,48 +91,48 @@ end
 """
 All ROHFSate structure constructors
 """
-function ROHFState(Σ::ChemicalSystem{T}; guess=:minao, virtuals=true) where {T<:Real}
+function State(Σ::ChemicalSystem{T}; guess=:minao, virtuals=true) where {T<:Real}
     # Compute guess
     Φ_init = init_guess(Σ, guess; virtuals)
     E_init = energy(densities(Φ_init, Σ.mo_numbers)..., collect(Σ)[1:4]...)
     history = reshape([0, E_init, NaN, NaN], 1, 4)
-    ROHFState(Φ_init, Σ, E_init, false, guess, virtuals, history)
+    State(Φ_init, Σ, E_init, false, guess, virtuals, history)
 end
-ROHFState(mol::PyObject; guess=:minao, virtuals=true) = ROHFState(ChemicalSystem(mol); guess, virtuals)
-ROHFState(ζ::ROHFState, Φ::Matrix) = ROHFState(Φ, ζ.Σ, ζ.energy, ζ.isortho, ζ.guess, ζ.virtuals, ζ.history)
+State(mol::PyObject; guess=:minao, virtuals=true) = State(ChemicalSystem(mol); guess, virtuals)
+State(ζ::State, Φ::Matrix) = State(Φ, ζ.Σ, ζ.energy, ζ.isortho, ζ.guess, ζ.virtuals, ζ.history)
 
 @doc raw"""
-     ROHFTangentVector(vec::AbstractMatrix{T}, base::ROHFState{T})
+     TangentVector(vec::AbstractMatrix{T}, base::State{T})
 
 The base vector is a point on the MO manifold, and vec is a vector in
 the tangent space the base to the MO manifold.
 Mainly serve to match the conventions of the OptimKit optimization library.
-Note that if vec = base.Φ, the ROHFTangentVector is just a ROHFState.
+Note that if vec = base.Φ, the TangentVector is just a State.
 """
-struct ROHFTangentVector{T<:Real}
+struct TangentVector{T<:Real}
     vec::AbstractMatrix{T}
-    base::ROHFState{T}
+    base::State{T}
 end
 
 """
-Overloading basic operations for ROHFTangentVectors.
+Overloading basic operations for TangentVectors.
 """
-ROHFTangentVector(ζ::ROHFState) = ROHFTangentVector(ζ.Φ, Φ)
-(+)(A::Matrix, X::ROHFTangentVector) = (+)(A, X.vec)
-(+)(X::ROHFTangentVector, A::Matrix) = (+)(X.vec, A)
-(*)(λ::Real, X::ROHFTangentVector) = (*)(λ, X.vec)
-(*)(A::Adjoint{Float64, Matrix{Float64}}, X::ROHFTangentVector) = (*)(A, X.vec)
-(-)(X::ROHFTangentVector) = -X.vec
-norm(X::ROHFTangentVector) = norm(X.vec)
-(adjoint)(X::ROHFTangentVector) = X.vec'
-(vec)(X::ROHFTangentVector) = vec(X.vec)
+TangentVector(ζ::State) = TangentVector(ζ.Φ, Φ)
+(+)(A::Matrix, X::TangentVector) = (+)(A, X.vec)
+(+)(X::TangentVector, A::Matrix) = (+)(X.vec, A)
+(*)(λ::Real, X::TangentVector) = (*)(λ, X.vec)
+(*)(A::Adjoint{Float64, Matrix{Float64}}, X::TangentVector) = (*)(A, X.vec)
+(-)(X::TangentVector) = -X.vec
+norm(X::TangentVector) = norm(X.vec)
+(adjoint)(X::TangentVector) = X.vec'
+(vec)(X::TangentVector) = vec(X.vec)
 
 @doc raw"""
-    reset_state!(ζ::ROHFState; guess=:minao)
+    reset_state!(ζ::State; guess=:minao)
 
 
 """
-function reset_state!(ζ::ROHFState; guess=:minao, virtuals=true)
+function reset_state!(ζ::State; guess=:minao, virtuals=true)
     Φ_init = init_guess(ζ.Σ, guess; virtuals)
     ζ.Φ = Φ_init; ζ.isortho=false; energy!(ζ);
     history = reshape([0, ζ.energy, NaN, NaN], 1, 4)
@@ -142,12 +142,12 @@ function reset_state!(ζ::ROHFState; guess=:minao, virtuals=true)
 end
 
 @doc raw"""
-    orthonormalize_state!(ζ::ROHFState)
+    orthonormalize_state!(ζ::State)
 
 Use the square root of the overlap matrix to orthonormalize the
 MOs of a given state.
 """
-function orthonormalize_state!(ζ::ROHFState)
+function orthonormalize_state!(ζ::State)
     # If MOs are already orthonormal do nothing
     (ζ.isortho) && (@info "The state is already orthonomal")
     if !(ζ.isortho)
@@ -156,15 +156,15 @@ function orthonormalize_state!(ζ::ROHFState)
     end
     nothing
 end
-orthonormalize_state!(Ψ::ROHFTangentVector) = orthonormalize_state!(Ψ.base)
+orthonormalize_state!(Ψ::TangentVector) = orthonormalize_state!(Ψ.base)
 
 @doc raw"""
-    deorthonormalize_state!(ζ::ROHFState)
+    deorthonormalize_state!(ζ::State)
 
 Use the inverse square root of the overlap matrix to deorthonormalize the
 MOs of a given state.
 """
-function deorthonormalize_state!(ζ::ROHFState)
+function deorthonormalize_state!(ζ::State)
     !(ζ.isortho) && (@info "The state is already non-orthonomal")
     if (ζ.isortho)
         ζ.Φ = ζ.Σ.Sm12*ζ.Φ

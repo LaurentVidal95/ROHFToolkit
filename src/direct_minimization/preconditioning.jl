@@ -1,6 +1,6 @@
 @doc raw"""
     preconditioned_gradient_MO_metric(Fd₀::Matrix{T}, Fs₀::Matrix{T},
-                                           ζ::ROHFState{T}) where {T<:Real}
+                                           ζ::State{T}) where {T<:Real}
 
 Gradient for the preconditioned MO metric as described in equation (39) of the
 documentation. Note that we allow for different Fock operators than the one associated 
@@ -8,7 +8,7 @@ to the current state ζ, so that the routines also applies for the preconditioni
 hybrid SCF direct minimization problem.
 """
 function preconditioned_gradient_MO_metric(Fd₀::Matrix{T}, Fs₀::Matrix{T},
-                                           ζ::ROHFState{T}) where {T<:Real}
+                                           ζ::State{T}) where {T<:Real}
     mo_numbers = ζ.Σ.mo_numbers
 
     # Construct preconditioned grad system
@@ -36,7 +36,7 @@ function preconditioned_gradient_MO_metric(Fd₀::Matrix{T}, Fs₀::Matrix{T},
     # and needs to be projected on the tangent space at current point.
     prec_grad = project_tangent(mo_numbers, ζ.Φ, tmp_mat)
 end
-preconditioned_gradient_MO_metric(ζ::ROHFState) =
+preconditioned_gradient_MO_metric(ζ::State) =
     preconditioned_gradient_MO_metric(Fock_operators(ζ)..., ζ)
 
 @doc raw"""

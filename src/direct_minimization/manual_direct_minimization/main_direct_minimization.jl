@@ -1,5 +1,5 @@
 @doc raw"""
-    OLD: direct_minimization(ζ::ROHFState;  maxiter = 500, maxstep = 2*one(Float64),
+    OLD: direct_minimization(ζ::State;  maxiter = 500, maxstep = 2*one(Float64),
                            solver = conjugate_gradient(), # preconditioned
                            tol = 1e-5, linesearch_type = HagerZhang(),
                            prompt=default_prompt())
@@ -18,7 +18,7 @@ The arguments are
     - linesearch_type: linesearch algorithm used at each iteration.
     - prompt: modify prompt if needed. Default should be fine.
 """
-function direct_minimization(ζ::ROHFState;
+function direct_minimization(ζ::State;
                              maxiter = 500,
                              maxstep = 2*one(Float64),
                              solver = conjugate_gradient(), # preconditioned by default
@@ -38,7 +38,7 @@ function direct_minimization(ζ::ROHFState;
     E, ∇E           = rohf_energy_and_gradient(ζ.Φ, ζ)
     E_prev, ∇E_prev = E, ∇E
     dir_vec         = solver.preconditioned ? .- preconditioned_gradient(ζ) : - ∇E
-    dir             = ROHFTangentVector(dir_vec, ζ)
+    dir             = TangentVector(dir_vec, ζ)
     step            = zero(Float64)
     converged       = false
     residual        = norm(∇E)

@@ -31,10 +31,10 @@ end
 """
 Same retraction routines in compressed format
 """
-retract(ζ::ROHFState, Ψ, Φ) = retract(ζ.Σ.mo_numbers, Ψ, Φ)
-function retract(Ψ::ROHFTangentVector)
+retract(ζ::State, Ψ, Φ) = retract(ζ.Σ.mo_numbers, Ψ, Φ)
+function retract(Ψ::TangentVector)
     RΨ = retract(Ψ.base, Ψ.vec, Ψ.base.Φ)
-    ROHFState(Ψ.base, RΨ)
+    State(Ψ.base, RΨ)
 end
 
 @doc raw"""
@@ -75,13 +75,13 @@ function project_tangent(mo_numbers::Tuple{Int64, Int64, Int64}, Φ::Matrix{T},
     X = 1/2 .* (Ψd'Φs + Φd'Ψs);
     hcat(-Φs*X' + (I - Φd*Φd')*Ψd, -Φd*X + (I - Φs*Φs')*Ψs)
 end
-project_tangent(ζ::ROHFState, Φ::Matrix, Ψ::Matrix) =
+project_tangent(ζ::State, Φ::Matrix, Ψ::Matrix) =
     project_tangent(ζ.Σ.mo_numbers, Φ, Ψ)
 
 
 @doc raw"""
-    transport_vec_along_himself(Ψ::ROHFTangentVector{T}, t::T,
-                                     ζ_next::ROHFState{T}) where {T<:Real}
+    transport_vec_along_himself(Ψ::TangentVector{T}, t::T,
+                                     ζ_next::State{T}) where {T<:Real}
 
 Transport a direction Ψ along t*Ψ. Used as an alternative transport to
 orthogonal projection for SD and CG in the linesearch routine on
@@ -90,8 +90,8 @@ the ROHF manifold.
 The formula for this transport is given in the equation (24) of
 the documentation.
 """
-function transport_vec_along_himself(Ψ::ROHFTangentVector{T}, t::T,
-                                     ζ_next::ROHFState{T}) where {T<:Real}
+function transport_vec_along_himself(Ψ::TangentVector{T}, t::T,
+                                     ζ_next::State{T}) where {T<:Real}
     # Check that the targeted point is in orthonormal AO convention
     @assert (ζ_next.isortho)
 
@@ -112,7 +112,7 @@ function transport_vec_along_himself(Ψ::ROHFTangentVector{T}, t::T,
 
     τ_p = (-Ψ.base.Φ*V2*sin(t .*Σ) + V1*cos( t .*Σ))*Σ*V2' * exp(t .* W) + ζ_next.Φ*W
     Ξd, Ξs = split_MOs(τ_p, (Nb,Nd,Ns))
-    ROHFTangentVector(hcat(Ξd - Φd_next*Φd_next'Ξd, Ξs - Φs_next*Φs_next'Ξs), ζ_next)
+    TangentVector(hcat(Ξd - Φd_next*Φd_next'Ξd, Ξs - Φs_next*Φs_next'Ξs), ζ_next)
 end
 
 ## Retraction using geodesic (i.e. virtual orbitals) for numerical tests.

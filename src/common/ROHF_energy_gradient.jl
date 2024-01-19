@@ -44,19 +44,19 @@ function energy(Pd::Matrix{T}, Ps::Matrix{T}, mo_numbers,
     Jd, Js, Kd, Ks = assemble_CX_operators(eri, Pd, Ps)
     energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol)
 end
-energy(Pd::Matrix, Ps::Matrix, ζ::ROHFState) =
+energy(Pd::Matrix, Ps::Matrix, ζ::State) =
     energy(Pd, Ps, collect(ζ)[1:end-1]...)
 
 @doc raw"""
-    energy(Φ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real} 
+    energy(Φ::Matrix{T}, ζ::State{T}) where {T<:Real} 
 
-Higher level ROHF energy function, given only a set of MOs and a ROHFState.
+Higher level ROHF energy function, given only a set of MOs and a State.
 """
-function energy(Φ::Matrix{T}, ζ::ROHFState{T}) where {T<:Real}  
+function energy(Φ::Matrix{T}, ζ::State{T}) where {T<:Real}  
     Pd, Ps = densities(Φ, ζ.Σ.mo_numbers)
     energy(Pd, Ps, collect(ζ)[1:end-1]...)
 end
-function energy!(ζ::ROHFState{T}) where {T<:Real}
+function energy!(ζ::State{T}) where {T<:Real}
     Φ = ζ.Φ
     (ζ.isortho) && (Φ = ζ.Σ.Sm12*Φ)
     E = energy(Φ, ζ)
@@ -75,11 +75,10 @@ given all necessary matrices:
     - The square-root inverse of the overlap ```S^{-1/2}```.
 """
 function Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
-    FdT = H .+ 2Jd .- Kd .+ Js .- 0.5 .* Ks
-    FsT = 0.5 .*(H .+ 2Jd .- Kd .+ Js .- Ks)
-    Sm12*FdT*Sm12, Sm12*FsT*Sm12
+    Fdᵒ = H .+ 2Jd .- Kd .+ Js .- 0.5 .* Ks
+    Fsᵒ =  0.5 .*(H .+ 2Jd .- Kd .+ Js .- Ks)
+    Sm12*Fdᵒ*Sm12, Sm12*Fsᵒ*Sm12
 end
-
 
 function Fock_operators(Φ, Sm12, mo_numbers, eri, H)
     Pd, Ps = densities(Sm12*Φ, mo_numbers)
@@ -88,19 +87,19 @@ function Fock_operators(Φ, Sm12, mo_numbers, eri, H)
 end
 
 @doc raw"""
-    Fock_operators(Φ, ζ::ROHFState)
+    Fock_operators(Φ, ζ::State)
 
 Compact routine to compute the Fock operators Fd and Fs
 for a given state in the ROHF manifold, in orthonormal AO basis.
 """
-Fock_operators(Φ, ζ::ROHFState) = Fock_operators(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
-function Fock_operators(ζ::ROHFState)
+Fock_operators(Φ, ζ::State) = Fock_operators(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
+function Fock_operators(ζ::State)
     @assert(ζ.isortho)
     Fock_operators(ζ.Φ, ζ)
 end
 
 # Same but in DM convention
-function Fock_operators(Pdᵒ, Psᵒ, ζ::ROHFState{T}) where {T<:Real}
+function Fock_operators(Pdᵒ, Psᵒ, ζ::State{T}) where {T<:Real}
     _, eri, H = collect(ζ)[1:end-2]
     Sm12 = ζ.Σ.Sm12
     Pd = Symmetric(Sm12*Pdᵒ*Sm12); Ps = Symmetric(Sm12*Psᵒ*Sm12)
@@ -120,7 +119,7 @@ function ambiant_space_MO_gradient(Φ, Sm12, mo_numbers, eri, H)
     hcat(4*Fdᵒ*Φdᵒ, 4*Fsᵒ*Φsᵒ)
 end
 @doc raw"""
-     gradient_MO_metric(Φ, ζ::ROHFState)
+     gradient_MO_metric(Φ, ζ::State)
 
 Compute the gradient of the ROHF energy in MO formalism for the metric:
 g(Ψ₁, Ψ₂]) = ⟨Ψ₁,Ψ₂⟩_{MO}
@@ -130,10 +129,10 @@ For a state Φ = (Φd, Φs), the gradient lies in the horizontal tangent space a
      -Φ_d(Φ_d^{T} 2(F_d-F_s)Φ_s) + Φ_v(4Φ_v^{T} F_sΦ_s) ]
 ```
 """
-function gradient_MO_metric(Φ, ζ::ROHFState)
+function gradient_MO_metric(Φ, ζ::State)
     @assert(ζ.isortho)
     ∇E = gradient_MO_metric(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
-    ROHFTangentVector(∇E, ζ)
+    TangentVector(∇E, ζ)
 end
 function gradient_MO_metric(Φ, Sm12, mo_numbers, eri, H)
     ∇E = ambiant_space_MO_gradient(Φ, Sm12, mo_numbers, eri, H)
@@ -141,27 +140,28 @@ function gradient_MO_metric(Φ, Sm12, mo_numbers, eri, H)
 end
 
 @doc raw"""
-    energy_and_gradient(Φ, ζ::ROHFState)
+    energy_and_gradient(Φ, ζ::State)
 
 Computes both energy and gradient at point [Φ] on the MO manifold.
 """
-function energy_and_gradient(Φ, ζ::ROHFState)
-    E, ∇E = energy_and_gradient(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
-    E, ROHFTangentVector(∇E, ζ)
-end
-function energy_and_gradient(Φ, Sm12, mo_numbers, eri, H, mol)
+function energy_and_gradient(Φᵒ, Sm12, mo_numbers, eri, H, mol)
     # Compute Jd, Js, Kd, Ks
-    Pd, Ps = densities(Sm12*Φ, mo_numbers) # Densities in non-orthonormal AOs convention.
+    Pd, Ps = densities(Sm12*Φᵒ, mo_numbers) # Densities in non-orthonormal AOs convention.
     Jd, Js, Kd, Ks = assemble_CX_operators(eri, Pd, Ps)
     # energy
     E = energy(Pd, Ps, Jd, Js, Kd, Ks, H, mol)
     # gradient
-    Fd, Fs = Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
-    Φd, Φs = split_MOs(Φ, mo_numbers);
-    ∇E = project_tangent(mo_numbers, Φ, hcat(4*Fd*Φd, 4*Fs*Φs))
+    Fdᵒ, Fsᵒ = Fock_operators(Jd, Js, Kd, Ks, H, Sm12)
+    Φdᵒ, Φsᵒ = split_MOs(Φᵒ, mo_numbers);
+    ∇E = project_tangent(mo_numbers, Φᵒ, hcat(4*Fdᵒ*Φdᵒ, 4*Fsᵒ*Φsᵒ))
     E, ∇E
 end
-function energy_and_gradient(ζ::ROHFState)
+function energy_and_gradient(Φ, ζ::State)
+    @assert(ζ.isortho)
+    E, ∇E = energy_and_gradient(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
+    E, TangentVector(∇E, ζ)
+end
+function energy_and_gradient(ζ::State)
     @assert(ζ.isortho)
     energy_and_gradient(ζ.Φ, ζ)
 end

@@ -13,8 +13,8 @@ function split_MOs(Φ, mo_numbers)
     Φd = Φ[:,1:Nd]; Φs = Φ[:,Nd+1:Nd+Ns]
     Φd, Φs
 end
-split_MOs(ζ::ROHFState) = split_MOs(ζ.Φ, ζ.Σ.mo_numbers)
-split_MOs(Ψ::ROHFTangentVector) = split_MOs(Ψ.vec, Ψ.base.Σ.mo_numbers), split_MOs(Ψ.base)
+split_MOs(ζ::State) = split_MOs(ζ.Φ, ζ.Σ.mo_numbers)
+split_MOs(Ψ::TangentVector) = split_MOs(Ψ.vec, Ψ.base.Σ.mo_numbers), split_MOs(Ψ.base)
 
 @doc raw"""
 Compute densities ``P_d = Φ Φ^{T}``, ``P_s = Φ Φ^{T}``
@@ -26,7 +26,7 @@ function densities(Φᵒ, mo_numbers)
     Φdᵒ = Φᵒ[:,1:Nd]; Φsᵒ = Φᵒ[:,Nd+1:Nd+Ns]
     Φdᵒ*Φdᵒ', Φsᵒ*Φsᵒ'
 end
-densities(ζ::ROHFState) = densities(ζ.Φ, ζ.Σ.mo_numbers)
+densities(ζ::State) = densities(ζ.Φ, ζ.Σ.mo_numbers)
 
 @doc raw"""
      mat_to_vec(X,Y,Z)
@@ -77,7 +77,7 @@ function test_MOs(Φ::Matrix{T}, mo_numbers) where {T<:Real}
 
     test
 end
-test_MOs(ζ::ROHFState) = test_MOs(ζ.Φ, ζ.Σ.mo_numbers)
+test_MOs(ζ::State) = test_MOs(ζ.Φ, ζ.Σ.mo_numbers)
 
 @doc raw"""
     rand_unitary_matrix(mo_numbers)
@@ -90,7 +90,45 @@ function rand_unitary_matrix(mo_numbers)
     A = rand(No, No)
     exp((1/2)*(A-A'))
 end
-rand_unitary_matrix(ζ::ROHFState) = rand_unitary_matrix(ζ.Σ.mo_numbers)
+rand_unitary_matrix(ζ::State) = rand_unitary_matrix(ζ.Σ.mo_numbers)
+
+## The following was only used to test routines using geodesics.
+## See the end of ``src/common/MO_manifold_tools.jl``.
+"""
+    Orthonormalize vector b with the n first columns of A
+"""
+function gram_schmidt(A::AbstractArray{T}, b::AbstractVector{T},n::Integer) where T
+    k = size(A,2)  #number of orthogonal vectors
+    dot_prods = zeros(T,k)  
+    
+    for (i,a_i) in enumerate(eachcol(A[:,1:n]))
+        dot_prods[i] = dot(a_i,b)
+        axpy!(-dot_prods[i],a_i,b)
+    end
+    nrm = norm(b)
+    b *= one(T)/nrm
+    b
+end
+
+"""
+    Uses the preceding routine to obtain a full set of orthonormalized orbitals from occupied ones.
+    MOs are given in orthonormal basis.
+"""
+function generate_virtual_MOs_T(ΦdT::AbstractArray{T},ΦsT::AbstractArray{T},
+                           N_bds) where T
+    #Initialize new orbs, fill virtuals randomly
+    Nb,Nd,Ns = N_bds; No = Nd + Ns
+    ΦT = zeros(T,Nb,Nb)
+    ΦT[:,1:Nd+Ns] = hcat(ΦdT,ΦsT)
+    virtuals = rand(T,Nb,Nb-(Nd+Ns))
+
+    for (i,v) in enumerate(eachcol(virtuals))
+        ortho_v = gram_schmidt(ΦT, v, No+(i-1))
+        ΦT[:,No+i] = ortho_v
+    end
+
+    ΦT[:,No+1:end]
+end
 
 
 ## The following was only used to test routines using geodesics.

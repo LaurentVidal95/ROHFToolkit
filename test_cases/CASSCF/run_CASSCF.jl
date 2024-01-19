@@ -3,10 +3,14 @@ ROHFPATH = "/home/..."
 using Pkg: Pkg.activate(ROHFPATH)
 using ROHFToolkit
 
-# initialize state
+# Extract initial data
 CFOUR_ex="xccasscf"
 data = CFOUR_init(CFOUR_ex)
-x_init = ROHFToolkit.CASSCFState(data.mo_numbers, data.Φ, data.overlap,
+
+# Construct initial state
+Nb, Ni, Na = data.mo_numbers
+Φₒ = data.mo_coeffs*Matrix(I, Nb, Ni+Na)
+x_init = ROHFToolkit.CASSCFState(data.mo_numbers, Φₒ, data.overlap,
                                  data.energy)
 
 # Compute energy landscape
@@ -24,4 +28,8 @@ x_init = ROHFToolkit.CASSCFState(data.mo_numbers, data.Φ, data.overlap,
 
 # Launch optimization
 solver = GradientDescent
-res = compute_ground_state(x_init; solver, CASSCF=true, CFOUR_ex, preconditioned=false)
+res = compute_ground_state(x_init; solver,
+                           CASSCF=true,
+                           CFOUR_ex,
+                           preconditioned=false,
+                           verbose=false)

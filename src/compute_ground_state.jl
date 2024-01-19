@@ -1,5 +1,5 @@
 @doc raw"""
-    compute_ground_state(ζ::ROHFState; solver=ConjugateGradient, solver_kwargs...)
+    compute_ground_state(ζ::State; solver=ConjugateGradient, solver_kwargs...)
 
 Wraps all ground state computation routines in a single routine.
     - ζ: Initial point of the optimization
@@ -8,10 +8,13 @@ Wraps all ground state computation routines in a single routine.
     or any scf method in `src/self_consistent_field/scf_solvers.jl`
     (scf, hybrid_scf).
 """
-function compute_ground_state(ζ::ROHFState; solver=ConjugateGradient,
+function compute_ground_state(ζ::State;
+                              # Interface with CFOUR CASSCF code
                               CASSCF=false,
                               CFOUR_ex="xcasscf",
                               CASSCF_verbose=false,
+                              # Solver and related args
+                              solver=ConjugateGradient,
                               solver_kwargs...)
     # Direct minimization
     if (solver ∈ (GradientDescent, ConjugateGradient, LBFGS))

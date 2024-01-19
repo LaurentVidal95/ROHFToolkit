@@ -138,7 +138,7 @@ end
 """
    oda_polynom_coefficients(Pdₙᶜ::Matrix{T}, Psₙᶜ::Matrix{T}, Fdₙᶜ::Matrix{T},
                                   Fsₙᶜ::Matrix{T}, Pdₙ₊₁::Matrix{T}, Psₙ₊₁::Matrix{T},
-                                  ζ::ROHFState) where {T<:Real}
+                                  ζ::State) where {T<:Real}
 
 Build c₁, c₂ such that
 ```math
@@ -153,7 +153,7 @@ Also returns Fdₙ₊₁ and Fsₙ₊₁ to avoid unnecessary computations.
 """
 function oda_polynom_coefficients(Pdₙᶜ::Matrix{T}, Psₙᶜ::Matrix{T}, Fdₙᶜ::Matrix{T},
                                   Fsₙᶜ::Matrix{T}, Pdₙ₊₁::Matrix{T}, Psₙ₊₁::Matrix{T},
-                                  ζ::ROHFState) where {T<:Real}
+                                  ζ::State) where {T<:Real}
     Fdₙ₊₁, Fsₙ₊₁ = Fock_operators(Pdₙ₊₁, Psₙ₊₁, ζ)
     Md =  Pdₙ₊₁ - Pdₙᶜ; Ms = Psₙ₊₁ - Psₙᶜ
     c₁ = tr(Md'*(Fdₙ₊₁-Fdₙᶜ) + Ms'*(Fsₙ₊₁-Fsₙᶜ))

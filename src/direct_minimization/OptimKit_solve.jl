@@ -1,5 +1,5 @@
 @doc raw"""
-    direct_minimization_OptimKit(ζ::ROHFState; maxiter=500, tol=1e-5, solver=ConjugateGradient, preconditioned=true,
+    direct_minimization_OptimKit(ζ::State; maxiter=500, tol=1e-5, solver=ConjugateGradient, preconditioned=true,
                                       verbose=true, break_symmetry=false, kwargs...)
 
 Wrapper around OptimKit "optimize" function. The arguments are:
@@ -14,9 +14,9 @@ Wrapper around OptimKit "optimize" function. The arguments are:
     - break_symmetry: applies random unitary operation on initial MOs to test convergence
     from random initial guess.
     - kwargs: related to the choice of solver. See OptimKit documentation.
-Note that the final ROHFState is always returned in non orthonormal AOs convention.
+Note that the final State is always returned in non orthonormal AOs convention.
 """
-function direct_minimization_OptimKit(ζ::ROHFState;
+function direct_minimization_OptimKit(ζ::State;
                                       maxiter=500,
                                       tol=1e-5,
                                       solver=ConjugateGradient,
@@ -56,8 +56,8 @@ function optim_kwargs(;preconditioned=true, verbose=true)
     kwargs
 end
 
-function precondition(ζ::ROHFState, η)
-    prec_grad = ROHFTangentVector(preconditioned_gradient_MO_metric(ζ), ζ)
+function precondition(ζ::State, η)
+    prec_grad = TangentVector(preconditioned_gradient_MO_metric(ζ), ζ)
     # Return standard gradient if not a descent direction.
     # Avoid errors when starting far from the minimum.
     if (tr(prec_grad'η)/(norm(prec_grad)*norm(η))) ≤ 1e-2 # set experimentaly
@@ -67,27 +67,27 @@ function precondition(ζ::ROHFState, η)
     prec_grad
 end
 
-function retract(ζ::ROHFState{T}, η::ROHFTangentVector{T}, α) where {T<:Real}
+function retract(ζ::State{T}, η::TangentVector{T}, α) where {T<:Real}
     @assert(η.base.Φ == ζ.Φ) # check that ζ is the base of η
-    Rη = ROHFState(ζ, retract(ζ, α*η, ζ.Φ))
+    Rη = State(ζ, retract(ζ, α*η, ζ.Φ))
     τη = transport_vec_along_himself(η, α, Rη) # transport associated to the retraction
     Rη, τη
 end
 
-inner(ζ::ROHFState, η1::ROHFTangentVector, η2::ROHFTangentVector) = tr(η1'η2)
-@inline function scale!(η::ROHFTangentVector{T}, α) where {T<:Real}
-    ROHFTangentVector(α*η, η.base)
+inner(ζ::State, η1::TangentVector, η2::TangentVector) = tr(η1'η2)
+@inline function scale!(η::TangentVector{T}, α) where {T<:Real}
+    TangentVector(α*η, η.base)
 end
-@inline function add!(η1::ROHFTangentVector{T}, η2::ROHFTangentVector{T},
+@inline function add!(η1::TangentVector{T}, η2::TangentVector{T},
                       α::T2) where {T<:Real, T2<:Real}
-    ROHFTangentVector(η1 + α*η2, η1.base)
+    TangentVector(η1 + α*η2, η1.base)
 end
 
-function transport!(η1::ROHFTangentVector{T}, ζ::ROHFState{T},
-                    η2::ROHFTangentVector{T}, α::T, Rη2::ROHFState{T}) where {T<:Real}
+function transport!(η1::TangentVector{T}, ζ::State{T},
+                    η2::TangentVector{T}, α::T, Rη2::State{T}) where {T<:Real}
     # Transport with projection for general vectors
     τη1_vec = project_tangent(ζ, Rη2.Φ, η1.vec)
-    ROHFTangentVector(τη1_vec, Rη2)
+    TangentVector(τη1_vec, Rη2)
 end
 
 """

@@ -17,20 +17,22 @@ using ProgressMeter
 #### Common data structures and routines
 export ChemicalSystem
 export ROHFManifold
-export ROHFState
-export ROHFTangentVector
+export State
+export TangentVector
 export reset_state!
 export orthonormalize_state!
 export deorthonormalize_state!
-export compute_ground_state
 export generate_molden
 include("common/ChemicalSystem.jl")
-include("common/ROHFState.jl")
-include("common/energy.jl")
-include("common/compute_ground_state.jl")
+include("common/State.jl")
+include("common/ROHF_energy_gradient.jl")
 include("common/MO_manifold_tools.jl")
 include("common/DM_manifold_tools.jl")
 include("common/toolbox.jl")
+
+#### Wrapper around all minimization routines
+export compute_ground_state
+include("compute_ground_state.jl")
 
 #### Direct Minimization solvers
 export GradientDescent, ConjugateGradient, LBFGS # OptimKit functions
@@ -54,6 +56,5 @@ export CFOUR_init
 export CASSCFState
 export energy_landscape
 include("cfour.jl")
-include("common/generate_virtual_mos.jl")
 
 end # Module

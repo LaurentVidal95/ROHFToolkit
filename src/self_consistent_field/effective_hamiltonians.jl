@@ -52,7 +52,7 @@ function assemble_H_eff(A_tt, B_tt, Pd, Ps, Fd, Fs)
     # Return H_eff
     (R_dd .+ R_ss .+ R_vv) .+ H_u .+ H_u'
 end
-function assemble_H_eff(ζ::ROHFState, name::Symbol)
+function assemble_H_eff(ζ::State, name::Symbol)
     Pd, Ps = densities(ζ)
     Fd, Fs = compute_Fock_operators(ζ.Φ, ζ)
     assemble_H_eff(H_eff_coeffs(name, ζ.Σ.mol)..., Pd, Ps, Fd, Fs)

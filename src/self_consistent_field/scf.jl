@@ -1,5 +1,5 @@
 @doc raw"""
-    scf_method(ζ::ROHFState; solver = scf, acceleration = DIIS(;m=15), # DIIS or ODA
+    scf_method(ζ::State; solver = scf, acceleration = DIIS(;m=15), # DIIS or ODA
                     effective_hamiltonian=:Guest_Saunders, tol=1e-5,
                     callback=SCF_default_callback(), kwargs...)
 
@@ -25,7 +25,7 @@ The arguments are:
     - callback: modify callback if needed. Default should be fine.
     - kwargs: specific to the chosen scf solver.
 """
-function scf_method(ζ::ROHFState;
+function scf_method(ζ::State;
                     solver = scf,
                     acceleration = DIIS(;m=15), # DIIS or ODA
                     effective_hamiltonian=:Guest_Saunders,

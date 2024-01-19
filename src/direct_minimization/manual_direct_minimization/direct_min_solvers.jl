@@ -6,7 +6,7 @@
 function steepest_descent(; preconditioned=true)
     function next_dir(info)
         grad = preconditioned ? - preconditioned_gradient(info.ζ) : - info.∇E
-        dir = ROHFTangentVector(grad, info.ζ)
+        dir = TangentVector(grad, info.ζ)
         dir, merge(info,(;dir=dir))
     end
     name = preconditioned ? "Preconditioned Steepest Descent" : "Steepest Descent"
@@ -36,7 +36,7 @@ function conjugate_gradient(; preconditioned=true, cg_type="Fletcher-Reeves")
         β_PR = (norm(∇E)^2 .- tr(∇E'τ_grad_prev)) / norm(info.∇E_prev)^2
         β = (β_PR > 0) ? β_PR : zero(Float64) # Automatic restart if β_PR < 0
 
-        dir = ROHFTangentVector(-current_grad + β * τ_dir_prev, ζ)
+        dir = TangentVector(-current_grad + β * τ_dir_prev, ζ)
         dir, merge(info, (;dir=dir))
     end
     name = preconditioned ? "Preconditioned Conjugate Gradient" : "Conjugate Gradient"

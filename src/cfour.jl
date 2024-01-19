@@ -29,7 +29,8 @@ function extract_CFOUR_data(CFOUR_file::String)
     @assert isfile(CFOUR_file) "Not a file"
     multipop(tab, N) = [popfirst!(tab) for x in tab[1:N]]
 
-    data = vec(readdlm(CFOUR_file))     # Extract raw data
+    # Extract raw data
+    data = vec(readdlm(CFOUR_file)) 
 
     # Extract MO numbers and energy
     Ni, Na, Ne = Int.(multipop(data, 3))
@@ -38,47 +39,47 @@ function extract_CFOUR_data(CFOUR_file::String)
     E = popfirst!(data)
 
     # Extract gradient blocs X, Y and Z as vector XYZ
-    len_XYZ = Ni*Na + Ni*Ne + Na*Ne
-    XYZ = multipop(data, len_XYZ)
-    function reshape_XYZ(XYZ, N1, N2, N3)
-        X = reshape(multipop(XYZ, N1*N2), N1, N2)
-        Y = reshape(multipop(XYZ, N1*N3), N1, N3)
-        Z = reshape(XYZ, N2, N3)
-        X,Y,Z
-    end
-    X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
-    ∇E_cfour = -2 .* [zeros(Ni, Ni) X Y; -X' zeros(Na, Na) Z; -Y' -Z' zeros(Ne, Ne)]
-
+    # len_XYZ = Ni*Na + Ni*Ne + Na*Ne
+    # XYZ = multipop(data, len_XYZ)
+    # function reshape_XYZ(XYZ, N1, N2, N3)
+    #     X = reshape(multipop(XYZ, N1*N2), N1, N2)
+    #     Y = reshape(multipop(XYZ, N1*N3), N1, N3)
+    #     Z = reshape(XYZ, N2, N3)
+    #     X,Y,Z
+    # end
+    # X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
+    # ∇E_cfour = -2 .* [zeros(Ni, Ni) X Y; -X' zeros(Na, Na) Z; -Y' -Z' zeros(Ne, Ne)]
+    # ∇E_cfour=(X,Y,Z)
+    ∇E_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
+    @assert(norm(∇E_cfour' + ∇E_cfour) < 1e-10)
     # Extract orbitals and overlap
     Φ_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
     S_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
 
-    # Extract core Hamiltonian and tensor
-    H_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
-    T_cfour = reshape(multipop(data, Nb^4), Nb, Nb, Nb, Nb)
+    # Extract core Hamiltonian, Fock matrices and tensor
+    # H_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
+    # Fi_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
+    # Fa_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
+    # Q_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
+    # T_cfour = reshape(multipop(data, Nb^4), Nb, Nb, Nb, Nb)
 
     # Sanity checks
-    @assert norm(Φ_cfour'S_cfour*Φ_cfour - I)
+    @assert norm(Φ_cfour'S_cfour*Φ_cfour - I) < 1e-10
     @assert isempty(data)
     @assert norm(S_cfour-S_cfour') < 1e-10
 
     # Remove external orbitals and assemble Stiefel gradient
-    Φ_cfour_ortho = sqrt(Symmetric(S_cfour))*Φ_cfour
-    Iₒ = Matrix(I, Nb, Ni+Na)
-    ∇E = Φ_cfour_ortho*∇E_cfour*Iₒ
-    Φₒ = Φ_cfour*Iₒ
-    (;mo_numbers, Φ_cfour, Φₒ, overlap=S_cfour, energy=E,
-     gradient=∇E_cfour, core_hamiltonian=H_cfour, tensor=T_cfour)
+    (;mo_numbers, mo_coeffs=Φ_cfour, overlap=S_cfour, energy=E, gradient=∇E_cfour)
 end
 
 """
-Assemble dummy ROHFState to match the code convention
+Assemble dummy State to match the code convention
 """
 function CASSCFState(mo_numbers, Φ::AbstractArray{T}, S::AbstractArray{T},
                      E_init) where {T<:Real}
     Nb, Ni, Na = mo_numbers
 
-    # Assemble dumyy ROHFState
+    # Assemble dumyy State
     mol = convert(PyObject, nothing)
     S12 = sqrt(Symmetric(S))
     Sm12 = inv(S12)
@@ -89,14 +90,14 @@ function CASSCFState(mo_numbers, Φ::AbstractArray{T}, S::AbstractArray{T},
     guess=:external
     history = reshape([0, E_init, NaN, NaN], 1, 4)
 
-    ROHFState(Φ, Σ_dummy, E_init, false, guess, false, history)
+    State(Φ, Σ_dummy, E_init, false, guess, false, history)
 end
 
 """
 Call CFOUR to compute the gradient and energies to the current set
 of orbitals
 """
-function CASSCF_energy_and_gradient(ζ::ROHFState; CFOUR_ex="xcasscf", verbose=true)
+function CASSCF_energy_and_gradient(ζ::State; CFOUR_ex="xcasscf", verbose=true)
     @assert ζ.isortho
     Φe = generate_virtual_MOs_T(split_MOs(ζ)..., ζ.Σ.mo_numbers)
     Φ_tot = hcat(ζ.Φ, Φe)
@@ -111,13 +112,17 @@ function CASSCF_energy_and_gradient(ζ::ROHFState; CFOUR_ex="xcasscf", verbose=t
     _ = run_CFOUR(CFOUR_ex; verbose)
     data = extract_CFOUR_data("energy_gradient.txt")
     E = data.energy
-    ∇E = data.gradient
-    E, ROHFTangentVector(∇E, ζ)
+    
+    # Compute gradient in MO parametrization from kappa parametrization
+    S12 = sqrt(Symmetric(data.overlap))
+    Nb, Ni, Na = data.mo_numbers
+    ∇E_manifold = S12*data.mo_coeffs*data.gradient*Matrix(I, Nb, Ni+Na)
+    E, TangentVector(∇E_manifold, ζ)
 end
 
 #################################### TESTS
 
-function energy_landscape(ζ::ROHFState, dir::ROHFTangentVector;
+function energy_landscape(ζ::State, dir::TangentVector;
                           N_step=100,
                           max_step=1e-5)
     Φ = ζ.Φ
@@ -126,7 +131,7 @@ function energy_landscape(ζ::ROHFState, dir::ROHFTangentVector;
     progress = Progress(N_step, desc="Computing energy landscape")
     for t in steps
         Φ_next = retract(ζ, t*dir, Φ)
-        E_next, _ = CASSCF_energy_and_gradient(ROHFState(ζ, Φ_next))
+        E_next, _ = CASSCF_energy_and_gradient(State(ζ, Φ_next))
         push!(E_landscape, E_next)
         next!(progress)
         writedlm("E_landscape.txt", E_landscape)
@@ -143,7 +148,7 @@ function rand_mmo_matrix(mo_numbers)
     [zeros(Ni, Ni) X Y; -X' zeros(Na, Na) Z; -Y' -Z' zeros(Ne, Ne)]
 end
 
-function test_gradient(ζ::ROHFState, t; ∇E_init=nothing)
+function test_gradient(ζ::State, t; ∇E_init=nothing)
     Nb, Ni, Na = ζ.Σ.mo_numbers
     
     # Assemble Φ with virtual
@@ -173,7 +178,7 @@ function test_gradient_CFOUR(data, t, mol; ∇E=nothing)
     Nb, Ni, Na = data.mo_numbers
     
     # Orbitals
-    Φ_cfour = data.Φ_cfour
+    Φ_cfour = data.mo_coeffs
     Pd, Ps = densities(Φ_cfour, data.mo_numbers)
     Jd, Js, Kd, Ks = ROHFToolkit.manual_CX_operators(data.tensor, Pd, Ps)
     E = energy(Pd, Ps, Jd, Js, Kd, Ks, data.core_hamiltonian, mol)
