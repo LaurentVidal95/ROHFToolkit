@@ -14,27 +14,27 @@ end
 """
 Transport of η1 along η2 from ζ to Rζ(η2)
 """
-function transport_AMO(η1::TangentVector{T}, ζ::State{T},
-                       η2::TangentVector{T}, α::T, Rη2::State{T}) where {T<:Real}
-    @assert ζ.isortho
-    Nb, Ni, Na = ζ.Σ.mo_numbers
-    Φ = ζ.Φ
-    B = α*Φ'η2.vec # direction of transport
-    X = Φ'η1.vec # transported vector
+function transport_AMO_same_dir(η::TangentVector{T}, α::T, Rη::State{T}) where {T<:Real}
+    # @assert ζ.isortho
+    # Nb, Ni, Na = ζ.Σ.mo_numbers
+    # Φ = ζ.Φ
+    # B = α*Φ'η2.vec # direction of transport
+    # X = Φ'η1.vec # transported vector
 
-    Bia = B[1:Ni, Ni+1:Ni+Na]
-    Bie = B[1:Ni, Ni+Na+1:Nb-(Ni+Na)]
-    Bae = B[Ni+1:Ni+Na, Ni+Na+1:Nb-(Ni+Na)]
-    Xia = X[1:Ni, Ni+1:Ni+Na]
-    Xie = X[1:Ni, Ni+Na+1:Nb-(Ni+Na)]
-    Xae = X[Ni+1:Ni+Na, Ni+Na+1:Nb-(Ni+Na)]
+    # Bia = B[1:Ni, Ni+1:Ni+Na]
+    # Bie = B[1:Ni, Ni+Na+1:Nb-(Ni+Na)]
+    # Bae = B[Ni+1:Ni+Na, Ni+Na+1:Nb-(Ni+Na)]
+    # Xia = X[1:Ni, Ni+1:Ni+Na]
+    # Xie = X[1:Ni, Ni+Na+1:Nb-(Ni+Na)]
+    # Xae = X[Ni+1:Ni+Na, Ni+Na+1:Nb-(Ni+Na)]
     
-    # Compute the φ matrix
-    U = -Bia*Xae'+ Xia*Bae'
-    φ = zeros(Nb, Nb)
-    φ[1:Ni, Ni+1:Ni+Na] .= U
-    φ[Ni+1:Ni+Na, 1:Ni] .= -U'
+    # # Compute the φ matrix
+    # U = -Bia*Xae'+ Xia*Bae'
+    # φ = zeros(Nb, Nb)
+    # φ[1:Ni, Ni+1:Ni+Na] .= U
+    # φ[Ni+1:Ni+Na, 1:Ni] .= -U'
 
-    τη1 = Φ * exp(B)*exp(-φ)*X
-    TangentVector(τη1, Rη2)
+    # τη1 = Φ * exp(B)*exp(-φ)*X
+    # TangentVector(τη1, Rη2)
+    TangentVector(η.vec, Rη)
 end
