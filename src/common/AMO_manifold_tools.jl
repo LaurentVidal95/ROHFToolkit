@@ -3,6 +3,8 @@ function retract_AMO(Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
     B = Φ'Ψ
     Φ*exp(B)
 end
+retract_AMO(ζ, Ψ::Matrix, Φ::Matrix) = retract_AMO(Ψ, Φ)
+
 function retract_AMO(Ψ::TangentVector)
     @assert Ψ.base.isortho
     RΨ = retract_AMO(Ψ.vec, Ψ.base.Φ)
