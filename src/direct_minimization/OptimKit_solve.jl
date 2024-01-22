@@ -73,9 +73,7 @@ end
 function retract(ζ::State{T}, η::TangentVector{T}, α) where {T<:Real}
     @assert(η.base.Φ == ζ.Φ) # check that ζ is the base of η
     # Retract
-    retraction = ζ.virtuals ? retract_AMO : retract_OMO
-    vector_transport =  ζ.virtuals ? transport_AMO_same_dir : transport_OMO_same_dir
-    
+    vector_transport =  ζ.virtuals ? transport_AMO_same_dir : transport_OMO_same_dir    
     Rη = State(ζ, retraction(ζ, α*η, ζ.Φ))
     τη = vector_transport(η, α, Rη)
     Rη, τη

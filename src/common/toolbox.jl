@@ -1,6 +1,7 @@
 # Useful tool to write gradient and projectors in a compact way
 
 sym(A::AbstractArray) = Symmetric( 1/2 .*(A .+ transpose(A)) )
+asym(A::AbstractArray) = 1/2 .* (A .- transpose(A))
 
 @doc raw"""
     split_MOs(Φ, mo_numbers)
@@ -8,13 +9,17 @@ sym(A::AbstractArray) = Symmetric( 1/2 .*(A .+ transpose(A)) )
 From given matrix ```Φ=[Φ_d|Φ_s]`` containing both groups of MOs,
 return the separate matrices ``Φ_d`` and ``Φ_s``.
 """
-function split_MOs(Φ, mo_numbers)
+function split_MOs(Φ, mo_numbers; virtuals=false)
     Nb,Nd,Ns = mo_numbers
-    Φd = Φ[:,1:Nd]; Φs = Φ[:,Nd+1:Nd+Ns]
+    Φd = Φ[:,1:Nd]; Φs = Φ[:,Nd+1:Nd+Ns]; Φv = Φ[:, Nd+Ns+1:end]
+    (virtuals) && (return Φd, Φs, Φv)
     Φd, Φs
 end
-split_MOs(ζ::State) = split_MOs(ζ.Φ, ζ.Σ.mo_numbers)
-split_MOs(Ψ::TangentVector) = split_MOs(Ψ.vec, Ψ.base.Σ.mo_numbers), split_MOs(Ψ.base)
+split_MOs(ζ::State) = split_MOs(ζ.Φ, ζ.Σ.mo_numbers; ζ.virtuals)
+function split_MOs(Ψ::TangentVector)
+    ζ=Ψ.base
+    split_MOs(Ψ.vec, ζ.Σ.mo_numbers; ζ.virtuals), split_MOs(ζ; ζ.virtuals)
+end
 
 @doc raw"""
 Compute densities ``P_d = Φ Φ^{T}``, ``P_s = Φ Φ^{T}``
