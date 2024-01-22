@@ -67,9 +67,8 @@ function init_guess(Σ::ChemicalSystem{T}, guess::Symbol; virtuals=true) where {
     (guess == :hcore) && (return core_guess(Σ; virtuals))
     # Other guesses via PySCF
     P_ortho = Symmetric(init_guesses[guess]()[1,:,:])
-    No = sum(Σ.mo_numbers[2:3])
-    guess_MOs = eigen(-P_ortho).vectors
-    Φ_ortho = virtuals ? all_guess_MOs : guess_MOs[:,1:No]
+    No = virtuals ? size(P_ortho, 1) : sum(Σ.mo_numbers[2:3])
+    Φ_ortho = eigen(-P_ortho).vectors[:, 1:No]
 
     # Deorthonormalize
     inv(sqrt(Symmetric(Σ.overlap_matrix))) * Φ_ortho
@@ -81,11 +80,10 @@ Initial guess obtained by diagonalizing the core hamiltonian matrix,
 and using the Aufbau principle.
 """
 function core_guess(Σ::ChemicalSystem{T}; virtuals=true) where {T<:Real}
-    No = sum(Σ.mo_numbers[2:3])
+    No = virtuals ? Σ.mo_numbers[1] : sum(Σ.mo_numbers[2:3])
     F = eigen(Symmetric(Σ.core_hamiltonian), Symmetric(Σ.overlap_matrix))
     normalize_col(col) = col ./ sqrt(col'*Σ.overlap_matrix*col)
-    guess_MOs = hcat(normalize_col.(eachcol(F.vectors))...)
-    Φ = virtuals ? guess_MOs : guess_MOs[:,1:No]
+    hcat(normalize_col.(eachcol(F.vectors[:,1:No]))...)
 end
 
 """

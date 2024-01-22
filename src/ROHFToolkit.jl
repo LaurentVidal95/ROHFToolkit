@@ -30,7 +30,6 @@ include("common/OMO_manifold_tools.jl")
 include("common/AMO_manifold_tools.jl")
 include("common/DM_manifold_tools.jl")
 include("common/toolbox.jl")
-include("common/safe_tools.jl")
 
 #### Wrapper around all minimization routines
 export compute_ground_state

@@ -69,15 +69,15 @@ projector on the horizontal tangent space at ``Φ`` is defined by
 If Φ is not the base of Ψ, serve as the default (because the cheapest) way to transport
 Ψ in the tangent plane to Φ.
 """
-function project_tangent(mo_numbers::Tuple{Int64, Int64, Int64}, Φ::Matrix{T},
+function project_tangent_OMO(mo_numbers::Tuple{Int64, Int64, Int64}, Φ::Matrix{T},
                          Ψ::Matrix{T}) where {T<:Real}
     Ψd, Ψs = split_MOs(Ψ, mo_numbers)
     Φd, Φs = split_MOs(Φ, mo_numbers)
     X = 1/2 .* (Ψd'Φs + Φd'Ψs);
     hcat(-Φs*X' + (I - Φd*Φd')*Ψd, -Φd*X + (I - Φs*Φs')*Ψs)
 end
-project_tangent(ζ::State, Φ::Matrix, Ψ::Matrix) =
-    project_tangent(ζ.Σ.mo_numbers, Φ, Ψ)
+project_tangent_OMO(ζ::State, Φ::Matrix, Ψ::Matrix) =
+    project_tangent_OMO(ζ.Σ.mo_numbers, Φ, Ψ)
 
 
 @doc raw"""
