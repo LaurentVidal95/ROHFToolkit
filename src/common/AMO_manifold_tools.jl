@@ -80,10 +80,15 @@ function transport_non_colinear_AMO(η1::TangentVector{T}, ζ::State{T},
             next_term = prefac .* φ
             out = out .+ next_term
         end
-        (k==k_max) && @warn "Transport trunctated before tolerance is reached"
+        if (k==kmax)
+            @warn "Transport trunctated before tolerance is reached"            
+            ## Debug
+            # writedlm("B.dat", B)
+            # writedlm("X.dat", X)
+            # writedlm("Φ.dat", η1.base.Φ)            
+        end
         out
     end
-
     # transport and return in a TangentVector struct
     τη1_vec = Rη2.Φ*exp_φ(X)
     TangentVector(τη1_vec, Rη2)
