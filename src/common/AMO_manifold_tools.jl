@@ -63,7 +63,7 @@ function transport_non_colinear_AMO(η1::TangentVector{T}, ζ::State{T},
     mo_numbers = ζ.Σ.mo_numbers
 
     # Compute the transport exponential post factor
-    function exp_φ(X; tol=1e-8)
+    function exp_φ(X; tol=1e-8, kmax=20)
         # k = 0
         out = X
         # k = 1
@@ -73,13 +73,14 @@ function transport_non_colinear_AMO(η1::TangentVector{T}, ζ::State{T},
         next_term = prefac .* φ
         out = out .+ next_term
         # k > 1
-        while norm(next_term) > tol
+        while (norm(next_term) > tol) && (k < kmax)
             k += 1
             prefac = ((-1)^k)/factorial(k)
             φ = compute_φ_transport(φ, B, mo_numbers)
             next_term = prefac .* φ
             out = out .+ next_term
         end
+        (k==k_max) && @warn "Transport trunctated before tolerance is reached"
         out
     end
 
