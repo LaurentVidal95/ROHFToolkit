@@ -11,8 +11,7 @@ return the separate matrices ``Φ_d`` and ``Φ_s``.
 """
 function split_MOs(Φ, mo_numbers; virtuals=false)
     Nb,Nd,Ns = mo_numbers
-    Φd = Φ[:,1:Nd]; Φs = Φ[:,Nd+1:Nd+Ns]; Φv = Φ[:, Nd+Ns+1:end]
-    (virtuals) && (return Φd, Φs, Φv)
+    Φd = Φ[:,1:Nd]; Φs = Φ[:,Nd+1:Nd+Ns]
     Φd, Φs
 end
 split_MOs(ζ::State) = split_MOs(ζ.Φ, ζ.Σ.mo_numbers; ζ.virtuals)
@@ -104,8 +103,8 @@ rand_unitary_matrix(ζ::State) = rand_unitary_matrix(ζ.Σ.mo_numbers)
 """
 function gram_schmidt(A::AbstractArray{T}, b::AbstractVector{T},n::Integer) where T
     k = size(A,2)  #number of orthogonal vectors
-    dot_prods = zeros(T,k)  
-    
+    dot_prods = zeros(T,k)
+
     for (i,a_i) in enumerate(eachcol(A[:,1:n]))
         dot_prods[i] = dot(a_i,b)
         axpy!(-dot_prods[i],a_i,b)
@@ -143,8 +142,8 @@ end
 # """
 # function gram_schmidt(A::AbstractArray{T}, b::AbstractVector{T},n::Integer) where T
 #     k = size(A,2)  #number of orthogonal vectors
-#     dot_prods = zeros(T,k)  
-    
+#     dot_prods = zeros(T,k)
+
 #     for (i,a_i) in enumerate(eachcol(A[:,1:n]))
 #         dot_prods[i] = dot(a_i,b)
 #         axpy!(-dot_prods[i],a_i,b)

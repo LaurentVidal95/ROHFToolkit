@@ -19,7 +19,13 @@ function compute_ground_state(ζ::State;
     # Direct minimization
     if (solver ∈ (GradientDescent, ConjugateGradient, LBFGS))
         CASSCF_kwargs = (; CFOUR_ex, verbose=CASSCF_verbose)
-        fg = CASSCF ? ζ->CASSCF_energy_and_gradient(ζ; CASSCF_kwargs...) : energy_and_gradient
+        fg = begin
+            if CASSCF
+                ζ->CASSCF_energy_and_gradient(ζ; CASSCF_kwargs...)
+            else
+                energy_and_riemannian_gradient
+            end
+        end
         return direct_minimization_OptimKit(ζ; solver, fg, solver_kwargs...)
     # Self consistent field
     else

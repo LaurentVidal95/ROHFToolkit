@@ -1,6 +1,7 @@
 @doc raw"""
-    direct_minimization_OptimKit(ζ::State; maxiter=500, tol=1e-5, solver=ConjugateGradient, preconditioned=true,
-                                      verbose=true, break_symmetry=false, kwargs...)
+    direct_minimization_OptimKit(ζ::State; maxiter=500, tol=1e-5, 
+                                    solver=ConjugateGradient, preconditioned=true,
+                                    verbose=true, break_symmetry=false, kwargs...)
 
 Wrapper around OptimKit "optimize" function. The arguments are:
     - ζ: initial point of the optimization on the MO manifold
@@ -31,9 +32,11 @@ function direct_minimization_OptimKit(ζ::State;
                                  "overlap: $(cond(ζ.Σ.overlap_matrix))")
     orthonormalize_state!(ζ)
     (break_symmetry) && (@warn "Broken symmetry"; ζ.Φ = ζ.Φ*rand_unitary_matrix(ζ))
+
     # Optimization via OptimKit
     ζ0, E0, ∇E0, _ = optimize(fg, ζ, solver(; gradtol=tol, maxiter, verbosity=0);
                               optim_kwargs(;preconditioned, verbose)...)
+    
     # orthonormal AO -> non-orthonormal AO convention
     deorthonormalize_state!(ζ0)
     (norm(∇E0)>tol) && (@warn "Not converged")
@@ -72,10 +75,10 @@ end
 
 function retract(ζ::State{T}, η::TangentVector{T}, α) where {T<:Real}
     @assert(η.base.Φ == ζ.Φ) # check that ζ is the base of η
-    # Retract
-    vector_transport =  ζ.virtuals ? transport_AMO_same_dir : transport_OMO_same_dir    
-    Rη = State(ζ, retraction(ζ, α*η, ζ.Φ))
-    τη = vector_transport(η, α, Rη)
+    # Choose between OMO and AMO
+    @assert ζ.virtuals # DEBUG
+    Rη = State(ζ, retract_AMO(ζ.Φ, α*η))
+    τη = transport_colinear_AMO(η, α, Rη)
     Rη, τη
 end
 
@@ -90,14 +93,17 @@ end
 
 function transport!(η1::TangentVector{T}, ζ::State{T},
                     η2::TangentVector{T}, α::T, Rη2::State{T}) where {T<:Real}
-    # Transport with projection for general vectors
-    if ζ.virtuals
-        @assert η1.vec == η2.vec
+    @assert ζ.virtuals # DEBUG
+    # Test colinearity
+    angle(X::Matrix,Y::Matrix) = tr(X'Y) / (norm(X)*norm(Y))
+    colinear_dir = norm(abs(angle(η1.vec, η2.vec)) - 1) < 1e-8
+    # Simpler transport for colinear vectors
+    if colinear_dir
         @assert η1.base.Φ == η2.base.Φ
-        return transport_AMO_same_dir(η1, α, Rη2)
+        return transport_colinear_AMO(η1, α, Rη2)
     end
-    τη1_vec = project_tangent(ζ, Rη2.Φ, α*η1.vec) # Recently modified (no alpha)
-    TangentVector(τη1_vec, Rη2)
+    # General transport on the flag manifold
+    transport_non_colinear_AMO(η1, ζ, η2, α, Rη2)
 end
 
 """
@@ -123,10 +129,8 @@ function finalize!(ζ, E, ∇E, n_iter)
     println(@sprintf("%5i %16.12f %16.12f %16.12f", info_out...))
     flush(stdout)
 
-    # Actualize energy
-    #energy!(ζ) # old
+    # Actualize energy and history
     ζ.energy = E
-    # Update history
     ζ.history = vcat(ζ.history, reshape(info_out, 1, 4))
 
     # Return entry to match OptimKit.jl conventions

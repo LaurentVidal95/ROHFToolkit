@@ -25,8 +25,8 @@ end
 ##!!! !! !  !                       Energy                         !  ! !! !!!##
 ###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
 """
-Low level ROHF energy function. Arguments are the 
-doubly and singly occupied states density and coulomb/exchange operators. 
+Low level ROHF energy function. Arguments are the
+doubly and singly occupied states density and coulomb/exchange operators.
 The core hamiltonian as well as the PySCF molecule is also needed.
 """
 energy(Pi, Pa, Ji, Ja, Ki, Ka, H, mol) =
@@ -48,11 +48,11 @@ energy(Pi::Matrix, Pa::Matrix, ζ::State) =
     energy(Pi, Pa, collect(ζ)[1:end-1]...)
 
 @doc raw"""
-    energy(C::Matrix{T}, ζ::State{T}) where {T<:Real} 
+    energy(C::Matrix{T}, ζ::State{T}) where {T<:Real}
 
 Higher level ROHF energy function, given only a set of MOs and a State.
 """
-function energy(C::Matrix{T}, ζ::State{T}) where {T<:Real}  
+function energy(C::Matrix{T}, ζ::State{T}) where {T<:Real}
     Pi, Pa = densities(C, ζ.Σ.mo_numbers)
     energy(Pi, Pa, collect(ζ)[1:end-1]...)
 end
@@ -135,6 +135,7 @@ function AMO_gradient(Φ, ζ::State)
     ∇E = project_tangent_AMO(ζ, ∇E_ambiant)
     TangentVector(∇E, ζ)
 end
+AMO_gradient(ζ::State) = AMO_gradient(ζ.Φ, ζ)
 
 @doc raw"""
     energy_and_gradient(Φ, ζ::State)
@@ -166,37 +167,14 @@ function energy_and_AMO_gradient(ζ::State)
     energy_and_AMO_gradient(ζ.Φ, ζ)
 end
 
-
-@doc raw"""
-    ambiant_space_OMO_gradient(Φ, Sm12, mo_numbers, eri, H)
-
-Compute the gradient of the ROHF energy in OMO formalism in the ambiant vector
-space. The ambiant space gradient is given in equation (28) of the documentation.
-"""
-function ambiant_space_OMO_gradient(Φ, Sm12, mo_numbers, eri, H)
-    Fiᵒ, Faᵒ = Fock_operators(Φ, Sm12, mo_numbers, eri, H)
-    Φiᵒ, Φaᵒ = split_MOs(Φ, mo_numbers);
-    hcat(4*Fiᵒ*Φiᵒ, 4*Faᵒ*Φaᵒ)
+function riemannian_gradient(Φ::Matrix, ζ::State)
+    # TODO
+    AMO_gradient(Φ, ζ)
 end
-@doc raw"""
-     gradient_OMO_metric(Φ, ζ::State)
-
-Compute the gradient of the ROHF energy in OMO formalism for the metric:
-g(Ψ₁, Ψ₂]) = ⟨Ψ₁,Ψ₂⟩_{OMO}
-For a state Φ = (Φi, Φa), the gradient lies in the horizontal tangent space at Φ:
-```math
- ∇_{\mathfrak{g}}E_{\rm OMO}(Φ) = [Φ_s(Φ_s^{T} 2(F_d-F_s)Φ_d) + Φ_v(4Φ_v^{T} F_dΦ_d) |
-     -Φ_d(Φ_d^{T} 2(F_d-F_s)Φ_s) + Φ_v(4Φ_v^{T} F_sΦ_s) ]
-```
-"""
-function gradient_OMO_metric(Φ, ζ::State)
+function energy_and_riemannian_gradient(ζ::State)
     @assert(ζ.isortho)
-    ∇E = gradient_OMO_metric(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
-    TangentVector(∇E, ζ)
-end
-function gradient_OMO_metric(Φ, Sm12, mo_numbers, eri, H)
-    ∇E = ambiant_space_OMO_gradient(Φ, Sm12, mo_numbers, eri, H)
-    project_tangent(mo_numbers, Φ, ∇E)
+    @assert(ζ.virtuals)
+    energy_and_AMO_gradient(ζ::State)
 end
 
 # Old functions for XC operators
@@ -208,22 +186,22 @@ end
 #     mol.intor("int2e", shls_slice=shls_slice)
 # end
 
-function manual_CX_operators(A::AbstractArray{T}, Pi::AbstractMatrix{T},
-                             Pa::AbstractMatrix{T}) where {T<:Real}
-    Ji = zero(Pi); Ja = zero(Pa); Ki = zero(Pi); Ka = zero(Pa);
-    N = size(Pi,1)
-    for j in 1:N
-        for i in j:N
-            A_J = A[i,j,:,:] # Remplacer par la slice ci dessus
-            A_K = A[i,:,:,j] # Remplacer par la slice ci dessus
-            Ji[i,j] = tr(A_J*Pi); Ji[j,i] = Ji[i,j] # Ji = J(Pi)
-            Ja[i,j] = tr(A_J*Pa); Ja[j,i] = Ja[i,j] # Ja = J(Pa)
-            Ki[i,j] = tr(A_K*Pi); Ki[j,i] = Ki[i,j] # Ki = K(Pi)
-            Ka[i,j] = tr(A_K*Pa); Ka[j,i] = Ka[i,j] # Ka = K(Pa)
-        end
-    end
-    Ji, Ja, Ki, Ka
-end
+# function manual_CX_operators(A::AbstractArray{T}, Pi::AbstractMatrix{T},
+#                              Pa::AbstractMatrix{T}) where {T<:Real}
+#     Ji = zero(Pi); Ja = zero(Pa); Ki = zero(Pi); Ka = zero(Pa);
+#     N = size(Pi,1)
+#     for j in 1:N
+#         for i in j:N
+#             A_J = A[i,j,:,:] # Remplacer par la slice ci dessus
+#             A_K = A[i,:,:,j] # Remplacer par la slice ci dessus
+#             Ji[i,j] = tr(A_J*Pi); Ji[j,i] = Ji[i,j] # Ji = J(Pi)
+#             Ja[i,j] = tr(A_J*Pa); Ja[j,i] = Ja[i,j] # Ja = J(Pa)
+#             Ki[i,j] = tr(A_K*Pi); Ki[j,i] = Ki[i,j] # Ki = K(Pi)
+#             Ka[i,j] = tr(A_K*Pa); Ka[j,i] = Ka[i,j] # Ka = K(Pa)
+#         end
+#     end
+#     Ji, Ja, Ki, Ka
+# end
 
 # """
 # test = mol.intor("int2e", shls_slice=(0, 1, 0, 1, 0, 5, 0, 5), aosym="2ij")
