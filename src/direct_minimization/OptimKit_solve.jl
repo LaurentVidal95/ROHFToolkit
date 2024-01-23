@@ -1,5 +1,5 @@
 @doc raw"""
-    direct_minimization_OptimKit(ζ::State; maxiter=500, tol=1e-5, 
+    direct_minimization_OptimKit(ζ::State; maxiter=500, tol=1e-5,
                                     solver=ConjugateGradient, preconditioned=true,
                                     verbose=true, break_symmetry=false, kwargs...)
 
@@ -36,7 +36,7 @@ function direct_minimization_OptimKit(ζ::State;
     # Optimization via OptimKit
     ζ0, E0, ∇E0, _ = optimize(fg, ζ, solver(; gradtol=tol, maxiter, verbosity=0);
                               optim_kwargs(;preconditioned, verbose)...)
-    
+
     # orthonormal AO -> non-orthonormal AO convention
     deorthonormalize_state!(ζ0)
     (norm(∇E0)>tol) && (@warn "Not converged")
@@ -60,17 +60,20 @@ function optim_kwargs(;preconditioned=true, verbose=true)
 end
 
 function precondition(ζ::State, η)
-    # No preconditioning for now
-    @assert !(ζ.virtuals)
-
-    prec_grad = TangentVector(preconditioned_gradient_MO_metric(ζ), ζ)
+    ∇E_prec_vec, converged = preconditioned_gradient_AMO(ζ)
+    # If the quasi newton system has not been correctly solved, return
+    # un-preconditioned gradient
+    if !converged
+        return η
+    end
+    ∇E_prec = TangentVector(∇E_prec_vec, ζ)
     # Return standard gradient if not a descent direction.
     # Avoid errors when starting far from the minimum.
-    if (tr(prec_grad'η)/(norm(prec_grad)*norm(η))) ≤ 1e-2 # set experimentaly
+    if (tr(∇E_prec'η)/(norm(∇E_prec)*norm(η))) ≤ 1e-2 # set experimentaly
         @warn "No preconditioning"
         return η
     end
-    prec_grad
+    ∇E_prec
 end
 
 function retract(ζ::State{T}, η::TangentVector{T}, α) where {T<:Real}

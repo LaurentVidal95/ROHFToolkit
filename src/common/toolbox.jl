@@ -11,7 +11,8 @@ return the separate matrices ``Φ_d`` and ``Φ_s``.
 """
 function split_MOs(Φ, mo_numbers; virtuals=false)
     Nb,Nd,Ns = mo_numbers
-    Φd = Φ[:,1:Nd]; Φs = Φ[:,Nd+1:Nd+Ns]
+    Φd = Φ[:,1:Nd]; Φs = Φ[:,Nd+1:Nd+Ns]; Φv = Φ[:, Nd+Ns+1:end]
+    virtuals && (return Φd, Φs, Φv)
     Φd, Φs
 end
 split_MOs(ζ::State) = split_MOs(ζ.Φ, ζ.Σ.mo_numbers; ζ.virtuals)
@@ -47,21 +48,27 @@ function mat_to_vec(X,Y,Z)
     end
     XYZ
 end
-@doc raw"""
-    vec_to_mat(XYZ, mo_numbers)
+# @doc raw"""
+#     vec_to_mat(XYZ, mo_numbers)
 
-Reverse operation of ``mat_to_vec``.
-The mo_numbers are needed to recover the proper dimensions
-of X, Y and Z as three individual matrices.
-"""
-function vec_to_mat(XYZ, mo_numbers)
-    Nb,Nd,Ns = mo_numbers
-    Nn = Nd*Ns + Nb*Nd + Nb*Ns
-    # reshape
-    X = reshape(XYZ[1:Nd*Ns],(Nd,Ns))
-    Y = reshape(XYZ[Nd*Ns+1:Nd*Ns+Nb*Nd],(Nb, Nd))
-    Z = reshape(XYZ[Nd*Ns+Nb*Nd+1:Nn],(Nb,Ns))
-    [X,Y,Z]
+# Reverse operation of ``mat_to_vec``.
+# The mo_numbers are needed to recover the proper dimensions
+# of X, Y and Z as three individual matrices.
+# """
+# function vec_to_mat(XYZ, mo_numbers)
+#     Nb,Nd,Ns = mo_numbers
+#     Nn = Nd*Ns + Nb*Nd + Nb*Ns
+#     # reshape
+#     X = reshape(XYZ[1:Nd*Ns],(Nd,Ns))
+#     Y = reshape(XYZ[Nd*Ns+1:Nd*Ns+Nb*Nd],(Nb, Nd))
+#     Z = reshape(XYZ[Nd*Ns+Nb*Nd+1:Nn],(Nb,Ns))
+#     [X,Y,Z]
+# end
+function reshape_XYZ(XYZ, N1, N2, N3)
+    X = reshape(XYZ[1:N1*N2], N1, N2)
+    Y = reshape(XYZ[N1*N2+1:N1*N2+N1*N3], N1, N3)
+    Z = reshape(XYZ[N1*N2+N1*N3+1:end], N2, N3)
+    X,Y,Z
 end
 
 @doc raw"""

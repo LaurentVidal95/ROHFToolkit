@@ -37,7 +37,7 @@ include("compute_ground_state.jl")
 
 #### Direct Minimization solvers
 export GradientDescent, ConjugateGradient, LBFGS # OptimKit functions
-include("direct_minimization/preconditioning.jl")
+include("direct_minimization/preconditioning_AMO.jl")
 include("direct_minimization/OptimKit_solve.jl")
 
 #### Self consistent field
