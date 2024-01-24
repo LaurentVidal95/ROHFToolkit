@@ -9,7 +9,7 @@ function remove_diag_blocs!(M::Matrix, mo_numbers)
     M[1:Ni, 1:Ni] .= zeros(Ni, Ni)
     M[Ni+1:No, Ni+1:No] .= zeros(Na, Na)
     M[No+1:Nb, No+1:Nb] .= zeros(Ne, Ne)
-    nothing
+    M
 end
 
 @doc raw"""
@@ -31,20 +31,24 @@ end
 @doc raw"""
 TODO
 """
-function retract_AMO(Φ::Matrix{T}, Ψ::Matrix{T}) where {T<:Real}
+function exp_retract_AMO(Φ::Matrix{T}, Ψ::Matrix{T}) where {T<:Real}
     B = Φ'Ψ
     Φ*exp(B)
 end
-function retract_AMO(Ψ::TangentVector)
-    @assert Ψ.base.isortho
-    RΨ = retract_AMO(Ψ.base.Φ, Ψ.vec)
-    State(Ψ.base, RΨ)
+function QR_retract_AMO(Φ::Matrix{T}, Ψ::Matrix{T}) where {T<:Real}
+   Matrix(qr(Φ + Ψ).Q)
+end
+
+function retract_AMO(Φ::Matrix{T}, Ψ::Matrix{T}; type=:exp) where {T<:Real}
+    (type==:exp) && (return exp_retract_AMO(Φ, Ψ))
+    (type==:QR) && (return QR_retract_AMO(Φ, Ψ))
+    error("Given type of retraction not handled")
 end
 
 """
 Transport of η1 along η2 from ζ to Rζ(η2)
 """
-function transport_colinear_AMO(η::TangentVector{T}, α::T, Rη::State{T}) where {T<:Real}
+function parallel_transport_collinear_AMO(η::TangentVector{T}, α::T, Rη::State{T}) where {T<:Real}
     B = η.base.Φ'η.vec
     TangentVector(Rη.Φ*B, Rη)
 end
@@ -52,8 +56,8 @@ end
 @doc raw"""
 TODO
 """
-function transport_non_colinear_AMO(η1::TangentVector{T}, ζ::State{T},
-                                    η2::TangentVector{T}, α::T, Rη2::State{T}) where {T<:Real}
+function parallel_transport_non_collinear_AMO(η1::TangentVector{T}, ζ::State{T},
+                                              η2::TangentVector{T}, α::T, Rη2::State{T}) where {T<:Real}
     # Assert that the two vectors live in the same initial tangent space
     @assert η1.base.Φ == η2.base.Φ
 
@@ -64,25 +68,22 @@ function transport_non_colinear_AMO(η1::TangentVector{T}, ζ::State{T},
 
     # Compute the transport exponential post factor
     function exp_φ(X; tol=1e-8, kmax=20)
+        ad_Bm(X) = remove_diag_blocs!(B*X - X*B, mo_numbers)
         # k = 0
         output = X
         # k = 1
         k=1
-        current_term = - compute_φ_transport(X, α .* B, mo_numbers)
+        current_term = - (α/2)*ad_Bm(X)
         output = output + current_term
         # k > 1
         while (norm(current_term) > tol) && (k < kmax)
             k += 1
-            current_term = (-1/k)*compute_φ_transport(current_term, α .* B, mo_numbers)
+            current_term = (-α/(2*k))*ad_Bm(current_term)
             output = output + current_term
         end
-        if (k==kmax)
+        if norm(current_term) > tol
             @warn "Transport trunctated before tolerance is reached"
             @show norm(current_term)
-            ## Debug
-            # writedlm("B.dat", B)
-            # writedlm("X.dat", X)
-            # writedlm("Φ.dat", η1.base.Φ)            
         end
         output
     end
@@ -90,8 +91,52 @@ function transport_non_colinear_AMO(η1::TangentVector{T}, ζ::State{T},
     τη1_vec = Rη2.Φ*exp_φ(X)
     TangentVector(τη1_vec, Rη2)
 end
-function compute_φ_transport(X::Matrix, B::Matrix, mo_numbers)
-    commutator = 0.5 .* (B*X - X*B)
-    remove_diag_blocs!(commutator, mo_numbers)
-    commutator
+function parallel_transport_AMO(η1::TangentVector{T}, ζ::State{T},
+                                η2::TangentVector{T}, α::T, Rη2::State{T};
+                                collinear=false) where {T<:Real}
+    collinear && (return parallel_transport_collinear_AMO(η1, α, Rη2))
+    return  parallel_transport_non_collinear_AMO(η1, ζ, η2, α, Rη2)
+end
+
+function QR_transport_non_collinear_AMO(Y::TangentVector{T}, x::State{T},
+                                        X::TangentVector{T}, α::T, RX::State{T}) where {T<:Real}
+
+    @assert X.base.Φ == Y.base.Φ
+    # Renaming for clarity
+    Φ = x.Φ
+    # RΦ = RX.Φ
+    RX_manual = State(x, Matrix(qr(x.Φ + α*X.vec).Q))
+    RΦ = RX_manual.Φ
+    # Preliminary computations
+    M = inv(RΦ'*(Φ+X.vec))
+    function ρ_skew(M)
+        n, m = size(M)
+        @assert n==m
+        A = zero(M)
+        for j in 1:n
+            for i in j+1:n
+                A[i,j] = M[i,j]
+            end
+        end
+        A - A'
+    end
+    # return  (I-RΦ*RΦ')*Y.vec*M + RΦ*ρ_skew(RΦ'*Y.vec*M)
+    τY_B =  RΦ'*( (I-RΦ*RΦ')*Y.vec*M + RΦ*ρ_skew(RΦ'*Y.vec*M))
+    TangentVector(RΦ*remove_diag_blocs!(τY_B, x.Σ.mo_numbers), RX)
+end
+function QR_transport_AMO(args...;  collinear=false)
+    # if colinear
+    #     return QR_transport_colinear_AMO(TODO...)
+    # end
+    # For now no collinear transport for QR
+    return  QR_transport_non_collinear_AMO(args...)
+end
+
+function transport_AMO(η1::TangentVector{T}, ζ::State{T},
+                       η2::TangentVector{T}, α::T, Rη2::State{T};
+                       type=:exp, collinear=false) where {T<:Real}
+    (type==:exp) && (return parallel_transport_AMO(η1, ζ, η2, α, Rη2; collinear))
+    (type==:QR) && (return QR_transport_AMO(η1, ζ, η2, α, Rη2; collinear))
+    (type==:proj) && (return TangentVector(project_tangent_AMO(Rη2, η1.vec), Rη2))
+    error("Given type of tranport not handled")
 end

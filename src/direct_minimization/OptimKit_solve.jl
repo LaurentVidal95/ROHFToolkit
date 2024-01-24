@@ -20,10 +20,16 @@ Note that the final State is always returned in non orthonormal AOs convention.
 function direct_minimization_OptimKit(ζ::State;
                                       maxiter=500,
                                       tol=1e-5,
+                                      # Choose solver and preconditioning
                                       solver=ConjugateGradient,
                                       preconditioned=true,
+                                      # Type of retraction and transport
+                                      retraction=:exp,
+                                      transport=:exp,
+                                      #
                                       verbose=true,
-                                      break_symmetry=false,
+                                      # break_symmetry=false,
+                                      # Choose between ROHF and CASSCF function
                                       fg=energy_and_gradient,
                                       kwargs...)
     # non-orthonormal AO -> orthonormal AO convention
@@ -31,11 +37,15 @@ function direct_minimization_OptimKit(ζ::State;
     (cond(ζ.Σ.overlap_matrix) > 1e6) && @warn("Conditioning of the "*
                                  "overlap: $(cond(ζ.Σ.overlap_matrix))")
     orthonormalize_state!(ζ)
-    (break_symmetry) && (@warn "Broken symmetry"; ζ.Φ = ζ.Φ*rand_unitary_matrix(ζ))
+    # (break_symmetry) && (@warn "Broken symmetry"; ζ.Φ = ζ.Φ*rand_unitary_matrix(ζ))
 
     # Optimization via OptimKit
-    ζ0, E0, ∇E0, _ = optimize(fg, ζ, solver(; gradtol=tol, maxiter, verbosity=0, kwargs...);
-                              optim_kwargs(;preconditioned, verbose)...)
+    ζ0, E0, ∇E0, _ = optimize(fg, ζ,
+                              solver(; gradtol=tol, maxiter, verbosity=0, kwargs...);
+                              optim_kwargs(;retraction_type=retraction,
+                                           transport_type=transport
+                                           preconditioned, verbose)...
+                              )
 
     # orthonormal AO -> non-orthonormal AO convention
     deorthonormalize_state!(ζ0)
@@ -52,8 +62,16 @@ Wraps all the tools needed for Riemannian optimization (retraction, projection,
 inner product, etc..) in a format readable by OptimKit.
 See `src/common/MO_manifold_tools.jl`
 """
-function optim_kwargs(;preconditioned=true, verbose=true)
-    kwargs = (; retract, inner, transport!, scale!, add!)
+function optim_kwargs(; retraction_type=:exp,
+                      transport_type=:exp,
+                      preconditioned=true,
+                      verbose=true)
+    kwargs = (; inner, scale!, add!,
+              # Choose retraction and transport types
+              retract = (args...) -> retract(args...; type=retraction_type),
+              transport! = (args...) -> transport!(args...; type=transport_type)
+              )
+    # Set verbosity and preconditioning
     (verbose) && (kwargs=merge(kwargs, (; finalize!)))
     (preconditioned) && (kwargs=merge(kwargs, (;precondition)))
     kwargs
@@ -76,12 +94,10 @@ function precondition(ζ::State, η)
     ∇E_prec
 end
 
-function retract(ζ::State{T}, η::TangentVector{T}, α) where {T<:Real}
+function retract(ζ::State{T}, η::TangentVector{T}, α; type=:exp) where {T<:Real}
     @assert(η.base.Φ == ζ.Φ) # check that ζ is the base of η
-    # Choose between OMO and AMO
-    @assert ζ.virtuals # DEBUG
-    Rη = State(ζ, retract_AMO(ζ.Φ, α*η))
-    τη = transport_colinear_AMO(η, α, Rη)
+    Rη = State(ζ, retract_AMO(ζ.Φ, α*η; type))
+    τη = transport_AMO(η, ζ, η, α, Rη; type, collinear=true)
     Rη, τη
 end
 
@@ -95,18 +111,12 @@ end
 end
 
 function transport!(η1::TangentVector{T}, ζ::State{T},
-                    η2::TangentVector{T}, α::T, Rη2::State{T}) where {T<:Real}
-    @assert ζ.virtuals # DEBUG
+                    η2::TangentVector{T}, α::T, Rη2::State{T};
+                    type=:exp) where {T<:Real}
     # Test colinearity
     angle(X::Matrix,Y::Matrix) = tr(X'Y) / (norm(X)*norm(Y))
-    colinear_dir = norm(abs(angle(η1.vec, η2.vec)) - 1) < 1e-8
-    # Simpler transport for colinear vectors
-    if colinear_dir
-        @assert η1.base.Φ == η2.base.Φ
-        return transport_colinear_AMO(η1, α, Rη2)
-    end
-    # General transport on the flag manifold
-    transport_non_colinear_AMO(η1, ζ, η2, α, Rη2)
+    collinear = norm(abs(angle(η1.vec, η2.vec)) - 1) < 1e-8
+    transport_AMO(η1, ζ, η2, α, Rη2; type, collinear)
 end
 
 """
