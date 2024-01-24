@@ -1,6 +1,6 @@
 # Define ROHF manifold, associated methods and objects
 
-import Base.+, Base.-, Base.*, Base.adjoint, Base.vec
+import Base: +, -, *, adjoint, vec, size
 import LinearAlgebra.norm
 
 @doc raw"""
@@ -26,6 +26,7 @@ end
 Gathers all informations except the MOs Φ.
 """
 Base.collect(ζ::State) = collect(ζ.Σ)
+Base.size(ζ::State) = size(ζ.Φ)
 
 @doc raw"""
     generate_molden(ζ::State, filename::String)

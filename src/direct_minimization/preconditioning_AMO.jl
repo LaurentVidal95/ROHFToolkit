@@ -81,5 +81,5 @@ function hessian_as_linear_map(XYZ, Hx¹, Hx², Hy¹, Hy², Hz¹, Hz², shift)
     Hy = Y*Hy¹-Hy²*Y .+ shift*Y
     Hz = Z*Hz¹-Hz²*Z .+ shift*Z
     # Matrix to vector
-    mat_to_vec(Hx, Hy, Hz)
+    0.5 * mat_to_vec(Hx, Hy, Hz)
 end

@@ -34,7 +34,7 @@ function direct_minimization_OptimKit(ζ::State;
     (break_symmetry) && (@warn "Broken symmetry"; ζ.Φ = ζ.Φ*rand_unitary_matrix(ζ))
 
     # Optimization via OptimKit
-    ζ0, E0, ∇E0, _ = optimize(fg, ζ, solver(; gradtol=tol, maxiter, verbosity=0);
+    ζ0, E0, ∇E0, _ = optimize(fg, ζ, solver(; gradtol=tol, maxiter, verbosity=0, kwargs...);
                               optim_kwargs(;preconditioned, verbose)...)
 
     # orthonormal AO -> non-orthonormal AO convention
