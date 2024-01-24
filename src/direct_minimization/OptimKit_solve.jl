@@ -43,7 +43,7 @@ function direct_minimization_OptimKit(ζ::State;
     ζ0, E0, ∇E0, _ = optimize(fg, ζ,
                               solver(; gradtol=tol, maxiter, verbosity=0, kwargs...);
                               optim_kwargs(;retraction_type=retraction,
-                                           transport_type=transport
+                                           transport_type=transport,
                                            preconditioned, verbose)...
                               )
 
