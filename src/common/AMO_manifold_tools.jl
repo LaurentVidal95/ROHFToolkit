@@ -65,29 +65,26 @@ function transport_non_colinear_AMO(η1::TangentVector{T}, ζ::State{T},
     # Compute the transport exponential post factor
     function exp_φ(X; tol=1e-8, kmax=20)
         # k = 0
-        out = X
+        output = X
         # k = 1
-        k = 1
-        φ = compute_φ_transport(X, α .* B, mo_numbers)
-        prefac = ((-1)^k)/factorial(k)
-        next_term = prefac .* φ
-        out = out .+ next_term
+        k=1
+        current_term = - compute_φ_transport(X, α .* B, mo_numbers)
+        output = output + current_term
         # k > 1
-        while (norm(next_term) > tol) && (k < kmax)
+        while (norm(current_term) > tol) && (k < kmax)
             k += 1
-            prefac = ((-1)^k)/factorial(k)
-            φ = compute_φ_transport(φ, B, mo_numbers)
-            next_term = prefac .* φ
-            out = out .+ next_term
+            current_term = (-1/k)*compute_φ_transport(current_term, α .* B, mo_numbers)
+            output = output + current_term
         end
         if (k==kmax)
-            @warn "Transport trunctated before tolerance is reached"            
+            @warn "Transport trunctated before tolerance is reached"
+            @show norm(current_term)
             ## Debug
             # writedlm("B.dat", B)
             # writedlm("X.dat", X)
             # writedlm("Φ.dat", η1.base.Φ)            
         end
-        out
+        output
     end
     # transport and return in a TangentVector struct
     τη1_vec = Rη2.Φ*exp_φ(X)

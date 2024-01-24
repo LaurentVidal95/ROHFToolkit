@@ -106,8 +106,7 @@ function transport!(η1::TangentVector{T}, ζ::State{T},
         return transport_colinear_AMO(η1, α, Rη2)
     end
     # General transport on the flag manifold
-    TangentVector(project_tangent_AMO(Rη2, η1.vec), Rη2)
-    # transport_non_colinear_AMO(η1, ζ, η2, α, Rη2)
+    transport_non_colinear_AMO(η1, ζ, η2, α, Rη2)
 end
 
 """
