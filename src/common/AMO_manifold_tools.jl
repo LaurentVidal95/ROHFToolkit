@@ -66,8 +66,10 @@ function parallel_transport_non_collinear_AMO(η1::TangentVector{T}, ζ::State{T
     B = η2.base.Φ'*η2.vec
     mo_numbers = ζ.Σ.mo_numbers
 
+    # @info "DEBUG"
+    # @info norm(X), norm(B)
     # Compute the transport exponential post factor
-    function exp_φ(X; tol=1e-8, kmax=20)
+    function exp_φ(X; tol=1e-8, kmax=200)
         ad_Bm(X) = remove_diag_blocs!(B*X - X*B, mo_numbers)
         # k = 0
         output = X
@@ -82,8 +84,9 @@ function parallel_transport_non_collinear_AMO(η1::TangentVector{T}, ζ::State{T
             output = output + current_term
         end
         if norm(current_term) > tol
-            @warn "Transport trunctated before tolerance is reached"
-            @show norm(current_term)
+            @warn "Transport trunctated before tolerance is reached.\n"*
+                "Norm of the last term $(norm(current_term)).\n"*
+                "You might want to reduce the maximum step size."
         end
         output
     end
@@ -100,7 +103,7 @@ end
 
 function QR_transport_non_collinear_AMO(Y::TangentVector{T}, x::State{T},
                                         X::TangentVector{T}, α::T, RX::State{T}) where {T<:Real}
-
+    
     @assert X.base.Φ == Y.base.Φ
     # Renaming for clarity
     Φ = x.Φ
