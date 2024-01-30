@@ -23,7 +23,6 @@ end
 The ``cg_type`` for now is useless but will serve to launch other
 types of CG algorithms.
 """
-
 function conjugate_gradient(;preconditioned=true,
                             cg_type=:Fletcher_Reeves,
                             transport_type=:exp)
@@ -32,11 +31,15 @@ function conjugate_gradient(;preconditioned=true,
         ∇E = info.∇E
         ∇E_prev = info.∇E_prev
         dir = info.dir
+        # DEBUG : The prec gradient is bad.
+        # foo = preconditioned_gradient_AMO(ζ)
+        # @show foo[2]            
         current_grad = preconditioned ? preconditioned_gradient_AMO(ζ)[1] : ∇E
-
+        # @show test_tangent(TangentVector(current_grad, ζ))
         # Transport previous dir and gradient on current point ζ
         τ_dir_prev = transport_AMO(dir, dir.base, dir, 1., ζ; type=transport_type, collinear=true)
-
+        # @show test_tangent(τ_dir_prev)
+ 
         # Assemble CG dir with Fletcher-Reeves or Polack-Ribiere coefficient
         cg_factor = begin
             if cg_type==:Fletcher_Reeves
@@ -59,7 +62,7 @@ end
 
 cos_angle_vecs(X,Y) = tr(X'Y) / √(tr(X'X)*tr(Y'Y))
 
-function lbfgs(depth=5; B₀=default_LBFGS_init, preconditioned=false)
+function lbfgs(depth=8; B₀=default_LBFGS_init, preconditioned=false)
     function next_dir(info)
         # Extract data
         B = info.B
@@ -103,15 +106,28 @@ function lbfgs(depth=5; B₀=default_LBFGS_init, preconditioned=false)
     (; next_dir, depth, name, prefix, preconditioned)
 end
 
-function default_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
-    s, y, ρ = B[B.length]
-    γ = tr(s'y)/(norm(y)^2)
-    Nb = size(g.vec,1)
-    γ*Matrix(I, Nb, Nb)
+
+mutable struct LBFGSInverseHessian{TangentType,ScalarType}
+    maxlength::Int
+    length::Int
+    first::Int
+    S::Vector{TangentType}
+    Y::Vector{TangentType}
+    ρ::Vector{ScalarType}
+    α::Vector{ScalarType} # work space
+    function LBFGSInverseHessian{T1,T2}(maxlength::Int, S::Vector{T1}, Y::Vector{T1},
+                                        ρ::Vector{T2}) where {T1, T2}
+        @assert length(S) == length(Y) == length(ρ)
+        l = length(S)
+        S = resize!(copy(S), maxlength)
+        Y = resize!(copy(Y), maxlength)
+        ρ = resize!(copy(ρ), maxlength)
+        α = similar(ρ)
+        return new{T1,T2}(maxlength, l, 1, S, Y, ρ, α)
+    end
 end
-# function Fock_LBFGS_inti(B::LBFGSInverseHessian, g::TangentVector)
-#     Fi, Fa = Fock_operators(g.base)
-# end
+LBFGSInverseHessian(maxlength::Int, S::Vector{T1}, Y::Vector{T1},
+                    ρ::Vector{T2}) where {T1, T2} = LBFGSInverseHessian{T1, T2}(maxlength, S, Y, ρ)
 
 """
 Compute next dir using the two-loop L-BFGS evalutation
@@ -138,27 +154,6 @@ function (B::LBFGSInverseHessian)(g::TangentVector; B₀=default_LBFGS_init)
     return r
 end
 
-mutable struct LBFGSInverseHessian{TangentType,ScalarType}
-    maxlength::Int
-    length::Int
-    first::Int
-    S::Vector{TangentType}
-    Y::Vector{TangentType}
-    ρ::Vector{ScalarType}
-    α::Vector{ScalarType} # work space
-    function LBFGSInverseHessian{T1,T2}(maxlength::Int, S::Vector{T1}, Y::Vector{T1},
-                                        ρ::Vector{T2}) where {T1, T2}
-        @assert length(S) == length(Y) == length(ρ)
-        l = length(S)
-        S = resize!(copy(S), maxlength)
-        Y = resize!(copy(Y), maxlength)
-        ρ = resize!(copy(ρ), maxlength)
-        α = similar(ρ)
-        return new{T1,T2}(maxlength, l, 1, S, Y, ρ, α)
-    end
-end
-LBFGSInverseHessian(maxlength::Int, S::Vector{T1}, Y::Vector{T1},
-                    ρ::Vector{T2}) where {T1, T2} = LBFGSInverseHessian{T1, T2}(maxlength, S, Y, ρ)
 @inline function Base.getindex(B::LBFGSInverseHessian, i::Int)
     @boundscheck if i < 1 || i > B.length
         throw(BoundsError(B, i))
@@ -205,3 +200,14 @@ end
     B.first = 1
     return B
 end
+
+function default_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
+    s, y, ρ = B[B.length]
+    γ = tr(s'y)/(norm(y)^2)
+    Nb = size(g.vec,1)
+    γ*Matrix(I, Nb, Nb)
+end
+# function Fock_LBFGS_inti(B::LBFGSInverseHessian, g::TangentVector)
+#     Fi, Fa = Fock_operators(g.base)
+# end
+
