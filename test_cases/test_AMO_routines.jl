@@ -30,8 +30,7 @@ function test_transport(x::State, α; target_norm=1)
 
     # Transport
     τdir_1 = ROHFToolkit.parallel_transport_AMO(dir_1, x, dir_2, α, x_next)
-    
+
     # Test that the transported vector is in the right tangent space
-    norm(τdir_1.vec - ROHFToolkit.project_tangent_AMO(x_next.Φ, x_next.Σ.mo_numbers,
-                                                      τdir_1.vec))
+    ROHFToolkit.test_tangent(τdir_1)
 end

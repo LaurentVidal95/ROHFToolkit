@@ -45,6 +45,11 @@ function retract_AMO(Φ::Matrix{T}, Ψ::Matrix{T}; type=:exp) where {T<:Real}
     error("Given type of retraction not handled")
 end
 
+function retract_AMO(ζ::State, Ψ::TangentVector; type=:exp)
+    RΦ = retract_AMO(ζ.Φ, Ψ.vec; type)
+    State(ζ, RΦ)
+end
+
 """
 Transport of η1 along η2 from ζ to Rζ(η2)
 """

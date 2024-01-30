@@ -8,7 +8,7 @@ General direct minimization procedure, which decomposes as such:
     1) Choose a direction according to the method provided in the solver arg.
     2) Linesearch along direction
     3) Check convergence
-The arguments are 
+The arguments are
     - ζ: initial point of the optimization on the MO manifold
     - maxiter: maximum number of iterations
     - maxstep: maximum step size during linesearch
@@ -18,13 +18,13 @@ The arguments are
     - linesearch_type: linesearch algorithm used at each iteration.
     - prompt: modify prompt if needed. Default should be fine.
 """
-function direct_minimization(ζ::State;
+function direct_minimization_manual(ζ::State;
                              maxiter = 500,
                              maxstep = 2*one(Float64),
                              solver = conjugate_gradient(), # preconditioned by default
                              tol = 1e-5,
-                             linesearch_type = HagerZhang(),
-                             prompt=default_prompt())
+                             linesearch_type = BackTracking(;order=3),
+                             prompt=default_direct_min_prompt())
     # Linesearch.jl only handles Float64 step sisze
     (typeof(maxstep)≠Float64) && (maxstep=Float64(maxstep))
 
@@ -35,9 +35,9 @@ function direct_minimization(ζ::State;
 
     # Populate info with initial data
     n_iter          = zero(Int64)
-    E, ∇E           = rohf_energy_and_gradient(ζ.Φ, ζ)
+    E, ∇E           = energy_and_riemannian_gradient(ζ)
     E_prev, ∇E_prev = E, ∇E
-    dir_vec         = solver.preconditioned ? .- preconditioned_gradient(ζ) : - ∇E
+    dir_vec         = solver.preconditioned ? .- preconditioned_gradient_AMO(ζ)[1] : - ∇E
     dir             = TangentVector(dir_vec, ζ)
     step            = zero(Float64)
     converged       = false
@@ -46,6 +46,12 @@ function direct_minimization(ζ::State;
     info = (; n_iter, ζ, E, E_prev, ∇E, ∇E_prev, dir, solver, step,
             converged, tol, residual)
 
+    # init LBFGS solver if needed
+    if solver.name == "LBFGS"
+        B = LBFGSInverseHessian(solver.depth, TangentVector[],  TangentVector[], eltype(E)[])
+        info = merge(info, (; B))
+    end
+
     # Display header and initial data
     prompt.prompt(info)
 
@@ -53,18 +59,17 @@ function direct_minimization(ζ::State;
         n_iter += 1
 
         # find next point ζ on ROHF manifold
-        step, E, ζ = rohf_manifold_linesearch(ζ, dir.vec; E, ∇E, maxstep,
-                                              linesearch_type)
+        step, E, ζ = AMO_linesearch(ζ, dir; E, ∇E, maxstep,
+                                    linesearch_type)
 
         # Update "info" with the new ROHF point and related quantities
-        ∇E = grad_E_MO_metric(ζ.Φ, ζ)
+        ∇E = AMO_gradient(ζ)
         ∇E_prev = info.∇E; E_prev = info.E
         residual = norm(info.∇E)
         (residual<tol) && (converged=true)
 
-        info = merge(info, (; ζ=ζ, E=E, E_prev=E_prev, ∇E=∇E, ∇E_prev=∇E_prev,
-                            residual=residual, n_iter=n_iter, step=step,
-                            converged=converged))
+        info = merge(info, (; ζ, E, E_prev, ∇E, ∇E_prev, residual,
+                            n_iter, step, converged))
         prompt.prompt(info)
 
         # Choose next dir according to the solver and update info with new dir
@@ -72,9 +77,10 @@ function direct_minimization(ζ::State;
     end
     # Go back to non-orthonormal AO convention
     deorthonormalize_state!(ζ)
-    info = merge(info, (;ζ=ζ))
+    info = merge(info, (;ζ))
 
-    (info.converged) ? println("CONVERGED") : println("----Maximum iteration reached")
+    (info.converged) ? (@info "Final energy: $(ζ.energy) Ha") :
+        println("----Maximum iteration reached")
 
     prompt.clean(info)
 end

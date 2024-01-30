@@ -48,22 +48,6 @@ function mat_to_vec(X,Y,Z)
     end
     XYZ
 end
-# @doc raw"""
-#     vec_to_mat(XYZ, mo_numbers)
-
-# Reverse operation of ``mat_to_vec``.
-# The mo_numbers are needed to recover the proper dimensions
-# of X, Y and Z as three individual matrices.
-# """
-# function vec_to_mat(XYZ, mo_numbers)
-#     Nb,Nd,Ns = mo_numbers
-#     Nn = Nd*Ns + Nb*Nd + Nb*Ns
-#     # reshape
-#     X = reshape(XYZ[1:Nd*Ns],(Nd,Ns))
-#     Y = reshape(XYZ[Nd*Ns+1:Nd*Ns+Nb*Nd],(Nb, Nd))
-#     Z = reshape(XYZ[Nd*Ns+Nb*Nd+1:Nn],(Nb,Ns))
-#     [X,Y,Z]
-# end
 function reshape_XYZ(XYZ, N1, N2, N3)
     X = reshape(XYZ[1:N1*N2], N1, N2)
     Y = reshape(XYZ[N1*N2+1:N1*N2+N1*N3], N1, N3)
@@ -89,6 +73,25 @@ function test_MOs(Φ::Matrix{T}, mo_numbers) where {T<:Real}
     test
 end
 test_MOs(ζ::State) = test_MOs(ζ.Φ, ζ.Σ.mo_numbers)
+
+function test_tangent(X::TangentVector)
+    Nb, Ni, Na = X.base.Σ.mo_numbers
+    Ne = Nb - (Ni+Na)
+    No = Ni+Na
+
+    Φ = X.base.Φ
+    B = X.base.Φ'X.vec
+
+    # check that the diag blocs of B are zero
+    test = zero(eltype(Φ))
+    test += norm(B[1:Ni, 1:Ni])
+    test += norm(B[Ni+1:No, Ni+1:No])
+    test += norm(B[No+1:Nb, No+1:Nb])
+
+    # test that B is antisymmetric
+    test += norm(B + B')
+    test
+end
 
 @doc raw"""
     rand_unitary_matrix(mo_numbers)
