@@ -11,23 +11,22 @@ struct GradientDescentManual <: Solver
     name           ::String
     prefix         ::String
     preconditioned ::Bool
-    linesearch
 end
-function GradientDescentManual(; preconditioned=true, linesearch)
+function GradientDescentManual(; preconditioned=true)
     name = preconditioned ? "Preconditioned Steepest Descent" : "Steepest Descent"
     prefix = preconditioned ? "prec_SD" : "SD"
-    GradientDescentManual(name, prefix, preconditioned, linesearch)
+    GradientDescentManual(name, prefix, preconditioned)
 end
 
-function next_dir(S::GradientDescentManual, info)
-    grad_vec = S.preconditioned ? preconditioned_gradient_AMO(info.ζ) : info.∇E
+function next_dir(S::GradientDescentManual, info; precondition, kwargs...)
+    grad_vec = S.preconditioned ? precondition(info.ζ) : info.∇E
     dir = TangentVector(-grad_vec, info.ζ)
     dir, merge(info, (; dir))
 end
 
 
 @doc raw"""
-    OLD: ConjugateGradientManual(; preconditioned=true, flavour="Fletcher-Reeves")
+    OLD: ConjugateGradientManual(; preconditioned=true, flavor="Fletcher-Reeves")
 
 (Preconditioned) conjugate gradient algorithm on the MO manifold.
 The ``cg_type`` for now is useless but will serve to launch other
@@ -37,41 +36,41 @@ struct ConjugateGradientManual <: Solver
     name           ::String
     prefix         ::String
     preconditioned ::Bool
-    flavour        ::Symbol
-    transport      ::Symbol
-    linesearch
+    flavor        ::Symbol
 end
-function ConjugateGradientManual(; preconditioned=true, flavour=:Fletcher_Reeves,
-                                 transport_type=:exp, linesearch)
-    @assert flavour ∈ (:Fletcher_Reeves, :Polack_Ribiere)
-    @assert transport_type ∈ (:exp, :QR, :proj)
+function ConjugateGradientManual(; preconditioned=true, flavor=:Fletcher_Reeves)
+    @assert flavor ∈ (:Fletcher_Reeves, :Polack_Ribiere)
     name = preconditioned ? "Preconditioned Conjugate Gradient" : "Conjugate Gradient"
     prefix = preconditioned ? "prec_CG" : "CG"
-    ConjugateGradientManual(name, prefix, preconditioned, flavour, transport_type, linesearch)
+    ConjugateGradientManual(name, prefix, preconditioned, flavor)
 end
 
-
-function next_dir(S::ConjugateGradientManual, info)
+function next_dir(S::ConjugateGradientManual, info; precondition, transport,
+                  kwargs...)
     ζ = info.ζ
     ∇E = info.∇E;  ∇E_prev = info.∇E_prev;
     dir = info.dir
-    current_grad = S.preconditioned ? preconditioned_gradient_AMO(ζ) : ∇E
+    current_grad = S.preconditioned ? precondition(ζ) : ∇E
 
     # Transport previous dir and gradient on current point ζ
-    τ_dir_prev = transport_AMO(dir, dir.base, dir, 1., ζ; type=S.transport, collinear=true)
+    τ_dir_prev = transport_AMO(dir, dir.base, dir, 1., ζ; type=transport, collinear=true)
 
     # Assemble CG dir with Fletcher-Reeves or Polack-Ribiere coefficient
-    cg_factor = begin
-        if S.flavour==:Fletcher_Reeves
-            τ_grad_prev = transport_AMO(∇E_prev, ∇E_prev.base, dir, 1., ζ; type=S.transport, collinear=false)
-            tr(∇E'τ_grad_prev)
-        else
-            zero(ζ.energy)
+    β = zero(ζ.energy)
+    begin
+        cg_factor = zero(β)
+        if S.flavor==:Fletcher_Reeves
+            τ_grad_prev = transport_AMO(∇E_prev, ∇E_prev.base, dir, 1., ζ; type=transport, collinear=false)
+            cg_factor = tr(∇E'τ_grad_prev)
         end
+        β = (tr(∇E'current_grad) - cg_factor) / norm(info.∇E_prev)^2 # DEBUG: wrong use of preconditioning ?
+        # Restart if not a descent direction
+        dir = TangentVector(project_tangent_AMO(ζ, -current_grad + β*τ_dir_prev), ζ)
+        (tr(dir'∇E)/(norm(dir)*norm(∇E)) > -1e-2) && (β = zero(β))        
+        # Restart if β is negative
+        # β = (β > 0) ? β : zero(Float64)
     end
-    β = (norm(∇E)^2 - cg_factor) / norm(info.∇E_prev)^2
-    β = (β > 0) ? β : zero(Float64) # Automatic restart if β_PR < 0
-
+    iszero(β) && (@warn "Restart")
     dir = TangentVector(project_tangent_AMO(ζ, -current_grad + β*τ_dir_prev), ζ)
     dir, merge(info, (; dir))
 end
@@ -84,15 +83,14 @@ struct LBFGSManual <: Solver
     prefix         ::String
     preconditioned ::Bool
     depth          ::Int
-    linesearch
 end
-function LBFGSManual(;depth=8, preconditioned=:false, linesearch)
+function LBFGSManual(;depth=8, preconditioned=:false)
     name = preconditioned ? "Preconditioned LBFGS" : "LBFGS"
     prefix = preconditioned ? "prec_LBFGS" : "LBFGS"
-    LBFGSManual(name, prefix, preconditioned, depth, transport, linesearch)
+    LBFGSManual(name, prefix, preconditioned, depth)
 end
 
-function next_dir(S::LBFGSManual, info)
+function next_dir(S::LBFGSManual, info; preconditioner, transport, kwargs...)
     # Extract data
     B = info.B
     x_prev = info.dir.base;  ∇E_prev = info.∇E_prev
@@ -126,8 +124,15 @@ function next_dir(S::LBFGSManual, info)
     push!(B, (s,y,ρ))
 
     # Compute next dir
-    dir_vec = -B(∇E; B₀)
+    dir_vec = -B(∇E; B₀=default_LBFGS_init)
     dir = TangentVector(-B(∇E).vec, x_new)
+
+    # Restart BFGS if dir is not a descent direction
+    if (tr(dir'∇E)/(norm(dir)*norm(∇E)) > -1e-2)
+        @warn "Restart: not a descent direction"
+        empty!(B)
+    end
+        
     dir, merge(info, (; dir, B))
 end
 

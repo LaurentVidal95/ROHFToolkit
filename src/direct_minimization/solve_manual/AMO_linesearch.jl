@@ -10,29 +10,35 @@ The ``linesearch_type`` can be any of the linesearch algorithms in the LineSearc
 function AMO_linesearch(ζ::State{T}, p::TangentVector{T};
                                E, ∇E, linesearch_type,
                                maxstep = one(Float64),
-                               retraction_type=:exp,
-                               transport_type=:exp
+                               retraction=:exp,
+                               transport=:exp
                                ) where {T<:Real}
     # All linesearch routines are performed in orthonormal AOs convention
     @assert(ζ.isortho)
-    @show test_tangent(p) # DEBUG
+
+    # DEBUG
+    test_1 = test_tangent(p)
+    test_2 = tr(∇E'p)/(norm(∇E)*norm(p))
+    (test_1 > 1e-8) && (@show test_1)
+    (test_2 > -1e-2) && (@show test_2)
+    
     # LineSearches.jl objects
     function f(step)
-        ζ_next = retract_AMO(ζ, TangentVector(step .* p.vec, ζ); type=retraction_type)
+        ζ_next = retract_AMO(ζ, TangentVector(step .* p.vec, ζ); type=retraction)
         energy(ζ_next)
     end
 
     function df(step)
-        ζ_next = retract_AMO(ζ, TangentVector(step .* p.vec, ζ); type=retraction_type)
-        τ_p = transport_AMO(p, ζ, p, step, ζ_next; type=transport_type, collinear=true)
+        ζ_next = retract_AMO(ζ, TangentVector(step .* p.vec, ζ); type=retraction)
+        τ_p = transport_AMO(p, ζ, p, step, ζ_next; type=transport, collinear=true)
         ∇E_next = AMO_gradient(ζ_next)
         tr(∇E_next'τ_p)
     end
 
     function fdf(step)
-        ζ_next = retract_AMO(ζ, TangentVector(step .* p.vec, ζ); type=retraction_type)
+        ζ_next = retract_AMO(ζ, TangentVector(step .* p.vec, ζ); type=retraction)
         E_next, ∇E_next =  energy_and_riemannian_gradient(ζ_next)
-        τ_p = transport_AMO(p, ζ, p, step, ζ_next; type=transport_type, collinear=true)
+        τ_p = transport_AMO(p, ζ, p, step, ζ_next; type=transport, collinear=true)
         E_next, tr(∇E_next'τ_p)
     end
 
@@ -42,7 +48,7 @@ function AMO_linesearch(ζ::State{T}, p::TangentVector{T};
 
     # Actualize ζ and energy
     
-    ζ_next = retract_AMO(ζ, TangentVector(α .* p.vec, ζ); type=retraction_type)
+    ζ_next = retract_AMO(ζ, TangentVector(α .* p.vec, ζ); type=retraction)
     ζ_next.energy = E_next
     @assert (test_MOs(ζ_next) < 1e-8)
 

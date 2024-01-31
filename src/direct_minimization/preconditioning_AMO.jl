@@ -1,4 +1,4 @@
-function preconditioned_gradient_AMO(ζ::State; num_safety=1e-6)
+function preconditioned_gradient_AMO(ζ::State; num_safety=1e-6, trigger=10^(-1/2))
     Fi, Fa = Fock_operators(ζ)
     H, G_vec = build_quasi_newton_system(ζ.Φ, Fi, Fa, ζ.Σ.mo_numbers;
                                          num_safety)
@@ -7,18 +7,20 @@ function preconditioned_gradient_AMO(ζ::State; num_safety=1e-6)
         X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
         [zeros(Ni,Ni) X Y; -X' zeros(Na,Na) Z; -Y' -Z' zeros(Ne,Ne)]
     end
+
+    # Return standard gradient if to far from a minimum
+    Nb, Ni, Na = ζ.Σ.mo_numbers
+    Ne = Nb - (Ni+Na)
+    κ_grad = vec_to_κ(G_vec, Ni, Na, Ne)
+    (norm(κ_grad)>trigger) && (return (ζ.Φ*κ_grad))
+
     # Compute quasi newton direction by solving the system with BICGStab l=3.
     # BICGStab requires that L is positive definite which is not the case
     # far from a minimum. In practice a numerical hack allows to compute
     # the lowest eigenvalue of L (without diagonalizing) and we apply a level-shift.
     # Otherwise, replace by Minres if L is still non-positive definite.
     XYZ, history = bicgstabl(H, G_vec, 3, reltol=1e-14, abstol=1e-14, log=true)
-
-    # Convert back to matrix format
-    Nb, Ni, Na = ζ.Σ.mo_numbers
-    Ne = Nb - (Ni+Na)
-    κ = vec_to_κ(XYZ, Ni, Na, Ne)
-    κ_grad = vec_to_κ(G_vec, Ni, Na, Ne)
+    κ = vec_to_κ(XYZ, Ni, Na, Ne)     # Convert back to matrix format
 
     # Return unpreconditioned grad if norm(κ) is too high
     # or if -prec_grad is not a descent direction

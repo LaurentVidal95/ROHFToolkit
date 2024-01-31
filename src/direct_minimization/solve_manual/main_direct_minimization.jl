@@ -1,31 +1,32 @@
 @doc raw"""
-    OLD: direct_minimization(ζ::State;  maxiter = 500, maxstep = 2*one(Float64),
-                           solver = conjugate_gradient(), # preconditioned
-                           tol = 1e-5, linesearch_type = HagerZhang(),
-                           prompt=default_prompt())
+    OLD: direct_minimization(ζ::State;  TODO)
 
 General direct minimization procedure, which decomposes as such:
     1) Choose a direction according to the method provided in the solver arg.
     2) Linesearch along direction
     3) Check convergence
 The arguments are
-    - ζ: initial point of the optimization on the MO manifold
-    - maxiter: maximum number of iterations
-    - maxstep: maximum step size during linesearch
-    - solver: optimization algorithm. For now only (preconditioned) steepest descent
-    and conjugate_gradient.
-    - tol: the convergence is asserted when the gradient norm is bellow tol.
-    - linesearch_type: linesearch algorithm used at each iteration.
-    - prompt: modify prompt if needed. Default should be fine.
+    TODO
 """
 function direct_minimization_manual(ζ::State;
                                     maxiter = 500,
                                     maxstep = 2*one(Float64),
-                                    solver_type = ConjugateGradientManual, # preconditioned by default
                                     tol = 1e-5,
+                                    # Choose solver and preconditioning
+                                    solver=ConjugateGradientManual,
+                                    preconditioned=true,
+                                    preconditioning_trigger=10^(-0.5),
+                                    # Type of retraction and transport
+                                    retraction=:exp,
+                                    transport=:exp,
+                                    linesearch,
+                                    # Prompt
                                     prompt=default_direct_min_prompt(),
                                     solver_kwargs...)
-    solver = solver_type(; solver_kwargs...)
+
+    # Setup solver and preconditioner
+    precondition(ζ) = preconditioned_gradient_AMO(ζ; trigger=preconditioning_trigger)
+    sol = solver(; solver_kwargs...)
 
     # Linesearch.jl only handles Float64 step sisze
     (typeof(maxstep)≠Float64) && (maxstep=Float64(maxstep))
@@ -39,18 +40,18 @@ function direct_minimization_manual(ζ::State;
     n_iter          = zero(Int64)
     E, ∇E           = energy_and_riemannian_gradient(ζ)
     E_prev, ∇E_prev = E, ∇E
-    dir_vec         = solver.preconditioned ? .- preconditioned_gradient_AMO(ζ) : - ∇E
+    dir_vec         = sol.preconditioned ? .- precondition(ζ) : - ∇E
     dir             = TangentVector(dir_vec, ζ)
     step            = zero(Float64)
     converged       = false
     residual        = norm(∇E)
 
-    info = (; n_iter, ζ, E, E_prev, ∇E, ∇E_prev, dir, solver, step,
-            converged, tol, residual)
+    info = (; n_iter, ζ, E, E_prev, ∇E, ∇E_prev, dir, solver=sol,
+            step, converged, tol, residual)
 
     # init LBFGS solver if needed
-    if isa(solver, LBFGSManual)
-        B = LBFGSInverseHessian(solver.depth, TangentVector[],  TangentVector[], eltype(E)[])
+    if isa(sol, LBFGSManual)
+        B = LBFGSInverseHessian(sol.depth, TangentVector[],  TangentVector[], eltype(E)[])
         info = merge(info, (; B))
     end
 
@@ -62,7 +63,8 @@ function direct_minimization_manual(ζ::State;
 
         # find next point ζ on ROHF manifold
         step, E, ζ = AMO_linesearch(ζ, dir; E, ∇E, maxstep,
-                                    linesearch_type=solver.linesearch)
+                                    linesearch_type=linesearch,
+                                    retraction, transport)
 
         # Update "info" with the new ROHF point and related quantities
         ∇E = AMO_gradient(ζ)
@@ -75,7 +77,7 @@ function direct_minimization_manual(ζ::State;
         prompt.prompt(info)
 
         # Choose next dir according to the solver and update info with new dir
-        dir, info = next_dir(solver, info)
+        dir, info = next_dir(sol, info; precondition, transport)
     end
     # Go back to non-orthonormal AO convention
     deorthonormalize_state!(ζ)

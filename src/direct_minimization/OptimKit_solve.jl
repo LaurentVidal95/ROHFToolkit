@@ -41,11 +41,11 @@ function direct_minimization_OptimKit(ζ::State;
     # Optimization via OptimKit
     ζ0, E0, ∇E0, _ = optimize(fg, ζ,
                               solver(; gradtol=tol, maxiter, verbosity=0, kwargs...);
-                              optim_kwargs(;retraction_type=retraction,
-                                           transport_type=transport,
-                                           preconditioned,
-                                           preconditioning_trigger,
-                                           verbose)...
+                              optimkit_kwargs(;retraction_type=retraction,
+                                              transport_type=transport,
+                                              preconditioned,
+                                              preconditioning_trigger,
+                                              verbose)...
                               )
 
     # orthonormal AO -> non-orthonormal AO convention
@@ -63,7 +63,7 @@ Wraps all the tools needed for Riemannian optimization (retraction, projection,
 inner product, etc..) in a format readable by OptimKit.
 See `src/common/MO_manifold_tools.jl`
 """
-function optim_kwargs(; retraction_type=:exp,
+function optimkit_kwargs(; retraction_type=:exp,
                       transport_type=:exp,
                       preconditioned=true,
                       preconditioning_trigger=10^(-0.5),
@@ -85,8 +85,7 @@ function optim_kwargs(; retraction_type=:exp,
 end
 
 function precondition(ζ::State, η; trigger=10^(-0.5))
-    (norm(η) > trigger) && (@warn "No preconditioning, ||∇E|| is to high"; return η)
-    ∇E_prec_vec = preconditioned_gradient_AMO(ζ)
+    ∇E_prec_vec = preconditioned_gradient_AMO(ζ; trigger)
     TangentVector(∇E_prec_vec, ζ)
 end
 
@@ -97,15 +96,6 @@ function retract(ζ::State{T}, η::TangentVector{T}, α; type=:exp) where {T<:Re
     Rη, τη
 end
 
-inner(ζ::State, η1::TangentVector, η2::TangentVector) = tr(η1'η2)
-function scale!(η::TangentVector{T}, α) where {T<:Real}
-    TangentVector(α*η, η.base)
-end
-function add!(η1::TangentVector{T}, η2::TangentVector{T},
-                      α::T2) where {T<:Real, T2<:Real}
-    TangentVector(η1 + α*η2, η1.base)
-end
-
 function transport!(η1::TangentVector{T}, ζ::State{T},
                     η2::TangentVector{T}, α::T, Rη2::State{T};
                     type=:exp) where {T<:Real}
@@ -113,6 +103,15 @@ function transport!(η1::TangentVector{T}, ζ::State{T},
     angle(X::Matrix,Y::Matrix) = tr(X'Y) / (norm(X)*norm(Y))
     collinear = norm(abs(angle(η1.vec, η2.vec)) - 1) < 1e-8
     transport_AMO(η1, ζ, η2, α, Rη2; type, collinear)
+end
+
+inner(ζ::State, η1::TangentVector, η2::TangentVector) = tr(η1'η2)
+function scale!(η::TangentVector{T}, α) where {T<:Real}
+    TangentVector(α*η, η.base)
+end
+function add!(η1::TangentVector{T}, η2::TangentVector{T},
+                      α::T2) where {T<:Real, T2<:Real}
+    TangentVector(η1 + α*η2, η1.base)
 end
 
 """

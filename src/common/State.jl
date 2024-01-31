@@ -128,8 +128,6 @@ norm(X::TangentVector) = norm(X.vec)
 
 @doc raw"""
     reset_state!(ζ::State; guess=:minao)
-
-
 """
 function reset_state!(ζ::State; guess=:minao, virtuals=true)
     Φ_init = init_guess(ζ.Σ, guess; virtuals)

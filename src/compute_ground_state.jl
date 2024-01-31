@@ -34,7 +34,7 @@ function compute_ground_state(ζ::State;
         LINESEARCHES_LOADED = (:LineSearches ∈ names(Main, imported=true))
         (!LINESEARCHES_LOADED) && error("You need to import LineSearches and assign `linesearch` "*
                                         "before launching manual direct minimization")
-        return direct_minimization_manual(ζ; solver_type=solver, solver_kwargs...)
+        return direct_minimization_manual(ζ; solver, solver_kwargs...)
 
     # Self consistent field
     else
