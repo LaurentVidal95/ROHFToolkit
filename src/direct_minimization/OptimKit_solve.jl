@@ -23,6 +23,7 @@ function direct_minimization_OptimKit(ζ::State;
                                       # Choose solver and preconditioning
                                       solver=ConjugateGradient,
                                       preconditioned=true,
+                                      preconditioning_trigger=10^(-0.5),
                                       # Type of retraction and transport
                                       retraction=:exp,
                                       transport=:exp,
@@ -34,17 +35,17 @@ function direct_minimization_OptimKit(ζ::State;
                                       kwargs...)
     # non-orthonormal AO -> orthonormal AO convention
     # TODO add fix in case of high conditioning number
-    (cond(ζ.Σ.overlap_matrix) > 1e6) && @warn("Conditioning of the "*
-                                 "overlap: $(cond(ζ.Σ.overlap_matrix))")
+    (cond(ζ.Σ.overlap_matrix) > 1e6) && (@warn "Conditioning of the overlap: $(cond(ζ.Σ.overlap_matrix))")
     orthonormalize_state!(ζ)
-    # (break_symmetry) && (@warn "Broken symmetry"; ζ.Φ = ζ.Φ*rand_unitary_matrix(ζ))
 
     # Optimization via OptimKit
     ζ0, E0, ∇E0, _ = optimize(fg, ζ,
                               solver(; gradtol=tol, maxiter, verbosity=0, kwargs...);
                               optim_kwargs(;retraction_type=retraction,
                                            transport_type=transport,
-                                           preconditioned, verbose)...
+                                           preconditioned,
+                                           preconditioning_trigger,
+                                           verbose)...
                               )
 
     # orthonormal AO -> non-orthonormal AO convention
@@ -65,6 +66,7 @@ See `src/common/MO_manifold_tools.jl`
 function optim_kwargs(; retraction_type=:exp,
                       transport_type=:exp,
                       preconditioned=true,
+                      preconditioning_trigger=10^(-0.5),
                       verbose=true)
     kwargs = (; inner, scale!, add!,
               # Choose retraction and transport types
@@ -73,25 +75,19 @@ function optim_kwargs(; retraction_type=:exp,
               )
     # Set verbosity and preconditioning
     (verbose) && (kwargs=merge(kwargs, (; finalize!)))
-    (preconditioned) && (kwargs=merge(kwargs, (;precondition)))
+    if preconditioned
+        kwargs=merge(kwargs, (; precondition =
+                              (args...)->precondition(args...; trigger=preconditioning_trigger)
+                              )
+                     )
+    end
     kwargs
 end
 
-function precondition(ζ::State, η)
-    ∇E_prec_vec, converged = preconditioned_gradient_AMO(ζ)
-    # If the quasi newton system has not been correctly solved, return
-    # un-preconditioned gradient
-    if !converged
-        return η
-    end
-    ∇E_prec = TangentVector(∇E_prec_vec, ζ)
-    # Return standard gradient if not a descent direction.
-    # Avoid errors when starting far from the minimum.
-    if (tr(∇E_prec'η)/(norm(∇E_prec)*norm(η))) ≤ 1e-2 # set experimentaly
-        @warn "No preconditioning"
-        return η
-    end
-    ∇E_prec
+function precondition(ζ::State, η; trigger=10^(-0.5))
+    (norm(η) > trigger) && (@warn "No preconditioning, ||∇E|| is to high"; return η)
+    ∇E_prec_vec = preconditioned_gradient_AMO(ζ)
+    TangentVector(∇E_prec_vec, ζ)
 end
 
 function retract(ζ::State{T}, η::TangentVector{T}, α; type=:exp) where {T<:Real}
@@ -102,10 +98,10 @@ function retract(ζ::State{T}, η::TangentVector{T}, α; type=:exp) where {T<:Re
 end
 
 inner(ζ::State, η1::TangentVector, η2::TangentVector) = tr(η1'η2)
-@inline function scale!(η::TangentVector{T}, α) where {T<:Real}
+function scale!(η::TangentVector{T}, α) where {T<:Real}
     TangentVector(α*η, η.base)
 end
-@inline function add!(η1::TangentVector{T}, η2::TangentVector{T},
+function add!(η1::TangentVector{T}, η2::TangentVector{T},
                       α::T2) where {T<:Real, T2<:Real}
     TangentVector(η1 + α*η2, η1.base)
 end

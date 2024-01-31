@@ -7,8 +7,8 @@ import Base: getindex, setindex!, push!, pop!, popfirst!, empty!
 """
 function steepest_descent(; preconditioned=true)
     function next_dir(info)
-        grad_vec = preconditioned ? preconditioned_gradient_AMO(info.ζ)[1] : info.∇E
-        dir = TangentVector(.- grad_vec, info.ζ)
+        grad_vec = preconditioned ? preconditioned_gradient_AMO(info.ζ) : info.∇E
+        dir = TangentVector(-grad_vec, info.ζ)
         dir, merge(info, (; dir))
     end
     name = preconditioned ? "Preconditioned Steepest Descent" : "Steepest Descent"
@@ -34,7 +34,7 @@ function conjugate_gradient(;preconditioned=true,
         # DEBUG : The prec gradient is bad.
         # foo = preconditioned_gradient_AMO(ζ)
         # @show foo[2]            
-        current_grad = preconditioned ? preconditioned_gradient_AMO(ζ)[1] : ∇E
+        current_grad = preconditioned ? preconditioned_gradient_AMO(ζ) : ∇E
         # @show test_tangent(TangentVector(current_grad, ζ))
         # Transport previous dir and gradient on current point ζ
         τ_dir_prev = transport_AMO(dir, dir.base, dir, 1., ζ; type=transport_type, collinear=true)
@@ -52,7 +52,8 @@ function conjugate_gradient(;preconditioned=true,
         β = (norm(∇E)^2 - cg_factor) / norm(info.∇E_prev)^2
         β = (β > 0) ? β : zero(Float64) # Automatic restart if β_PR < 0
 
-        dir = TangentVector(-current_grad + β*τ_dir_prev, ζ)
+        dir = TangentVector(project_tangent_AMO(ζ, -current_grad + β*τ_dir_prev), ζ)
+        # dir = TangentVector(-current_grad + β*τ_dir_prev, ζ)
         dir, merge(info, (; dir))
     end
     name = preconditioned ? "Preconditioned Conjugate Gradient" : "Conjugate Gradient"

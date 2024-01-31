@@ -3,6 +3,10 @@ function preconditioned_gradient_AMO(ζ::State; num_safety=1e-6)
     H, G_vec = build_quasi_newton_system(ζ.Φ, Fi, Fa, ζ.Σ.mo_numbers;
                                          num_safety)
 
+    function vec_to_κ(XYZ, Ni, Na, Ne)
+        X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
+        [zeros(Ni,Ni) X Y; -X' zeros(Na,Na) Z; -Y' -Z' zeros(Ne,Ne)]
+    end
     # Compute quasi newton direction by solving the system with BICGStab l=3.
     # BICGStab requires that L is positive definite which is not the case
     # far from a minimum. In practice a numerical hack allows to compute
@@ -13,11 +17,26 @@ function preconditioned_gradient_AMO(ζ::State; num_safety=1e-6)
     # Convert back to matrix format
     Nb, Ni, Na = ζ.Σ.mo_numbers
     Ne = Nb - (Ni+Na)
-    X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
-    κ = [zeros(Ni,Ni) X Y; -X' zeros(Na,Na) Z; -Y' -Z' zeros(Ne,Ne)]
+    κ = vec_to_κ(XYZ, Ni, Na, Ne)
+    κ_grad = vec_to_κ(G_vec, Ni, Na, Ne)
+
+    # Return unpreconditioned grad if norm(κ) is too high
+    # or if -prec_grad is not a descent direction
+    angle_grad_precgrad = tr(κ'κ_grad)/(norm(κ)*norm(κ_grad))
+    test_1 = history.isconverged
+    test_2 = norm((I+1e-13)*κ - κ) < 1e-8
+    test_3 = angle_grad_precgrad > 1e-2
+    if !all([test_3, test_2, test_3])
+        message = "No preconditioning:"
+        !test_1 && (message *=" precgrad system not converged;")
+        !test_2 && (message *=" norm too high;")
+        !test_3 && (message *=" not a descent direction;")
+        @warn message
+        return ζ.Φ*κ_grad
+    end
 
     # Return preconditioned gradient and convergence data
-    ζ.Φ*κ, history.isconverged
+    ζ.Φ*κ
 end
 
 function build_quasi_newton_system(Φ::Matrix, Fi, Fa, mo_numbers;

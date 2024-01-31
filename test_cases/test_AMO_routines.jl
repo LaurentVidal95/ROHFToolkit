@@ -15,9 +15,12 @@ function test_gradient(x::State, t::T) where {T<:Real}
     foo, bar, norm(foo-bar)
 end
 
-function random_dir(x::State; target_norm=1.)
-    dir_vec = x.Φ*ROHFToolkit.rand_mmo_matrix(x.Σ.mo_numbers)
-    TangentVector(dir_vec .*( target_norm/norm(dir_vec)), x)
+function random_dir(x::State; target_norm=1., return_B=false)
+    B = ROHFToolkit.rand_mmo_matrix(x.Σ.mo_numbers)
+    B = B .* (target_norm/norm(B))
+    dir_vec = x.Φ*B
+    return_B && return TangentVector(dir_vec, x), B
+    TangentVector(dir_vec, x)
 end
 
 function test_transport(x::State, α; target_norm=1)

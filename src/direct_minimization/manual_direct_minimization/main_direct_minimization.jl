@@ -37,7 +37,7 @@ function direct_minimization_manual(ζ::State;
     n_iter          = zero(Int64)
     E, ∇E           = energy_and_riemannian_gradient(ζ)
     E_prev, ∇E_prev = E, ∇E
-    dir_vec         = solver.preconditioned ? .- preconditioned_gradient_AMO(ζ)[1] : - ∇E
+    dir_vec         = solver.preconditioned ? .- preconditioned_gradient_AMO(ζ) : - ∇E
     dir             = TangentVector(dir_vec, ζ)
     step            = zero(Float64)
     converged       = false
