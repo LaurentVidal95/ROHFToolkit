@@ -1,5 +1,3 @@
-using LineSearches
-
 @doc raw"""
         AMO_linesearch(ζ::State{T}, p::Matrix{T};
                               E, ∇E, linesearch_type,

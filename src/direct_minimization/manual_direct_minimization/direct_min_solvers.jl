@@ -1,110 +1,134 @@
 import Base: getindex, setindex!, push!, pop!, popfirst!, empty!
 
-@doc raw"""
-    OLD: steepest_descent(; preconditioned=true)
+abstract type Solver end
 
-(Preconditioned) Steepest descent algorithm on the MO manifold.
+@doc raw"""
+    OLD: GradientDescentManual(; preconditioned=true)
+
+(Preconditioned) Steepest descent algorithm on the AMO manifold.
 """
-function steepest_descent(; preconditioned=true)
-    function next_dir(info)
-        grad_vec = preconditioned ? preconditioned_gradient_AMO(info.ζ) : info.∇E
-        dir = TangentVector(-grad_vec, info.ζ)
-        dir, merge(info, (; dir))
-    end
+struct GradientDescentManual <: Solver
+    name           ::String
+    prefix         ::String
+    preconditioned ::Bool
+    linesearch
+end
+function GradientDescentManual(; preconditioned=true, linesearch)
     name = preconditioned ? "Preconditioned Steepest Descent" : "Steepest Descent"
     prefix = preconditioned ? "prec_SD" : "SD"
-    (;next_dir, name, prefix, preconditioned)
+    GradientDescentManual(name, prefix, preconditioned, linesearch)
 end
 
+function next_dir(S::GradientDescentManual, info)
+    grad_vec = S.preconditioned ? preconditioned_gradient_AMO(info.ζ) : info.∇E
+    dir = TangentVector(-grad_vec, info.ζ)
+    dir, merge(info, (; dir))
+end
+
+
 @doc raw"""
-    OLD: conjugate_gradient(; preconditioned=true, cg_type="Fletcher-Reeves")
+    OLD: ConjugateGradientManual(; preconditioned=true, flavour="Fletcher-Reeves")
 
 (Preconditioned) conjugate gradient algorithm on the MO manifold.
 The ``cg_type`` for now is useless but will serve to launch other
 types of CG algorithms.
 """
-function conjugate_gradient(;preconditioned=true,
-                            cg_type=:Fletcher_Reeves,
-                            transport_type=:exp)
-    function next_dir(info)
-        ζ = info.ζ
-        ∇E = info.∇E
-        ∇E_prev = info.∇E_prev
-        dir = info.dir
-        # DEBUG : The prec gradient is bad.
-        # foo = preconditioned_gradient_AMO(ζ)
-        # @show foo[2]            
-        current_grad = preconditioned ? preconditioned_gradient_AMO(ζ) : ∇E
-        # @show test_tangent(TangentVector(current_grad, ζ))
-        # Transport previous dir and gradient on current point ζ
-        τ_dir_prev = transport_AMO(dir, dir.base, dir, 1., ζ; type=transport_type, collinear=true)
-        # @show test_tangent(τ_dir_prev)
- 
-        # Assemble CG dir with Fletcher-Reeves or Polack-Ribiere coefficient
-        cg_factor = begin
-            if cg_type==:Fletcher_Reeves
-                τ_grad_prev = transport_AMO(∇E_prev, ∇E_prev.base, dir, 1., ζ; type=transport_type, collinear=false)
-                tr(∇E'τ_grad_prev)
-            else
-                zero(ζ.energy)
-            end
-        end
-        β = (norm(∇E)^2 - cg_factor) / norm(info.∇E_prev)^2
-        β = (β > 0) ? β : zero(Float64) # Automatic restart if β_PR < 0
-
-        dir = TangentVector(project_tangent_AMO(ζ, -current_grad + β*τ_dir_prev), ζ)
-        # dir = TangentVector(-current_grad + β*τ_dir_prev, ζ)
-        dir, merge(info, (; dir))
-    end
+struct ConjugateGradientManual <: Solver
+    name           ::String
+    prefix         ::String
+    preconditioned ::Bool
+    flavour        ::Symbol
+    transport      ::Symbol
+    linesearch
+end
+function ConjugateGradientManual(; preconditioned=true, flavour=:Fletcher_Reeves,
+                                 transport_type=:exp, linesearch)
+    @assert flavour ∈ (:Fletcher_Reeves, :Polack_Ribiere)
+    @assert transport_type ∈ (:exp, :QR, :proj)
     name = preconditioned ? "Preconditioned Conjugate Gradient" : "Conjugate Gradient"
     prefix = preconditioned ? "prec_CG" : "CG"
-    (;next_dir, name, prefix, preconditioned)
+    ConjugateGradientManual(name, prefix, preconditioned, flavour, transport_type, linesearch)
 end
 
-cos_angle_vecs(X,Y) = tr(X'Y) / √(tr(X'X)*tr(Y'Y))
 
-function lbfgs(depth=8; B₀=default_LBFGS_init, preconditioned=false)
-    function next_dir(info)
-        # Extract data
-        B = info.B
-        x_prev = info.dir.base
-        x_new = info.ζ
-        ∇E = info.∇E
-        ∇E_prev = info.∇E_prev
-        dir = info.dir
+function next_dir(S::ConjugateGradientManual, info)
+    ζ = info.ζ
+    ∇E = info.∇E;  ∇E_prev = info.∇E_prev;
+    dir = info.dir
+    current_grad = S.preconditioned ? preconditioned_gradient_AMO(ζ) : ∇E
 
-        # Transport previous s and y to current location
-        if B.length ≥ 1
-            for k in 1:B.length
-                s, y, ρ = B[k]
-                s = transport_AMO(s, x_prev, dir, 1., x_new; type=:exp, collinear=false)
-                y = transport_AMO(y, x_prev, dir, 1., x_new; type=:exp, collinear=false)
-                # Project back on the tangent plane if s or y propagate errors
-                s = TangentVector(project_tangent_AMO(x_new, s.vec), x_new)
-                y = TangentVector(project_tangent_AMO(x_new, y.vec), x_new)
+    # Transport previous dir and gradient on current point ζ
+    τ_dir_prev = transport_AMO(dir, dir.base, dir, 1., ζ; type=S.transport, collinear=true)
 
-                sy_tangents = all([test_tangent(s)<1e-9, test_tangent(y)<1e-9])
-                !(sy_tangents) && (@show sy_tangents)
-                B[k] = (s,y,ρ)
-            end
+    # Assemble CG dir with Fletcher-Reeves or Polack-Ribiere coefficient
+    cg_factor = begin
+        if S.flavour==:Fletcher_Reeves
+            τ_grad_prev = transport_AMO(∇E_prev, ∇E_prev.base, dir, 1., ζ; type=S.transport, collinear=false)
+            tr(∇E'τ_grad_prev)
+        else
+            zero(ζ.energy)
         end
-
-        # Compute current s, y and ρ.
-        s = transport_AMO(dir, x_prev, dir, 1., x_new; type=:exp, collinear=true)
-        y = TangentVector(∇E.vec - transport_AMO(∇E_prev, x_prev, dir, 1., x_new;
-                                                 type=:exp, collinear=false
-                                                 ).vec, x_new)
-        ρ = 1/tr(s'y)
-        push!(B, (s,y,ρ))
-
-        # Compute next dir
-        dir_vec = -B(∇E; B₀)
-        dir = TangentVector(-B(∇E).vec, x_new)
-        dir, merge(info, (; dir, B))
     end
-    name="LBFGS"
-    prefix="LBFGS"
-    (; next_dir, depth, name, prefix, preconditioned)
+    β = (norm(∇E)^2 - cg_factor) / norm(info.∇E_prev)^2
+    β = (β > 0) ? β : zero(Float64) # Automatic restart if β_PR < 0
+
+    dir = TangentVector(project_tangent_AMO(ζ, -current_grad + β*τ_dir_prev), ζ)
+    dir, merge(info, (; dir))
+end
+
+"""
+LBFGS on the AMO manifold.
+"""
+struct LBFGSManual <: Solver
+    name           ::String
+    prefix         ::String
+    preconditioned ::Bool
+    depth          ::Int
+    linesearch
+end
+function LBFGSManual(;depth=8, preconditioned=:false, linesearch)
+    name = preconditioned ? "Preconditioned LBFGS" : "LBFGS"
+    prefix = preconditioned ? "prec_LBFGS" : "LBFGS"
+    LBFGSManual(name, prefix, preconditioned, depth, transport, linesearch)
+end
+
+function next_dir(S::LBFGSManual, info)
+    # Extract data
+    B = info.B
+    x_prev = info.dir.base;  ∇E_prev = info.∇E_prev
+    x_new = info.ζ; ∇E = info.∇E
+    dir = info.dir
+
+    # Transport previous s and y to current location
+    if B.length ≥ 1
+        for k in 1:B.length
+            s, y, ρ = B[k]
+            s = transport_AMO(s, x_prev, dir, 1., x_new; type=:exp, collinear=false)
+            y = transport_AMO(y, x_prev, dir, 1., x_new; type=:exp, collinear=false)
+
+            # Project back on the tangent plane if s or y propagate errors
+            s = TangentVector(project_tangent_AMO(x_new, s.vec), x_new)
+            y = TangentVector(project_tangent_AMO(x_new, y.vec), x_new)
+
+            sy_tangents = all([test_tangent(s)<1e-9, test_tangent(y)<1e-9])
+            !(sy_tangents) && (@show sy_tangents)
+            B[k] = (s,y,ρ)
+        end
+    end
+
+    # Compute current s, y and ρ.
+    s = transport_AMO(dir, x_prev, dir, 1., x_new; type=:exp, collinear=true)
+    y = TangentVector(∇E.vec - transport_AMO(∇E_prev, x_prev, dir, 1., x_new;
+                                             type=:exp, collinear=false
+                                             ).vec,
+                      x_new)
+    ρ = 1/tr(s'y)
+    push!(B, (s,y,ρ))
+
+    # Compute next dir
+    dir_vec = -B(∇E; B₀)
+    dir = TangentVector(-B(∇E).vec, x_new)
+    dir, merge(info, (; dir, B))
 end
 
 
@@ -208,7 +232,3 @@ function default_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
     Nb = size(g.vec,1)
     γ*Matrix(I, Nb, Nb)
 end
-# function Fock_LBFGS_inti(B::LBFGSInverseHessian, g::TangentVector)
-#     Fi, Fa = Fock_operators(g.base)
-# end
-

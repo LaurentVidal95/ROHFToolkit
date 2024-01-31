@@ -27,9 +27,19 @@ function compute_ground_state(ζ::State;
             end
         end
         return direct_minimization_OptimKit(ζ; solver, fg, solver_kwargs...)
+
+    # Manual direct minimization
+    elseif (solver ∈ (GradientDescentManual, ConjugateGradientManual, LBFGSManual))
+        # Manual solvers need external LineSearches.jl library
+        LINESEARCHES_LOADED = (:LineSearches ∈ names(Main, imported=true))
+        (!LINESEARCHES_LOADED) && error("You need to import LineSearches and assign `linesearch` "*
+                                        "before launching manual direct minimization")
+        return direct_minimization_manual(ζ; solver_type=solver, solver_kwargs...)
+
     # Self consistent field
     else
         return scf_method(ζ; solver, solver_kwargs...)
     end
+
     error("Solver not handled")
 end
