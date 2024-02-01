@@ -23,7 +23,7 @@ function compute_ground_state(ζ::State;
         if CASSCF
             ζ->CASSCF_energy_and_gradient(ζ; CASSCF_kwargs...)
         else
-            energy_and_riemannian_gradient
+            ROHF_energy_and_gradient
         end
     end
 

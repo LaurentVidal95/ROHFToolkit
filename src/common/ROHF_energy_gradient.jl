@@ -29,36 +29,36 @@ Low level ROHF energy function. Arguments are the
 doubly and singly occupied states density and coulomb/exchange operators.
 The core hamiltonian as well as the PySCF molecule is also needed.
 """
-energy(Pi, Pa, Ji, Ja, Ki, Ka, H, mol) =
+ROHF_energy(Pi, Pa, Ji, Ja, Ki, Ka, H, mol) =
     tr(H*(2Pi+Pa)) + tr((2Ji-Ki)*(Pi+Pa)) + 1/2*tr((Ja-Ka)*Pa) + mol.energy_nuc()
 
 @doc raw"""
-    energy(Pi::Matrix{T}, Pa::Matrix{T}, mo_numbers,
+    ROHF_energy(Pi::Matrix{T}, Pa::Matrix{T}, mo_numbers,
                      eri::Vector{T},  H::Matrix{T}, mol)
 
 ROHF energy given only densities, core Hamiltonian and the molecule
 as a pyscf object.
 """
-function energy(Pi::Matrix{T}, Pa::Matrix{T}, mo_numbers,
+function ROHF_energy(Pi::Matrix{T}, Pa::Matrix{T}, mo_numbers,
                      eri::Vector{T},  H::Matrix{T}, mol) where {T<:Real}
     Ji, Ja, Ki, Ka = assemble_CX_operators(eri, Pi, Pa)
-    energy(Pi, Pa, Ji, Ja, Ki, Ka, H, mol)
+    ROHF_energy(Pi, Pa, Ji, Ja, Ki, Ka, H, mol)
 end
-energy(Pi::Matrix, Pa::Matrix, ζ::State) =
-    energy(Pi, Pa, collect(ζ)[1:end-1]...)
+ROHF_energy(Pi::Matrix, Pa::Matrix, ζ::State) =
+    ROHF_energy(Pi, Pa, collect(ζ)[1:end-1]...)
 
 @doc raw"""
-    energy(C::Matrix{T}, ζ::State{T}) where {T<:Real}
+    ROHF_energy(C::Matrix{T}, ζ::State{T}) where {T<:Real}
 
 Higher level ROHF energy function, given only a set of MOs and a State.
 """
-function energy(C::Matrix{T}, ζ::State{T}) where {T<:Real}
+function ROHF_energy(C::Matrix{T}, ζ::State{T}) where {T<:Real}
     Pi, Pa = densities(C, ζ.Σ.mo_numbers)
-    energy(Pi, Pa, collect(ζ)[1:end-1]...)
+    ROHF_energy(Pi, Pa, collect(ζ)[1:end-1]...)
 end
-function energy(ζ::State)
+function ROHF_energy(ζ::State)
     @assert ζ.isortho
-    energy(ζ.Σ.Sm12*ζ.Φ, ζ)
+    ROHF_energy(ζ.Σ.Sm12*ζ.Φ, ζ)
 end
 
 @doc raw"""
@@ -105,7 +105,7 @@ end
 @doc raw"""
     TODO
 """
-function AMO_ambiant_gradient(Φ, mo_numbers, Fi, Fa)
+function ROHF_ambiant_gradient(Φ, mo_numbers, Fi, Fa)
     Nb, Ni, Na = mo_numbers
     I_Ni = diagm(vcat(ones(Ni), zeros(Nb-Ni)))
     I_Na = diagm(vcat(zeros(Ni), ones(Na), zeros(Nb-(Ni+Na))))
@@ -113,7 +113,7 @@ function AMO_ambiant_gradient(Φ, mo_numbers, Fi, Fa)
 end
 
 @doc raw"""
-     AMO_gradient_MO_metric(Φ, ζ::State)
+     ROHF_gradient_MO_metric(Φ, ζ::State)
 
 Compute the gradient of the ROHF energy in AMO formalism for the metric:
 g(Ψ₁, Ψ₂) = ⟨Ψ₁,Ψ₂⟩_{MO}
@@ -122,60 +122,46 @@ For a state Φ = (Φi, Φa), the gradient lies in the horizontal tangent space a
     TODO
 ```
 """
-function AMO_gradient(Φ, ζ::State)
+function ROHF_gradient(Φ, ζ::State)
     @assert(ζ.isortho)
     @assert(ζ.virtuals)
     mo_numbers = ζ.Σ.mo_numbers
 
     # Compute the ambiant gradient
     Fi, Fa = Fock_operators(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
-    ∇E_ambiant = AMO_ambiant_gradient(Φ, mo_numbers, Fi, Fa)
+    ∇E_ambiant = ROHF_ambiant_gradient(Φ, mo_numbers, Fi, Fa)
 
     # Project on the horizontal tangent space
     ∇E = project_tangent_AMO(ζ, ∇E_ambiant)
     TangentVector(∇E, ζ)
 end
-AMO_gradient(ζ::State) = AMO_gradient(ζ.Φ, ζ)
+ROHF_gradient(ζ::State) = ROHF_gradient(ζ.Φ, ζ)
 
 @doc raw"""
-    energy_and_gradient(Φ, ζ::State)
+    ROHF_energy_and_gradient(Φ, ζ::State)
 
 Computes both energy and gradient at point [Φ] on the MO manifold.
 """
-function energy_and_AMO_gradient(Φ, Sm12, mo_numbers, eri, H, mol)
+function ROHF_energy_and_gradient(Φ, Sm12, mo_numbers, eri, H, mol)
     # Compute Ji, Ja, Ki, Ka
     Pi, Pa = densities(Sm12*Φ, mo_numbers) # Densities in non-orthonormal AOs convention.
     Ji, Ja, Ki, Ka = assemble_CX_operators(eri, Pi, Pa)
     # energy
-    E = energy(Pi, Pa, Ji, Ja, Ki, Ka, H, mol)
+    E = ROHF_energy(Pi, Pa, Ji, Ja, Ki, Ka, H, mol)
     # gradient
     Fi, Fa = Fock_operators(Ji, Ja, Ki, Ka, H, Sm12)
-    ∇E_ambiant = AMO_ambiant_gradient(Φ, mo_numbers, Fi, Fa)
+    ∇E_ambiant = ROHF_ambiant_gradient(Φ, mo_numbers, Fi, Fa)
     # Project on the horizontal tangent space
     ∇E = project_tangent_AMO(Φ, mo_numbers, ∇E_ambiant)
     E, ∇E
 end
-function energy_and_AMO_gradient(Φ, ζ::State)
+function ROHF_energy_and_gradient(Φ, ζ::State)
     @assert(ζ.isortho)
     @assert(ζ.virtuals)
-    E, ∇E = energy_and_AMO_gradient(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
+    E, ∇E = ROHF_energy_and_gradient(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
     E, TangentVector(∇E, ζ)
 end
-function energy_and_AMO_gradient(ζ::State)
-    @assert(ζ.isortho)
-    @assert(ζ.virtuals)
-    energy_and_AMO_gradient(ζ.Φ, ζ)
-end
-
-function riemannian_gradient(Φ::Matrix, ζ::State)
-    # TODO
-    AMO_gradient(Φ, ζ)
-end
-function energy_and_riemannian_gradient(ζ::State)
-    @assert(ζ.isortho)
-    @assert(ζ.virtuals)
-    energy_and_AMO_gradient(ζ::State)
-end
+ROHF_energy_and_gradient(ζ::State) = ROHF_energy_and_gradient(ζ.Φ, ζ)
 
 # Old functions for XC operators
 # function tensor_slice(mol::PyObject, i, j, type)

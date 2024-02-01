@@ -33,7 +33,7 @@ function direct_minimization_manual(ζ::State;
                                     preconditioner=default_preconditioner,
                                     linesearch,
                                     # Casscf or ROHF
-                                    fg=energy_and_riemannian_gradient,
+                                    fg=ROHF_energy_and_riemannian_gradient,
                                     solver_kwargs...)
     sol = solver(; preconditioned, solver_kwargs...)
     !(preconditioned) && (preconditioner=∇E->∇E.vec)
@@ -75,10 +75,11 @@ function direct_minimization_manual(ζ::State;
         step, E, ζ = AMO_linesearch(ζ, dir; E, ∇E, maxstep,
                                     linesearch_type=linesearch,
                                     retraction_type,
-                                    transport_type)
+                                    transport_type,
+                                    fg)
 
         # Update "info" with the new ROHF point and related quantities
-        ∇E = AMO_gradient(ζ)
+        E, ∇E = fg(ζ)
         ∇E_prev = info.∇E; E_prev = info.E
         residual = norm(info.∇E)
         (residual<tol) && (converged=true)

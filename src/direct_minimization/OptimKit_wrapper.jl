@@ -31,7 +31,7 @@ function direct_minimization_OptimKit(ζ::State;
                                       verbose=true,
                                       # break_symmetry=false,
                                       # Choose between ROHF and CASSCF function
-                                      fg=energy_and_gradient,
+                                      fg=ROHF_energy_and_gradient,
                                       kwargs...)
     # non-orthonormal AO -> orthonormal AO convention
     # TODO add fix in case of high conditioning number
