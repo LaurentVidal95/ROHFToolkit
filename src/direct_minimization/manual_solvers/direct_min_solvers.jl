@@ -107,8 +107,8 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
     if B.length ≥ 1
         for k in 1:B.length
             s, y, ρ = B[k]
-            s = transport_AMO(s, x_prev, dir, 1., x_new; type, collinear=false)
-            y = transport_AMO(y, x_prev, dir, 1., x_new; type, collinear=false)
+            s = transport_AMO(s, x_prev, dir, info.step, x_new; type, collinear=false)
+            y = transport_AMO(y, x_prev, dir, info.step, x_new; type, collinear=false)
 
             # Project back on the tangent plane if s or y propagate errors
             s = TangentVector(project_tangent_AMO(x_new, s.vec), x_new)
@@ -121,8 +121,9 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
     end
 
     # Compute current s, y and ρ.
-    s = transport_AMO(dir, x_prev, dir, 1., x_new; type, collinear=true)
-    y = TangentVector(∇E.vec - transport_AMO(∇E_prev, x_prev, dir, 1., x_new;
+    αdir = TangentVector(info.step*dir.vec, dir.base)
+    s = transport_AMO(αdir, x_prev, dir, info.step, x_new; type, collinear=true)
+    y = TangentVector(∇E.vec - transport_AMO(∇E_prev, x_prev, dir, info.step, x_new;
                                              type, collinear=false
                                              ).vec,
                       x_new)
