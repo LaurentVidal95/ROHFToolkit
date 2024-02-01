@@ -75,7 +75,7 @@ function next_dir(S::ConjugateGradientManual, info)
         β = (β > 0) ? β : zero(Float64)
     end
     iszero(β) && (@warn "Restart"; dir = TangentVector(-current_grad, ζ))
-    @show norm(dir)
+
     dir, merge(info, (; dir))
 end
 
@@ -88,12 +88,13 @@ struct LBFGSManual <: Solver
     prefix         ::String
     preconditioned ::Bool
     depth          ::Int
+    B₀             ::Function
     linesearch
 end
-function LBFGSManual(;depth=8, preconditioned=:false, linesearch)
+function LBFGSManual(;depth=8, B₀=default_LBFGS_init, preconditioned=:false, linesearch)
     name = preconditioned ? "Preconditioned LBFGS" : "LBFGS"
     prefix = preconditioned ? "prec_LBFGS" : "LBFGS"
-    LBFGSManual(name, prefix, preconditioned, depth, linesearch)
+    LBFGSManual(name, prefix, preconditioned, depth, B₀, linesearch)
 end
 
 function next_dir(S::LBFGSManual, info)
@@ -130,7 +131,7 @@ function next_dir(S::LBFGSManual, info)
     push!(B, (s,y,ρ))
 
     # Compute next dir
-    dir_vec = -B(∇E; B₀=default_LBFGS_init)
+    dir_vec = -B(∇E; S.B₀)
     dir = TangentVector(-B(∇E).vec, x_new)
     
     # Restart BFGS if dir is not a descent direction
@@ -167,6 +168,16 @@ end
 LBFGSInverseHessian(maxlength::Int, S::Vector{T1}, Y::Vector{T1},
                     ρ::Vector{T2}) where {T1, T2} = LBFGSInverseHessian{T1, T2}(maxlength, S, Y, ρ)
 
+function Absil_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
+    @show "ABSIL"
+    s, y, ρ = B[B.length]
+    γ = tr(s'y)/(norm(y)^2)
+    Nb = size(g.vec,1)
+    γ*Matrix(I, Nb, Nb)
+end
+
+default_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector) = I
+
 """
 Compute next dir using the two-loop L-BFGS evalutation
 """
@@ -181,7 +192,6 @@ function (B::LBFGSInverseHessian)(g::TangentVector; B₀=default_LBFGS_init)
     end
     # Compute Bₖ⁰q
     r = TangentVector(B₀(B, g)*q.vec, q.base)
-
     # Second loop
     for i = 1:B.length
         s, y, ρ = B[i]
@@ -237,11 +247,4 @@ end
     B.length = 0
     B.first = 1
     return B
-end
-
-function default_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
-    s, y, ρ = B[B.length]
-    γ = tr(s'y)/(norm(y)^2)
-    Nb = size(g.vec,1)
-    γ*Matrix(I, Nb, Nb)
 end
