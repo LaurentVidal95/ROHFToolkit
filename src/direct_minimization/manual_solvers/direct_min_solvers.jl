@@ -37,17 +37,17 @@ struct ConjugateGradientManual <: Solver
     name           ::String
     prefix         ::String
     preconditioned ::Bool
-    flavour        ::Symbol
+    flavor        ::Symbol
     transport      ::Symbol
     linesearch
 end
-function ConjugateGradientManual(; preconditioned=true, flavour=:Fletcher_Reeves,
+function ConjugateGradientManual(; preconditioned=true, flavor=:Fletcher_Reeves,
                                  transport_type=:exp, linesearch)
-    @assert flavour ∈ (:Fletcher_Reeves, :Polack_Ribiere)
+    @assert flavor ∈ (:Fletcher_Reeves, :Polack_Ribiere)
     @assert transport_type ∈ (:exp, :QR, :proj)
     name = preconditioned ? "Preconditioned Conjugate Gradient" : "Conjugate Gradient"
     prefix = preconditioned ? "prec_CG" : "CG"
-    ConjugateGradientManual(name, prefix, preconditioned, flavour, transport_type, linesearch)
+    ConjugateGradientManual(name, prefix, preconditioned, flavor, transport_type, linesearch)
 end
 
 
@@ -60,21 +60,25 @@ function next_dir(S::ConjugateGradientManual, info)
     # Transport previous dir and gradient on current point ζ
     τ_dir_prev = transport_AMO(dir, dir.base, dir, 1., ζ; type=S.transport, collinear=true)
 
-    # Assemble CG dir with Fletcher-Reeves or Polack-Ribiere coefficient
-    cg_factor = begin
-        if S.flavour==:Fletcher_Reeves
+    β = zero(ζ.energy)
+    begin
+        cg_factor = zero(β)
+        if S.flavor==:Fletcher_Reeves
             τ_grad_prev = transport_AMO(∇E_prev, ∇E_prev.base, dir, 1., ζ; type=S.transport, collinear=false)
-            tr(∇E'τ_grad_prev)
-        else
-            zero(ζ.energy)
+            cg_factor = tr(∇E'τ_grad_prev)
         end
+        β = (tr(∇E'∇E) - cg_factor) / norm(info.∇E_prev)^2 # DEBUG: wrong use of preconditioning ?
+        # Restart if not a descent direction
+        dir = TangentVector(project_tangent_AMO(ζ, -current_grad + β*τ_dir_prev), ζ)
+        (tr(dir'∇E)/(norm(dir)*norm(∇E)) > -1e-2) && (β = zero(β))
+        # Restart if β is negative
+        β = (β > 0) ? β : zero(Float64)
     end
-    β = (norm(∇E)^2 - cg_factor) / norm(info.∇E_prev)^2
-    β = (β > 0) ? β : zero(Float64) # Automatic restart if β_PR < 0
-
-    dir = TangentVector(project_tangent_AMO(ζ, -current_grad + β*τ_dir_prev), ζ)
+    iszero(β) && (@warn "Restart"; dir = TangentVector(-current_grad, ζ))
+    @show norm(dir)
     dir, merge(info, (; dir))
 end
+
 
 """
 LBFGS on the AMO manifold.
@@ -89,7 +93,7 @@ end
 function LBFGSManual(;depth=8, preconditioned=:false, linesearch)
     name = preconditioned ? "Preconditioned LBFGS" : "LBFGS"
     prefix = preconditioned ? "prec_LBFGS" : "LBFGS"
-    LBFGSManual(name, prefix, preconditioned, depth, transport, linesearch)
+    LBFGSManual(name, prefix, preconditioned, depth, linesearch)
 end
 
 function next_dir(S::LBFGSManual, info)
@@ -126,8 +130,17 @@ function next_dir(S::LBFGSManual, info)
     push!(B, (s,y,ρ))
 
     # Compute next dir
-    dir_vec = -B(∇E; B₀)
+    dir_vec = -B(∇E; B₀=default_LBFGS_init)
     dir = TangentVector(-B(∇E).vec, x_new)
+    
+    # Restart BFGS if dir is not a descent direction
+    if (tr(dir'∇E)/(norm(dir)*norm(∇E)) > -1e-2)
+        @warn "Restart: not a descent direction"
+        empty!(B)
+        dir = TangentVector(-∇E, info.ζ)
+    end
+    # DEBUG : norm(dir) goes to zero every 30 iterations... Why ?
+
     dir, merge(info, (; dir, B))
 end
 
