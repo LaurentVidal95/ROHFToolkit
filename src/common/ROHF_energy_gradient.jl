@@ -111,6 +111,10 @@ function ROHF_ambiant_gradient(Φ, mo_numbers, Fi, Fa)
     I_Na = diagm(vcat(zeros(Ni), ones(Na), zeros(Nb-(Ni+Na))))
     4*Fi*Φ*I_Ni + 4*Fa*Φ*I_Na
 end
+function ROHF_ambiant_gradient(ζ::State)
+    Fi, Fa = Fock_operators(ζ)
+    ROHF_ambiant_gradient(ζ.Φ, ζ.Σ.mo_numbers, Fi, Fa)
+end
 
 @doc raw"""
      ROHF_gradient_MO_metric(Φ, ζ::State)

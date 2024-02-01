@@ -44,30 +44,32 @@ function ConjugateGradientManual(; preconditioned=true, flavor=:Fletcher_Reeves)
 end
 
 function next_dir(S::ConjugateGradientManual, info; preconditioner, transport_type)
-    ζ = info.ζ
+    x_new = info.ζ
     ∇E = info.∇E;  ∇E_prev = info.∇E_prev;
     dir = info.dir
+    x_prev = dir.base
     current_grad = preconditioner(∇E)
 
-    # Transport previous dir and gradient on current point ζ
-    τ_dir_prev = transport_AMO(dir, dir.base, dir, 1., ζ; type=transport_type, collinear=true)
+    # Transport previous dir and gradient on current point x_new
+    τ_dir_prev = transport_AMO(dir, x_prev, dir, info.step, x_new;
+                               type=transport_type, collinear=true)
 
-    β = zero(ζ.energy)
+    β = zero(x_new.energy)
     begin
         cg_factor = zero(β)
         if S.flavor==:Fletcher_Reeves
-            τ_grad_prev = transport_AMO(∇E_prev, ∇E_prev.base, dir, 1., ζ;
+            τ_grad_prev = transport_AMO(∇E_prev, x_prev, dir, info.step, x_new;
                                         type=transport_type, collinear=false)
             cg_factor = tr(∇E'τ_grad_prev)
         end
         β = (tr(∇E'∇E) - cg_factor) / norm(info.∇E_prev)^2 # DEBUG: wrong use of preconditioning ?
         # Restart if not a descent direction
-        dir = TangentVector(project_tangent_AMO(ζ, -current_grad + β*τ_dir_prev), ζ)
+        dir = TangentVector(project_tangent_AMO(x_new, -current_grad + β*τ_dir_prev), x_new)
         (tr(dir'∇E)/(norm(dir)*norm(∇E)) > -1e-2) && (β = zero(β))
         # Restart if β is negative
         β = (β > 0) ? β : zero(Float64)
     end
-    iszero(β) && (@warn "Restart"; dir = TangentVector(-current_grad, ζ))
+    iszero(β) && (@warn "Restart"; dir = TangentVector(-current_grad, x_new))
 
     dir, merge(info, (; dir))
 end
@@ -174,6 +176,19 @@ end
 
 default_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector) = I
 
+function EWC_LBFGS_guess(B::LBFGSInverseHessian, g::TangentVector)
+    x = g.base
+    Nb, Ni, Na = x.Σ.mo_numbers
+    G = ROHF_ambiant_gradient(x)
+    # Only keep the diagonal blocs of the gradient
+    G_diag = zero(G)
+    G_diag[1:Ni, 1:Ni] .= G[1:Ni, 1:Ni]
+    G_diag[Ni+1:Ni+Na, Ni+1:Ni+Na] .= G[Ni+1:Ni+Na, Ni+1:Ni+Na]
+    G_diag[Ni+Na+1:Nb, Ni+Na+1:Nb] .= G[Ni+Na+1:Nb, Ni+Na+1:Nb]
+    # Diagonalize and assemble pseudo hessian
+    λs = eigvals(G_diag)
+    diagm(λs)
+end
 """
 Compute next dir using the two-loop L-BFGS evalutation
 """

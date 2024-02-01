@@ -62,7 +62,8 @@ end
 TODO
 """
 function parallel_transport_non_collinear_AMO(η1::TangentVector{T}, ζ::State{T},
-                                              η2::TangentVector{T}, α::T, Rη2::State{T}) where {T<:Real}
+                                              η2::TangentVector{T}, α::T, Rη2::State{T}
+                                              ) where {T<:Real}
     # Assert that the two vectors live in the same initial tangent space
     @assert η1.base.Φ == η2.base.Φ
 
