@@ -10,16 +10,15 @@ abstract type Solver end
 struct GradientDescentManual <: Solver
     name           ::String
     prefix         ::String
-    preconditioned ::Bool
 end
 function GradientDescentManual(; preconditioned=true)
     name = preconditioned ? "Preconditioned Steepest Descent" : "Steepest Descent"
     prefix = preconditioned ? "prec_SD" : "SD"
-    GradientDescentManual(name, prefix, preconditioned)
+    GradientDescentManual(name, prefix)
 end
 
-function next_dir(S::GradientDescentManual, info; precondition, kwargs...)
-    grad_vec = S.preconditioned ? precondition(info.ζ) : info.∇E
+function next_dir(S::GradientDescentManual, info; preconditioner, kwargs...)
+    grad_vec = preconditioner(info.∇E)
     dir = TangentVector(-grad_vec, info.ζ)
     dir, merge(info, (; dir))
 end
@@ -35,45 +34,44 @@ types of CG algorithms.
 struct ConjugateGradientManual <: Solver
     name           ::String
     prefix         ::String
-    preconditioned ::Bool
     flavor        ::Symbol
 end
 function ConjugateGradientManual(; preconditioned=true, flavor=:Fletcher_Reeves)
     @assert flavor ∈ (:Fletcher_Reeves, :Polack_Ribiere)
     name = preconditioned ? "Preconditioned Conjugate Gradient" : "Conjugate Gradient"
     prefix = preconditioned ? "prec_CG" : "CG"
-    ConjugateGradientManual(name, prefix, preconditioned, flavor)
+    ConjugateGradientManual(name, prefix, flavor)
 end
 
-function next_dir(S::ConjugateGradientManual, info; precondition, transport,
-                  kwargs...)
+function next_dir(S::ConjugateGradientManual, info; preconditioner, transport_type)
     ζ = info.ζ
     ∇E = info.∇E;  ∇E_prev = info.∇E_prev;
     dir = info.dir
-    current_grad = S.preconditioned ? precondition(ζ) : ∇E
+    current_grad = preconditioner(∇E)
 
     # Transport previous dir and gradient on current point ζ
-    τ_dir_prev = transport_AMO(dir, dir.base, dir, 1., ζ; type=transport, collinear=true)
+    τ_dir_prev = transport_AMO(dir, dir.base, dir, 1., ζ; type=transport_type, collinear=true)
 
-    # Assemble CG dir with Fletcher-Reeves or Polack-Ribiere coefficient
     β = zero(ζ.energy)
     begin
         cg_factor = zero(β)
         if S.flavor==:Fletcher_Reeves
-            τ_grad_prev = transport_AMO(∇E_prev, ∇E_prev.base, dir, 1., ζ; type=transport, collinear=false)
+            τ_grad_prev = transport_AMO(∇E_prev, ∇E_prev.base, dir, 1., ζ;
+                                        type=transport_type, collinear=false)
             cg_factor = tr(∇E'τ_grad_prev)
         end
-        β = (tr(∇E'current_grad) - cg_factor) / norm(info.∇E_prev)^2 # DEBUG: wrong use of preconditioning ?
+        β = (tr(∇E'∇E) - cg_factor) / norm(info.∇E_prev)^2 # DEBUG: wrong use of preconditioning ?
         # Restart if not a descent direction
         dir = TangentVector(project_tangent_AMO(ζ, -current_grad + β*τ_dir_prev), ζ)
-        (tr(dir'∇E)/(norm(dir)*norm(∇E)) > -1e-2) && (β = zero(β))        
+        (tr(dir'∇E)/(norm(dir)*norm(∇E)) > -1e-2) && (β = zero(β))
         # Restart if β is negative
-        # β = (β > 0) ? β : zero(Float64)
+        β = (β > 0) ? β : zero(Float64)
     end
-    iszero(β) && (@warn "Restart")
-    dir = TangentVector(project_tangent_AMO(ζ, -current_grad + β*τ_dir_prev), ζ)
+    iszero(β) && (@warn "Restart"; dir = TangentVector(-current_grad, ζ))
+
     dir, merge(info, (; dir))
 end
+
 
 """
 LBFGS on the AMO manifold.
@@ -81,28 +79,34 @@ LBFGS on the AMO manifold.
 struct LBFGSManual <: Solver
     name           ::String
     prefix         ::String
-    preconditioned ::Bool
     depth          ::Int
+    B₀             ::Function
 end
-function LBFGSManual(;depth=8, preconditioned=:false)
+function LBFGSManual(;depth=8, B₀=default_LBFGS_init, preconditioned=true)
     name = preconditioned ? "Preconditioned LBFGS" : "LBFGS"
     prefix = preconditioned ? "prec_LBFGS" : "LBFGS"
-    LBFGSManual(name, prefix, preconditioned, depth)
+    LBFGSManual(name, prefix, depth, B₀)
 end
 
-function next_dir(S::LBFGSManual, info; preconditioner, transport, kwargs...)
+"""
+For now, no preconditioning.
+Not supposed to work with other transports and rectractions than exp.
+"""
+function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
     # Extract data
     B = info.B
     x_prev = info.dir.base;  ∇E_prev = info.∇E_prev
     x_new = info.ζ; ∇E = info.∇E
     dir = info.dir
+    # renaming for small lines
+    type=transport_type
 
     # Transport previous s and y to current location
     if B.length ≥ 1
         for k in 1:B.length
             s, y, ρ = B[k]
-            s = transport_AMO(s, x_prev, dir, 1., x_new; type=:exp, collinear=false)
-            y = transport_AMO(y, x_prev, dir, 1., x_new; type=:exp, collinear=false)
+            s = transport_AMO(s, x_prev, dir, 1., x_new; type, collinear=false)
+            y = transport_AMO(y, x_prev, dir, 1., x_new; type, collinear=false)
 
             # Project back on the tangent plane if s or y propagate errors
             s = TangentVector(project_tangent_AMO(x_new, s.vec), x_new)
@@ -115,24 +119,25 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport, kwargs...)
     end
 
     # Compute current s, y and ρ.
-    s = transport_AMO(dir, x_prev, dir, 1., x_new; type=:exp, collinear=true)
+    s = transport_AMO(dir, x_prev, dir, 1., x_new; type, collinear=true)
     y = TangentVector(∇E.vec - transport_AMO(∇E_prev, x_prev, dir, 1., x_new;
-                                             type=:exp, collinear=false
+                                             type, collinear=false
                                              ).vec,
                       x_new)
     ρ = 1/tr(s'y)
     push!(B, (s,y,ρ))
 
     # Compute next dir
-    dir_vec = -B(∇E; B₀=default_LBFGS_init)
+    dir_vec = -B(∇E; S.B₀)
     dir = TangentVector(-B(∇E).vec, x_new)
 
     # Restart BFGS if dir is not a descent direction
     if (tr(dir'∇E)/(norm(dir)*norm(∇E)) > -1e-2)
         @warn "Restart: not a descent direction"
         empty!(B)
+        dir = TangentVector(-∇E, info.ζ)
     end
-        
+    # DEBUG : norm(dir) goes to zero every 30 iterations... Why ?
     dir, merge(info, (; dir, B))
 end
 
@@ -159,6 +164,16 @@ end
 LBFGSInverseHessian(maxlength::Int, S::Vector{T1}, Y::Vector{T1},
                     ρ::Vector{T2}) where {T1, T2} = LBFGSInverseHessian{T1, T2}(maxlength, S, Y, ρ)
 
+function Absil_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
+    @show "ABSIL"
+    s, y, ρ = B[B.length]
+    γ = tr(s'y)/(norm(y)^2)
+    Nb = size(g.vec,1)
+    γ*Matrix(I, Nb, Nb)
+end
+
+default_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector) = I
+
 """
 Compute next dir using the two-loop L-BFGS evalutation
 """
@@ -173,7 +188,6 @@ function (B::LBFGSInverseHessian)(g::TangentVector; B₀=default_LBFGS_init)
     end
     # Compute Bₖ⁰q
     r = TangentVector(B₀(B, g)*q.vec, q.base)
-
     # Second loop
     for i = 1:B.length
         s, y, ρ = B[i]
@@ -229,11 +243,4 @@ end
     B.length = 0
     B.first = 1
     return B
-end
-
-function default_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
-    s, y, ρ = B[B.length]
-    γ = tr(s'y)/(norm(y)^2)
-    Nb = size(g.vec,1)
-    γ*Matrix(I, Nb, Nb)
 end

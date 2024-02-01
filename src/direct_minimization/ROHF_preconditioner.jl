@@ -1,4 +1,9 @@
-function preconditioned_gradient_AMO(ζ::State; num_safety=1e-6, trigger=10^(-1/2))
+function default_preconditioner(∇E::TangentVector; trigger=10^(-1/2))
+    (norm(∇E) > trigger) && (return ∇E.vec)
+    preconditioned_gradient_AMO(∇E.base)
+end
+
+function preconditioned_gradient_AMO(ζ::State; num_safety=1e-6)
     Fi, Fa = Fock_operators(ζ)
     H, G_vec = build_quasi_newton_system(ζ.Φ, Fi, Fa, ζ.Σ.mo_numbers;
                                          num_safety)
@@ -12,7 +17,6 @@ function preconditioned_gradient_AMO(ζ::State; num_safety=1e-6, trigger=10^(-1/
     Nb, Ni, Na = ζ.Σ.mo_numbers
     Ne = Nb - (Ni+Na)
     κ_grad = vec_to_κ(G_vec, Ni, Na, Ne)
-    (norm(κ_grad)>trigger) && (return (ζ.Φ*κ_grad))
 
     # Compute quasi newton direction by solving the system with BICGStab l=3.
     # BICGStab requires that L is positive definite which is not the case
@@ -36,8 +40,6 @@ function preconditioned_gradient_AMO(ζ::State; num_safety=1e-6, trigger=10^(-1/
         @warn message
         return ζ.Φ*κ_grad
     end
-
-    # Return preconditioned gradient and convergence data
     ζ.Φ*κ
 end
 

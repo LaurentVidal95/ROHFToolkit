@@ -12,21 +12,24 @@ function direct_minimization_manual(ζ::State;
                                     maxiter = 500,
                                     maxstep = 2*one(Float64),
                                     tol = 1e-5,
+                                    #  Type fo retraction and transport
+                                    retraction_type=:exp,
+                                    transport_type=:exp,
+                                    # Prompt
+                                    prompt=default_direct_min_prompt(),
                                     # Choose solver and preconditioning
                                     solver=ConjugateGradientManual,
                                     preconditioned=true,
-                                    preconditioning_trigger=10^(-0.5),
-                                    # Type of retraction and transport
-                                    retraction=:exp,
-                                    transport=:exp,
+                                    preconditioner=default_preconditioner,
                                     linesearch,
-                                    # Prompt
-                                    prompt=default_direct_min_prompt(),
+                                    # Casscf or ROHF
+                                    fg=ROHF_energy_and_riemannian_gradient,
                                     solver_kwargs...)
 
     # Setup solver and preconditioner
     precondition(ζ) = preconditioned_gradient_AMO(ζ; trigger=preconditioning_trigger)
-    sol = solver(; solver_kwargs...)
+    sol = solver(; preconditioned, solver_kwargs...)
+    !(preconditioned) && (preconditioner=∇E->∇E.vec)
 
     # Linesearch.jl only handles Float64 step sisze
     (typeof(maxstep)≠Float64) && (maxstep=Float64(maxstep))
@@ -38,16 +41,16 @@ function direct_minimization_manual(ζ::State;
 
     # Populate info with initial data
     n_iter          = zero(Int64)
-    E, ∇E           = energy_and_riemannian_gradient(ζ)
+    E, ∇E           = fg(ζ)
     E_prev, ∇E_prev = E, ∇E
-    dir_vec         = sol.preconditioned ? .- precondition(ζ) : - ∇E
+    dir_vec         = -preconditioner(∇E)
     dir             = TangentVector(dir_vec, ζ)
     step            = zero(Float64)
     converged       = false
     residual        = norm(∇E)
 
-    info = (; n_iter, ζ, E, E_prev, ∇E, ∇E_prev, dir, solver=sol,
-            step, converged, tol, residual)
+    info = (; n_iter, ζ, E, E_prev, ∇E, ∇E_prev, dir, solver=sol, step,
+            converged, tol, residual)
 
     # init LBFGS solver if needed
     if isa(sol, LBFGSManual)
@@ -64,10 +67,11 @@ function direct_minimization_manual(ζ::State;
         # find next point ζ on ROHF manifold
         step, E, ζ = AMO_linesearch(ζ, dir; E, ∇E, maxstep,
                                     linesearch_type=linesearch,
-                                    retraction, transport)
-
+                                    retraction_type,
+                                    transport_type,
+                                    fg)
         # Update "info" with the new ROHF point and related quantities
-        ∇E = AMO_gradient(ζ)
+        E, ∇E = fg(ζ)
         ∇E_prev = info.∇E; E_prev = info.E
         residual = norm(info.∇E)
         (residual<tol) && (converged=true)
@@ -77,7 +81,7 @@ function direct_minimization_manual(ζ::State;
         prompt.prompt(info)
 
         # Choose next dir according to the solver and update info with new dir
-        dir, info = next_dir(sol, info; precondition, transport)
+        dir, info = next_dir(sol, info; preconditioner, transport_type)
     end
     # Go back to non-orthonormal AO convention
     deorthonormalize_state!(ζ)

@@ -93,7 +93,7 @@ All ROHFSate structure constructors
 function State(Σ::ChemicalSystem{T}; guess=:minao, virtuals=true) where {T<:Real}
     # Compute guess
     Φ_init = init_guess(Σ, guess; virtuals)
-    E_init = energy(densities(Φ_init, Σ.mo_numbers)..., collect(Σ)[1:4]...)
+    E_init = ROHF_energy(densities(Φ_init, Σ.mo_numbers)..., collect(Σ)[1:4]...)
     history = reshape([0, E_init, NaN, NaN], 1, 4)
     State(Φ_init, Σ, E_init, false, guess, virtuals, history)
 end
@@ -131,7 +131,8 @@ norm(X::TangentVector) = norm(X.vec)
 """
 function reset_state!(ζ::State; guess=:minao, virtuals=true)
     Φ_init = init_guess(ζ.Σ, guess; virtuals)
-    ζ.Φ = Φ_init; ζ.isortho=false; energy!(ζ);
+    ζ.Φ = Φ_init; ζ.isortho=false; E=ROHF_energy(ζ);
+    ζ.energy = E
     history = reshape([0, ζ.energy, NaN, NaN], 1, 4)
     ζ.virtuals = virtuals
     ζ.history = history

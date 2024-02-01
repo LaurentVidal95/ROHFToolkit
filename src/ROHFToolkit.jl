@@ -37,14 +37,14 @@ include("compute_ground_state.jl")
 
 #### Direct Minimization solvers
 export GradientDescent, ConjugateGradient, LBFGS # OptimKit functions
-include("direct_minimization/preconditioning_AMO.jl")
-include("direct_minimization/OptimKit_solve.jl")
+include("direct_minimization/ROHF_preconditioner.jl")
+include("direct_minimization/OptimKit_wrapper.jl")
 
 export GradientDescentManual, ConjugateGradientManual, LBFGSManual
-include("direct_minimization/solve_manual/AMO_linesearch.jl")
-include("direct_minimization/solve_manual/direct_min_solvers.jl")
-include("direct_minimization/solve_manual/main_direct_minimization.jl")
-include("direct_minimization/solve_manual/prompt_info.jl")
+include("direct_minimization/manual_solvers/AMO_linesearch.jl")
+include("direct_minimization/manual_solvers/direct_min_solvers.jl")
+include("direct_minimization/manual_solvers/main_direct_minimization.jl")
+include("direct_minimization/manual_solvers/prompt_info.jl")
 
 #### Self consistent field
 export scf
