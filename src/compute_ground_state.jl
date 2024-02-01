@@ -15,6 +15,7 @@ function compute_ground_state(ζ::State;
                               CASSCF_verbose=false,
                               # Solver and related args
                               solver=ConjugateGradient,
+                              # linesearch=nothing, # for manual only
                               solver_kwargs...)
     # Choose between CASSCF and ROHF
     CASSCF_kwargs = (; CFOUR_ex, verbose=CASSCF_verbose)

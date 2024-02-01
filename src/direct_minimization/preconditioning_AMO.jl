@@ -1,3 +1,8 @@
+function default_preconditioner(∇E::TangentVector; trigger=10^(-1/2))
+    (norm(∇E) > trigger) && (return ∇E.vec)
+    preconditioned_gradient_AMO(∇E.base)
+end
+
 function preconditioned_gradient_AMO(ζ::State; num_safety=1e-6)
     Fi, Fa = Fock_operators(ζ)
     H, G_vec = build_quasi_newton_system(ζ.Φ, Fi, Fa, ζ.Σ.mo_numbers;
@@ -34,8 +39,6 @@ function preconditioned_gradient_AMO(ζ::State; num_safety=1e-6)
         @warn message
         return ζ.Φ*κ_grad
     end
-
-    # Return preconditioned gradient and convergence data
     ζ.Φ*κ
 end
 

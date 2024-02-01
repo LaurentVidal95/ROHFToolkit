@@ -15,7 +15,7 @@ function AMO_linesearch(ζ::State{T}, p::TangentVector{T};
                                ) where {T<:Real}
     # All linesearch routines are performed in orthonormal AOs convention
     @assert(ζ.isortho)
-    @show norm(p), norm(p)/norm(∇E)
+    # @show norm(p), norm(p)/norm(∇E)
     # LineSearches.jl objects
     function f(step)
         ζ_next = retract_AMO(ζ, TangentVector(step .* p.vec, ζ); type=retraction_type)

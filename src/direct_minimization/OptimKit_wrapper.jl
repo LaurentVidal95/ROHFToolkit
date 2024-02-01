@@ -23,7 +23,7 @@ function direct_minimization_OptimKit(ζ::State;
                                       # Choose solver and preconditioning
                                       solver=ConjugateGradient,
                                       preconditioned=true,
-                                      preconditioning_trigger=10^(-0.5),
+                                      preconditioner=default_preconditioner,
                                       # Type of retraction and transport
                                       retraction=:exp,
                                       transport=:exp,
@@ -44,7 +44,7 @@ function direct_minimization_OptimKit(ζ::State;
                               optim_kwargs(;retraction_type=retraction,
                                            transport_type=transport,
                                            preconditioned,
-                                           preconditioning_trigger,
+                                           preconditioner,
                                            verbose)...
                               )
 
@@ -66,27 +66,28 @@ See `src/common/MO_manifold_tools.jl`
 function optim_kwargs(; retraction_type=:exp,
                       transport_type=:exp,
                       preconditioned=true,
-                      preconditioning_trigger=10^(-0.5),
+                      preconditioner=default_preconditioner,
                       verbose=true)
     kwargs = (; inner, scale!, add!,
               # Choose retraction and transport types
               retract = (args...) -> retract(args...; type=retraction_type),
               transport! = (args...) -> transport!(args...; type=transport_type)
               )
-    # Set verbosity and preconditioning
+
     (verbose) && (kwargs=merge(kwargs, (; finalize!)))
-    if preconditioned
-        kwargs=merge(kwargs, (; precondition =
-                              (args...)->precondition(args...; trigger=preconditioning_trigger)
-                              )
-                     )
-    end
+    # Set preconditioner
+    !(preconditioned) && (preconditioner=∇E->∇E.vec)
+    precondition=(args...)-> precondition_optimkit(args...; preconditioner)
+    kwargs=merge(kwargs, (; precondition))
+
     kwargs
 end
 
-function precondition(ζ::State, η; trigger=10^(-0.5))
-    (norm(η) > trigger) && (@warn "No preconditioning, ||∇E|| is to high"; return η)
-    ∇E_prec_vec = preconditioned_gradient_AMO(ζ)
+"""
+Wrapper around preconditioner for OptimKit
+"""
+function precondition_optimkit(ζ::State, η; preconditioner)
+    ∇E_prec_vec = preconditioner(η)
     TangentVector(∇E_prec_vec, ζ)
 end
 
