@@ -19,13 +19,14 @@ The arguments are
     - prompt: modify prompt if needed. Default should be fine.
 """
 function direct_minimization_manual(ζ::State;
+                                    fg=energy_and_riemannian_gradient,
                                     maxiter = 500,
                                     maxstep = 2*one(Float64),
-                                    solver_type = ConjugateGradientManual, # preconditioned by default
+                                    solver = ConjugateGradientManual, # preconditioned by default
                                     tol = 1e-5,
                                     prompt=default_direct_min_prompt(),
                                     solver_kwargs...)
-    solver = solver_type(; solver_kwargs...)
+    sol = solver(; solver_kwargs...)
 
     # Linesearch.jl only handles Float64 step sisze
     (typeof(maxstep)≠Float64) && (maxstep=Float64(maxstep))
@@ -37,20 +38,20 @@ function direct_minimization_manual(ζ::State;
 
     # Populate info with initial data
     n_iter          = zero(Int64)
-    E, ∇E           = energy_and_riemannian_gradient(ζ)
+    E, ∇E           = fg(ζ)
     E_prev, ∇E_prev = E, ∇E
-    dir_vec         = solver.preconditioned ? .- preconditioned_gradient_AMO(ζ) : - ∇E
+    dir_vec         = sol.preconditioned ? .- preconditioned_gradient_AMO(ζ) : - ∇E
     dir             = TangentVector(dir_vec, ζ)
     step            = zero(Float64)
     converged       = false
     residual        = norm(∇E)
 
-    info = (; n_iter, ζ, E, E_prev, ∇E, ∇E_prev, dir, solver, step,
+    info = (; n_iter, ζ, E, E_prev, ∇E, ∇E_prev, dir, solver=sol, step,
             converged, tol, residual)
 
     # init LBFGS solver if needed
-    if isa(solver, LBFGSManual)
-        B = LBFGSInverseHessian(solver.depth, TangentVector[],  TangentVector[], eltype(E)[])
+    if isa(sol, LBFGSManual)
+        B = LBFGSInverseHessian(sol.depth, TangentVector[],  TangentVector[], eltype(E)[])
         info = merge(info, (; B))
     end
 
@@ -62,7 +63,7 @@ function direct_minimization_manual(ζ::State;
 
         # find next point ζ on ROHF manifold
         step, E, ζ = AMO_linesearch(ζ, dir; E, ∇E, maxstep,
-                                    linesearch_type=solver.linesearch)
+                                    linesearch_type=sol.linesearch)
 
         # Update "info" with the new ROHF point and related quantities
         ∇E = AMO_gradient(ζ)
@@ -75,7 +76,7 @@ function direct_minimization_manual(ζ::State;
         prompt.prompt(info)
 
         # Choose next dir according to the solver and update info with new dir
-        dir, info = next_dir(solver, info)
+        dir, info = next_dir(sol, info)
     end
     # Go back to non-orthonormal AO convention
     deorthonormalize_state!(ζ)
