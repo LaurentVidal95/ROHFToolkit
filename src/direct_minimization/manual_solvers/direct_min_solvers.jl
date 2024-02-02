@@ -34,10 +34,10 @@ types of CG algorithms.
 struct ConjugateGradientManual <: Solver
     name           ::String
     prefix         ::String
-    flavor        ::Symbol
+    flavor         ::Symbol
 end
 function ConjugateGradientManual(; preconditioned=true, flavor=:Fletcher_Reeves)
-    @assert flavor ∈ (:Fletcher_Reeves, :Polack_Ribiere)
+    @assert flavor ∈ (:Fletcher_Reeves, :Polack_Ribiere, :Hestenes_Stiefel)
     name = preconditioned ? "Preconditioned Conjugate Gradient" : "Conjugate Gradient"
     prefix = preconditioned ? "prec_CG" : "CG"
     ConjugateGradientManual(name, prefix, flavor)
@@ -45,35 +45,30 @@ end
 
 function next_dir(S::ConjugateGradientManual, info; preconditioner, transport_type)
     x_new = info.ζ
-    ∇E = info.∇E;  ∇E_prev = info.∇E_prev;
-    dir = info.dir
-    x_prev = dir.base
-    current_grad = preconditioner(∇E)
+    ∇E = info.∇E; ∇E_prev = info.∇E_prev
+    P∇E = info.P∇E; P∇E_prev = info.P∇E_prev
+    dir=info.dir; x_prev = dir.base
 
     # Transport previous dir and gradient on current point x_new
-    τ_dir_prev = transport_AMO(dir, x_prev, dir, info.step, x_new;
-                               type=transport_type, collinear=true)
-
-    β = zero(x_new.energy)
-    begin
-        cg_factor = zero(β)
-        if S.flavor==:Fletcher_Reeves
-            τ_grad_prev = transport_AMO(∇E_prev, x_prev, dir, info.step, x_new;
-                                        type=transport_type, collinear=false)
-            cg_factor = tr(∇E'τ_grad_prev)
-        end
-        β = (tr(∇E'∇E) - cg_factor) / norm(info.∇E_prev)^2 # DEBUG: wrong use of preconditioning ?
-        # Restart if not a descent direction
-        dir = TangentVector(project_tangent_AMO(x_new, -current_grad + β*τ_dir_prev), x_new)
-        (tr(dir'∇E)/(norm(dir)*norm(∇E)) > -1e-2) && (β = zero(β))
-        # Restart if β is negative
-        β = (β > 0) ? β : zero(Float64)
+    τdir = transport_AMO(dir, x_prev, dir, info.step, x_new;
+                         type=transport_type, collinear=true)
+    function cg_coeff(flavor)
+        (flavor==:Polack_Ribiere) && (return tr(∇E'P∇E)/tr(∇E_prev'P∇E_prev))
+        τ_P∇E_prev = transport_AMO(P∇E_prev, x_prev, dir, info.step, x_new;
+                                   type=transport_type, collinear=false)
+        (flavor==:Fletcher_Reeves) && (return (tr(∇E'P∇E) - tr(∇E'τ_P∇E_prev)) / tr(∇E_prev'P∇E_prev))
+        # Hestenes Stiefel (to be confirmed)
+        return (tr(∇E'P∇E) - tr(∇E'τ_P∇E_prev)) / (tr(τdir'P∇E) - tr(dir'P∇E_prev))
     end
-    iszero(β) && (@warn "Restart"; dir = TangentVector(-current_grad, x_new))
+    β = cg_coeff(S.flavor)
+    dir = TangentVector(project_tangent_AMO(x_new, -P∇E + β*τdir), x_new)
+
+    # Restart if new dir is not a descent direction
+    (tr(dir'∇E)/(norm(dir)*norm(∇E)) > -1e-2) && (β = zero(β))
+    iszero(β) && (@warn "Restart"; dir = TangentVector(-∇E, x_new))
 
     dir, merge(info, (; dir))
 end
-
 
 """
 LBFGS on the AMO manifold.

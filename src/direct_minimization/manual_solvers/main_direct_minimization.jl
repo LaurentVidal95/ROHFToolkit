@@ -42,15 +42,16 @@ function direct_minimization_manual(ζ::State;
     # Populate info with initial data
     n_iter          = zero(Int64)
     E, ∇E           = fg(ζ)
-    E_prev, ∇E_prev = E, ∇E
-    dir_vec         = -preconditioner(∇E)
-    dir             = TangentVector(dir_vec, ζ)
+    E_prev, ∇E_prev = copy(E), deepcopy(∇E)
+    P∇E             = TangentVector(preconditioner(∇E), ζ)
+    P∇E_prev        = deepcopy(P∇E)
+    dir             = TangentVector(-P∇E_prev, ζ)
     step            = zero(Float64)
     converged       = false
     residual        = norm(∇E)
 
-    info = (; n_iter, ζ, E, E_prev, ∇E, ∇E_prev, dir, solver=sol, step,
-            converged, tol, residual)
+    info = (; n_iter, ζ, E, E_prev, ∇E, ∇E_prev, P∇E, P∇E_prev, dir,
+            solver=sol, step, converged, tol, residual)
 
     # init LBFGS solver if needed
     if isa(sol, LBFGSManual)
@@ -72,11 +73,12 @@ function direct_minimization_manual(ζ::State;
                                     fg)
         # Update "info" with the new ROHF point and related quantities
         E, ∇E = fg(ζ)
-        ∇E_prev = info.∇E; E_prev = info.E
+        E_prev = info.E; ∇E_prev = info.∇E;
+        P∇E = TangentVector(preconditioner(∇E), ζ); P∇E_prev=info.P∇E
         residual = norm(info.∇E)
         (residual<tol) && (converged=true)
 
-        info = merge(info, (; ζ, E, E_prev, ∇E, ∇E_prev, residual,
+        info = merge(info, (; ζ, E, E_prev, ∇E, ∇E_prev, P∇E, P∇E_prev, residual,
                             n_iter, step, converged))
         prompt.prompt(info)
 
