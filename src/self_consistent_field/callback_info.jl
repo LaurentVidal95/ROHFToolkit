@@ -8,6 +8,10 @@ Nothing fancy to say here.
 function SCF_default_callback(; show_dir_angle=false)
     function callback(info)
         if info.n_iter == 0
+            ζ = info.ζ
+            ζ.history = reshape([0, info.E, NaN, NaN, NaN], 1, 5)
+            info = merge(info, (;ζ))
+
             println("ROHF SCF with effective Hamiltonian: $(info.effective_hamiltonian)")
             println("Initial guess: $(info.ζ.guess)")
             println("Convergence threshold (projected gradient norm): $(info.tol)")
@@ -21,11 +25,11 @@ function SCF_default_callback(; show_dir_angle=false)
             println(@sprintf("%5i %16.12f %16s %16s", info_out...))
         else
             log_ΔE = log(10, abs(info.E  - info.E_prev))
-            info_out = [info.n_iter, info.E, log_ΔE, log10(info.residual)]
-            println(@sprintf("%5i %16.12f %16.12f %16.12f", info_out...))
+            info_out = [info.n_iter, info.E, log_ΔE, log10(info.residual), NaN]
+            println(@sprintf("%5i %16.12f %16.12f %16.12f", info_out[1:4]...))
             # update history
             ζ = info.ζ
-            ζ.history = vcat(ζ.history, reshape(info_out, 1, 4))
+            ζ.history = vcat(ζ.history, reshape(info_out, 1, 5))
             info = merge(info, (;ζ=ζ))
             flush(stdout)
         end
