@@ -19,7 +19,6 @@ function project_tangent_AMO(Φ::Matrix, mo_numbers, M::Matrix)
     # Construct B matrix and project
     B_proj = asym(Φ'M)
     remove_diag_blocs!(B_proj, mo_numbers)
-    # Add Φ
     Φ*B_proj
 end
 function project_tangent_AMO(ζ::State, M::Matrix)
@@ -44,7 +43,6 @@ function retract_AMO(Φ::Matrix{T}, Ψ::Matrix{T}; type=:exp) where {T<:Real}
     (type==:QR) && (return QR_retract_AMO(Φ, Ψ))
     error("Given type of retraction not handled")
 end
-
 function retract_AMO(ζ::State, Ψ::TangentVector; type=:exp)
     RΦ = retract_AMO(ζ.Φ, Ψ.vec; type)
     State(ζ, RΦ)

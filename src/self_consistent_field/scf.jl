@@ -46,7 +46,7 @@ function scf_method(ζ::State;
     # Populate info with initial data
     n_iter       = zero(Int64)
     DMs          = densities(ζ)
-    E, ∇E        = energy_and_gradient_DM_metric(DMs..., ζ)
+    E, ∇E        = ROHF_energy_and_DM_gradient(DMs..., ζ)
     E_prev       = NaN
     residual     = norm(∇E) # √(tr(∇Ed'∇Ed) + tr(∇Es'∇Es))
     converged    = (residual < tol)
@@ -70,7 +70,7 @@ function scf_method(ζ::State;
 
         # Compute new energy and residual
         E_prev = info.E
-        E, ∇E = energy_and_gradient_DM_metric(Pd_out, Ps_out, ζ)
+        E, ∇E = ROHF_energy_and_DM_gradient(Pd_out, Ps_out, ζ)
         ζ.energy = E
 
         # check for convergence
