@@ -40,7 +40,8 @@ export GradientDescent, ConjugateGradient, LBFGS # OptimKit functions
 include("direct_minimization/ROHF_preconditioner.jl")
 include("direct_minimization/OptimKit_wrapper.jl")
 
-export GradientDescentManual, ConjugateGradientManual, LBFGSManual
+export GradientDescentManual, ConjugateGradientManual
+#export LBFGSManual # Bugged
 include("direct_minimization/manual_solvers/AMO_linesearch.jl")
 include("direct_minimization/manual_solvers/direct_min_solvers.jl")
 include("direct_minimization/manual_solvers/main_direct_minimization.jl")
