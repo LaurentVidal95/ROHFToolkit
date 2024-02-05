@@ -19,11 +19,14 @@ function compute_ground_state(ζ::State;
                               solver_kwargs...)
     # Choose between CASSCF and ROHF
     CASSCF_kwargs = (; CFOUR_ex, verbose=CASSCF_verbose)
-    fg = begin
+    f, g, fg = begin
         if CASSCF
-            ζ->CASSCF_energy_and_gradient(ζ; CASSCF_kwargs...)
+            f(x::State) = CASSCF_energy(x; CASSCF_kwargs...)
+            g(x::State) = CASSCF_gradient(x; CASSCF_kwargs...)
+            fg(x::State) = CASSCF_energy_and_gradient(x; CASSCF_kwargs...)
+            f, g, fg
         else
-            ROHF_energy_and_gradient
+            ROHF_energy, ROHF_gradient, ROHF_energy_and_gradient
         end
     end
 
@@ -37,10 +40,11 @@ function compute_ground_state(ζ::State;
         LINESEARCHES_LOADED = (:LineSearches ∈ names(Main, imported=true))
         (!LINESEARCHES_LOADED) && error("You need to import LineSearches and assign `linesearch` "*
                                         "before launching manual direct minimization")
-        return direct_minimization_manual(ζ; fg, solver, solver_kwargs...)
+        return direct_minimization_manual(ζ; f, g, fg, solver, solver_kwargs...)
 
-    # Self consistent field
+    # Self consistent field (only works for ROHF)
     else
+        @assert !CASSCF "SCF method only for ROHF"
         return scf_method(ζ; solver, solver_kwargs...)
     end
 

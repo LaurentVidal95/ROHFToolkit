@@ -7,12 +7,14 @@
 Linesearch using the retraction in AMO formalism.
 The ``linesearch_type`` can be any of the linesearch algorithms in the LineSearches.jl library.
 """
-function AMO_linesearch(ζ::State{T}, p::TangentVector{T};
+function AMO_linesearch(ζ::State{T}, p::TangentVector{T},
+                        energy=ROHF_energy,
+                        gradient=ROHF_gradient,
+                        energy_and_gradient=ROHF_energy_and_gradient;
                         E, ∇E, linesearch_type,
                         maxstep = one(Float64),
                         retraction_type=:exp,
                         transport_type=:exp,
-                        fg=ROHF_energy_and_gradient
                         ) where {T<:Real}
     # All linesearch routines are performed in orthonormal AOs convention
     @assert(ζ.isortho)
@@ -20,19 +22,19 @@ function AMO_linesearch(ζ::State{T}, p::TangentVector{T};
     # LineSearches.jl objects
     function f(step)
         ζ_next = retract_AMO(ζ, TangentVector(step .* p.vec, ζ); type=retraction_type)
-        ROHF_energy(ζ_next)
+        energy(ζ_next)
     end
 
     function df(step)
         ζ_next = retract_AMO(ζ, TangentVector(step .* p.vec, ζ); type=retraction_type)
         τ_p = transport_AMO(p, ζ, p, step, ζ_next; type=transport_type, collinear=true)
-        ∇E_next = ROHF_gradient(ζ_next)
+        ∇E_next = gradient(ζ_next)
         tr(∇E_next'τ_p)
     end
 
     function fdf(step)
         ζ_next = retract_AMO(ζ, TangentVector(step .* p.vec, ζ); type=retraction_type)
-        E_next, ∇E_next =  fg(ζ_next)
+        E_next, ∇E_next =  energy_and_gradient(ζ_next)
         τ_p = transport_AMO(p, ζ, p, step, ζ_next; type=transport_type, collinear=true)
         E_next, tr(∇E_next'τ_p)
     end
