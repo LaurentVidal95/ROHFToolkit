@@ -44,10 +44,10 @@ function AMO_linesearch(ζ::State{T}, p::TangentVector{T},
     α, E_next = linesearch_type(f, df, fdf, maxstep, E, df0)
 
     # Actualize ζ and energy
-    
+
     ζ_next = retract_AMO(ζ, TangentVector(α .* p.vec, ζ); type=retraction_type)
     ζ_next.energy = E_next
-    @assert (test_MOs(ζ_next) < 1e-8)
+    @assert is_point(ζ_next)
 
     # α = (α > max_step) ? max_step : α
     α, E_next, ζ_next

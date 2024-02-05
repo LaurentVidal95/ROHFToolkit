@@ -19,7 +19,7 @@ function scf(info; fixpoint_map, maxiter=500)
     # Actual loop
     while ( (!info.converged) && (info.n_iter < maxiter) )
         info = fixpoint_map(info; g_update=g_std)
-        @assert(test_MOs(info.ζ) < 1e-8)
+        @assert is_point(info.ζ)
     end
     info
 end
@@ -57,7 +57,7 @@ function hybrid_scf(info; fixpoint_map, maxiter=500, inner_loop_verbosity=0)
                            GradientDescent(;verbosity=inner_loop_verbosity, gradtol=1e-7);
                            kwargs...)
         # Problem... Ne pas faire un restart avec le ζ juste au dessus.
-        if (test_MOs(ζ) ≥ 1e-9)
+        if !is_point(ζ; tol= 1e-9)
             @warn "Trying new guess"
             fg, ζ_init = hybrid_SCF_optimization_args(Pd, Ps, Fd, Fs, ζ, :Euler)
             ζ, _, _, history = optimize(fg, ζ_init,
@@ -70,7 +70,7 @@ function hybrid_scf(info; fixpoint_map, maxiter=500, inner_loop_verbosity=0)
     # Actual loop
     while ( (!info.converged) && (info.n_iter < maxiter) )
         info = fixpoint_map(info; g_update=g_hybrid)
-        @assert(test_MOs(info.ζ) < 1e-8)
+        @assert is_point(info.ζ)
     end
     info
 end

@@ -109,7 +109,7 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
             s = TangentVector(project_tangent_AMO(x_new, s.vec), x_new)
             y = TangentVector(project_tangent_AMO(x_new, y.vec), x_new)
 
-            sy_tangents = all([test_tangent(s)<1e-9, test_tangent(y)<1e-9])
+            sy_tangents = all([is_tangent(s; tol=1e-9), is_tangent(y; tol=1e-9)])
             !(sy_tangents) && (@show sy_tangents)
             B[k] = (s,y,ρ)
         end

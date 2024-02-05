@@ -176,14 +176,14 @@ function test_gradient(ζ::State, t; fg=ROHF_energy_and_gradient)
 
     # Random direction in horizontal tangent space
     p = random_direction(ζ)
-    @assert test_tangent(p) < 1e-8 # Test that p belongs to the tangent space at ζ
+    @assert is_tangent(p; tol=1e-8) # Test that p belongs to the tangent space at ζ
 
     # Test gradient by finite difference
     Φ_next = retract_AMO(Φ, t*p; type=:exp)
-    @assert test_MOs(Φ_next, (Nb, Ni, Na)) < 1e-10  # Test that Φ_next is a point on the AMO manifold
+    @assert is_point(Φ_next, (Nb, Ni, Na); tol=1e-10)  # Test that Φ_next is a point on the AMO manifold
 
     E, ∇E = fg(ζ)
-    @assert test_tangent(∇E) < 1e-8
+    @assert is_tangent(∇E; tol=1e-8)
 
     approx = (ROHF_energy(ζ.Σ.Sm12*Φ_next, ζ) - energy(ζ.Σ.Sm12*ζ.Φ, ζ))/t
     expected = tr(∇E'p)

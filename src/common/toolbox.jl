@@ -56,11 +56,11 @@ function reshape_XYZ(XYZ, N1, N2, N3)
 end
 
 @doc raw"""
-     test_MOs(Φ::Matrix{T}, mo_numbers) where {T<:Real}
+     is_point(Φ::Matrix{T}, mo_numbers) where {T<:Real}
 
-Test if the give MOs are in the MO manifold.
+Test if the give MOs are a point in the AMO manifold.
 """
-function test_MOs(Φ::Matrix{T}, mo_numbers) where {T<:Real}
+function is_point(Φ::Matrix{T}, mo_numbers; tol=1e-8) where {T<:Real}
     Nb,Nd,Ns = mo_numbers
     Pd, Ps = densities(Φ, mo_numbers)
 
@@ -70,11 +70,14 @@ function test_MOs(Φ::Matrix{T}, mo_numbers) where {T<:Real}
     test += tr(Pd) - Nd
     test -= tr(Ps) - Ns
 
-    test
+    return test < tol
 end
-test_MOs(ζ::State) = test_MOs(ζ.Φ, ζ.Σ.mo_numbers)
+is_point(ζ::State; tol=1e-8) = is_point(ζ.Φ, ζ.Σ.mo_numbers; tol)
 
-function test_tangent(X::TangentVector)
+"""
+Test is the given tangent vector belongs to the tangent space at X.base.
+"""
+function is_tangent(X::TangentVector; tol=1e-8)
     Nb, Ni, Na = X.base.Σ.mo_numbers
     Ne = Nb - (Ni+Na)
     No = Ni+Na
@@ -90,7 +93,7 @@ function test_tangent(X::TangentVector)
 
     # test that B is antisymmetric
     test += norm(B + B')
-    test
+    return test < tol
 end
 
 @doc raw"""
