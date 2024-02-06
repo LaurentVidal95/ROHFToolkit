@@ -44,8 +44,7 @@ function extract_CFOUR_data(CFOUR_file::String)
     Φ_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
     S_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
 
-    N_rot = Ni*Na + Na*Ne + Ni*Ne
-    H_diag = multipop(data, N_rot)
+    H_diag = reshape(multipop(data, Nb^2), Nb, Nb)
 
     # Sanity checks
     @assert norm(Φ_cfour'S_cfour*Φ_cfour - I) < 1e-7
@@ -116,32 +115,15 @@ function CASSCF_gradient(ζ::State; CFOUR_ex="xcasscf", verbose=true)
     E, ∇E = CASSCF_energy_and_gradient(ζ; CFOUR_ex, verbose)
     ∇E
 end
-function CASSCF_preconditioner(∇E::TangentVector; max_inv=1e5)
+function CASSCF_preconditioner(∇E::TangentVector; max_inverse=1e3)
     @assert isfile("energy_gradient.txt")
     data = extract_CFOUR_data("energy_gradient.txt")
-
-    # κ to XYZ
-    κ = ∇E.base.Φ'∇E.vec
-    Nb, Ni, Na = data.mo_numbers
-    X = ∇E.vec[1:Ni, Ni+1:Ni+Na]
-    Y = ∇E.vec[1:Ni, Ni+Na+1:Nb]
-    Z = ∇E.vec[Ni+1:Ni+Na, Ni+Na+1:Nb]
-
-    XYZ = mat_to_vec(X,Y,Z)
     
     B_diag = map(data.hessian_diag) do λ
-        # (λ < (1/max_inv)) && return max_inv
+        (norm(λ) < 1e-3) && return max_inverse
         inv(λ)
     end
-    XYZ_prec = diagm(B_diag)*XYZ
-
-    # XYZ_prec to κ
-    function vec_to_κ(XYZ, Ni, Na, Ne)
-        X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
-        [zeros(Ni,Ni) X Y; -X' zeros(Na,Na) Z; -Y' -Z' zeros(Ne,Ne)]
-    end
-    κ_prec = vec_to_κ(XYZ, Ni, Na, Ne)    
-    ∇E_prec = ∇E.base.Φ*κ_prec
+    ∇E_prec = B_diag*∇E.vec
 end
 
 function CASSCF_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
