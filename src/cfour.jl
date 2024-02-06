@@ -116,18 +116,43 @@ function CASSCF_gradient(ζ::State; CFOUR_ex="xcasscf", verbose=true)
     E, ∇E = CASSCF_energy_and_gradient(ζ; CFOUR_ex, verbose)
     ∇E
 end
-function CASSCF_preconditioner(∇E::TangentVector; trigger=100)
+function CASSCF_preconditioner(∇E::TangentVector; max_inv=1e5)
     @assert isfile("energy_gradient.txt")
     data = extract_CFOUR_data("energy_gradient.txt")
-    H_diag = data.hessian_diag
-    ∇E_prec = inv(H_diag)*∇E
+
+    # κ to XYZ
+    κ = ∇E.base.Φ'∇E.vec
+    Nb, Ni, Na = data.mo_numbers
+    X = ∇E.vec[1:Ni, Ni+1:Ni+Na]
+    Y = ∇E.vec[1:Ni, Ni+Na+1:Nb]
+    Z = ∇E.vec[Ni+1:Ni+Na, Ni+Na+1:Nb]
+
+    XYZ = mat_to_vec(X,Y,Z)
+    
+    B_diag = map(data.hessian_diag) do λ
+        # (λ < (1/max_inv)) && return max_inv
+        inv(λ)
+    end
+    XYZ_prec = diagm(B_diag)*XYZ
+
+    # XYZ_prec to κ
+    function vec_to_κ(XYZ, Ni, Na, Ne)
+        X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
+        [zeros(Ni,Ni) X Y; -X' zeros(Na,Na) Z; -Y' -Z' zeros(Ne,Ne)]
+    end
+    κ_prec = vec_to_κ(XYZ, Ni, Na, Ne)    
+    ∇E_prec = ∇E.base.Φ*κ_prec
 end
 
 function CASSCF_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
     @assert isfile("energy_gradient.txt")
-    data = extract_CFOUR_data("energy_gradient.txt")
-    H_diag = data.hessian_diag
-    inv(H_diag)
+    @error("Bugged")
+    # data = extract_CFOUR_data("energy_gradient.txt")
+    # Prec = map(data.hessian_diag) do λ
+    #     (λ < (1/max_inv)) && return max_inv
+    #     inv(λ)
+    # end
+    # Prec
 end
 
 #################################### TESTS
