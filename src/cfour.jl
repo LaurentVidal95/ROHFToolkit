@@ -120,7 +120,7 @@ function CASSCF_preconditioner(∇E::TangentVector; trigger=100)
     @assert isfile("energy_gradient.txt")
     data = extract_CFOUR_data("energy_gradient.txt")
     H_diag = data.hessian_diag
-    ∇E_prec = -inv(H_diag)*∇E
+    ∇E_prec = inv(H_diag)*∇E
 end
 
 function CASSCF_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
