@@ -44,18 +44,16 @@ function extract_CFOUR_data(CFOUR_file::String)
     Φ_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
     S_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
 
-    hess_diag = reshape(multipop(data, Nb^2), Nb, Nb)
-    hess_full = reshape(multipop(data, Nb^2), Nb, Nb)
-
+    P∇E_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
+    
     # Sanity checks
     @assert isempty(data)
     @assert norm(Φ_cfour'S_cfour*Φ_cfour - I) < 1e-7
     @assert norm(S_cfour-S_cfour') < 1e-10
 
     # Remove external orbitals and assemble Stiefel gradient
-    (;mo_numbers, mo_coeffs=Φ_cfour, overlap=S_cfour, energy=E, gradient=∇E_cfour,
-     # TMP: debug hessian
-     hessian_diag=hess_diag, full_hessian=hess_full)
+    (;mo_numbers, mo_coeffs=Φ_cfour, overlap=S_cfour, energy=E, gradient=∇E_cfour, prec_gradient=P∇E_cfour)
+
 end
 
 """
@@ -120,24 +118,21 @@ end
 function CASSCF_preconditioner(∇E::TangentVector; max_inverse=1e3)
     @assert isfile("energy_gradient.txt")
     data = extract_CFOUR_data("energy_gradient.txt")    
-    B_diag = map(data.hessian_diag) do λ
-        (norm(λ) < 1e-3) && return max_inverse
-        inv(λ)
-    end
-    Φ = ∇E.base.Φ
-    ∇E_prec = (Φ*B_diag*Φ')*∇E.vec # possible source of instabilities if norm(∇E)>>1
+    Φ = data.mo_coeffs
+    Φ_ortho = ∇E.base.Σ.S12*Φ
+    Φ_ortho*data.prec_gradient
 end
 
 function CASSCF_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
-    @assert isfile("energy_gradient.txt")
-    @error("Bugged")
-    data = extract_CFOUR_data("energy_gradient.txt")    
-    B_diag = map(data.hessian_diag) do λ
-        (norm(λ) < 1e-3) && return max_inverse
-        inv(λ)
-    end
-    Φ = g.base.Φ
-    ∇E_prec = Φ*B_diag*Φ'g.vec # possible source of instabilities if norm(g)>>1
+    # @assert isfile("energy_gradient.txt")
+    # @error("Bugged")
+    # data = extract_CFOUR_data("energy_gradient.txt")    
+    # B_diag = map(data.hessian_diag) do λ
+    #     (norm(λ) < 1e-3) && return max_inverse
+    #     inv(λ)
+    # end
+    # Φ = g.base.Φ
+    # ∇E_prec = Φ*B_diag*Φ'g.vec # possible source of instabilities if norm(g)>>1
 end
 
 #################################### TESTS
