@@ -41,7 +41,7 @@ include("direct_minimization/ROHF_preconditioner.jl")
 include("direct_minimization/OptimKit_wrapper.jl")
 
 export GradientDescentManual, ConjugateGradientManual
-#export LBFGSManual # Bugged
+export LBFGSManual # Bugged
 include("direct_minimization/manual_solvers/AMO_linesearch.jl")
 include("direct_minimization/manual_solvers/direct_min_solvers.jl")
 include("direct_minimization/manual_solvers/main_direct_minimization.jl")
@@ -63,6 +63,8 @@ export CASSCF_energy_and_gradient
 export CFOUR_init
 export CASSCFState
 export energy_landscape
+export CASSCF_preconditioner
+export CASSCF_LBFGS_init
 include("cfour.jl")
 
 end # Module

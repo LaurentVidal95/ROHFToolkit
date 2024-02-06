@@ -12,9 +12,20 @@ x = CASSCFState(data.mo_numbers, data.mo_coeffs, data.overlap, data.energy)
 solver = ConjugateGradientManual
 linesearch = HagerZhang()
 
+# if LBFGS
+# solver=LBFGSManual
+
+
 # Set verbosity for debugging
 CASSCF_verbose=false
+preconditioner=CASSCF_preconditioner
 
 # Launch optimization
 res = compute_ground_state(x; CASSCF=true, CFOUR_ex, CASSCF_verbose,
-                           solver, linesearch)
+                           solver, linesearch,
+                           ## preconditioner
+                           preconditioner,
+                           # preconditioned=false # if no preconditioning
+                           ## LBFGS
+                           # B₀ = CASSCF_LBFGS_init
+                           )

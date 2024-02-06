@@ -44,12 +44,8 @@ function extract_CFOUR_data(CFOUR_file::String)
     Φ_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
     S_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
 
-    # Extract core Hamiltonian, Fock matrices and tensor
-    H_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
-    Fi_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
-    Fa_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
-    Q_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
-    T_cfour = reshape(multipop(data, Nb^4), Nb, Nb, Nb, Nb)
+    N_rot = Ni*Na + Na*Ne + Ni*Ne
+    H_diag = multipop(data, N_rot)
 
     # Sanity checks
     @assert norm(Φ_cfour'S_cfour*Φ_cfour - I) < 1e-7
@@ -57,21 +53,9 @@ function extract_CFOUR_data(CFOUR_file::String)
     @assert norm(S_cfour-S_cfour') < 1e-10
 
     # Remove external orbitals and assemble Stiefel gradient
-    (;mo_numbers, mo_coeffs=Φ_cfour, overlap=S_cfour, energy=E, gradient=∇E_cfour)
+    (;mo_numbers, mo_coeffs=Φ_cfour, overlap=S_cfour, energy=E, gradient=∇E_cfour,
+     hessian_diag=H_diag)
 end
-
-# Extract gradient blocs X, Y and Z as vector XYZ
-# len_XYZ = Ni*Na + Ni*Ne + Na*Ne
-# XYZ = multipop(data, len_XYZ)
-# function reshape_XYZ(XYZ, N1, N2, N3)
-#     X = reshape(multipop(XYZ, N1*N2), N1, N2)
-#     Y = reshape(multipop(XYZ, N1*N3), N1, N3)
-#     Z = reshape(XYZ, N2, N3)
-#     X,Y,Z
-# end
-# X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
-# ∇E_cfour = -2 .* [zeros(Ni, Ni) X Y; -X' zeros(Na, Na) Z; -Y' -Z' zeros(Ne, Ne)]
-# ∇E_cfour=(X,Y,Z)
 
 """
 Assemble dummy State to match the code convention
@@ -132,7 +116,19 @@ function CASSCF_gradient(ζ::State; CFOUR_ex="xcasscf", verbose=true)
     E, ∇E = CASSCF_energy_and_gradient(ζ; CFOUR_ex, verbose)
     ∇E
 end
+function CASSCF_preconditioner(∇E::TangentVector; trigger=100)
+    @assert isfile("energy_gradient.txt")
+    data = extract_CFOUR_data("energy_gradient.txt")
+    H_diag = data.hessian_diag
+    ∇E_prec = -inv(H_diag)*∇E
+end
 
+function CASSCF_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
+    @assert isfile("energy_gradient.txt")
+    data = extract_CFOUR_data("energy_gradient.txt")
+    H_diag = data.hessian_diag
+    inv(H_diag)
+end
 
 #################################### TESTS
 
