@@ -44,16 +44,18 @@ function extract_CFOUR_data(CFOUR_file::String)
     Φ_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
     S_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
 
-    H_diag = reshape(multipop(data, Nb^2), Nb, Nb)
+    hess_diag = reshape(multipop(data, Nb^2), Nb, Nb)
+    hess_full = reshape(multipop(data, Nb^2), Nb, Nb)
 
     # Sanity checks
-    @assert norm(Φ_cfour'S_cfour*Φ_cfour - I) < 1e-7
     @assert isempty(data)
+    @assert norm(Φ_cfour'S_cfour*Φ_cfour - I) < 1e-7
     @assert norm(S_cfour-S_cfour') < 1e-10
 
     # Remove external orbitals and assemble Stiefel gradient
     (;mo_numbers, mo_coeffs=Φ_cfour, overlap=S_cfour, energy=E, gradient=∇E_cfour,
-     hessian_diag=H_diag)
+     # TMP: debug hessian
+     hessian_diag=hess_diag, full_hessian=hess_full)
 end
 
 """
@@ -117,24 +119,25 @@ function CASSCF_gradient(ζ::State; CFOUR_ex="xcasscf", verbose=true)
 end
 function CASSCF_preconditioner(∇E::TangentVector; max_inverse=1e3)
     @assert isfile("energy_gradient.txt")
-    data = extract_CFOUR_data("energy_gradient.txt")
-    
+    data = extract_CFOUR_data("energy_gradient.txt")    
     B_diag = map(data.hessian_diag) do λ
         (norm(λ) < 1e-3) && return max_inverse
         inv(λ)
     end
-    ∇E_prec = B_diag*∇E.vec
+    Φ = ∇E.base.Φ
+    ∇E_prec = (Φ*B_diag*Φ')*∇E.vec # possible source of instabilities if norm(∇E)>>1
 end
 
 function CASSCF_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
     @assert isfile("energy_gradient.txt")
     @error("Bugged")
-    # data = extract_CFOUR_data("energy_gradient.txt")
-    # Prec = map(data.hessian_diag) do λ
-    #     (λ < (1/max_inv)) && return max_inv
-    #     inv(λ)
-    # end
-    # Prec
+    data = extract_CFOUR_data("energy_gradient.txt")    
+    B_diag = map(data.hessian_diag) do λ
+        (norm(λ) < 1e-3) && return max_inverse
+        inv(λ)
+    end
+    Φ = g.base.Φ
+    ∇E_prec = Φ*B_diag*Φ'g.vec # possible source of instabilities if norm(g)>>1
 end
 
 #################################### TESTS
@@ -193,9 +196,37 @@ function test_gradient(ζ::State, t; fg=ROHF_energy_and_gradient)
     approx/expected, p
 end
 
+
 """
-Old manual test.
+Gradient test by finite difference.
+The fg function produces the ROHF energy and gradient or the CASSCF one.
 """
+function test_hessian(ζ::State, t; f=ROHF_energy, fg=ROHF_energy_and_gradient)
+    Nb, Ni, Na = ζ.Σ.mo_numbers
+
+    # Assemble Φ with virtual
+    @assert ζ.isortho
+    @assert norm(ζ.Φ'ζ.Φ - I) < 1e-10
+    Φ = ζ.Φ
+
+    # Random direction in horizontal tangent space
+    p = random_direction(ζ)
+    @assert is_tangent(p; tol=1e-8) # Test that p belongs to the tangent space at ζ
+
+    # Test gradient by finite difference
+    Φ_next = retract_AMO(Φ, t*p; type=:exp)
+    @assert is_point(Φ_next, (Nb, Ni, Na); tol=1e-10)  # Test that Φ_next is a point on the AMO manifold
+
+    E, ∇E = fg(ζ)
+    data = extract_CFOUR_data("energy_gradient.txt")
+    hess = data.full_hessian
+    @assert is_tangent(∇E; tol=1e-8)
+
+    # f(x+th) - f(x) + t ⟨∇f(x),h⟩ + (t²/2)⟨Hess_x(h), h⟩ = O(t^3)
+    test = energy(ζ.Σ.Sm12*Φ_next, ζ) - energy(ζ.Σ.Sm12*ζ.Φ, ζ) - tr(∇E'p) - (t^2/2)tr(p.vec'*hess*p.vec)
+    test
+end
+
 # function test_gradient_CFOUR(data, t, mol; ∇E=nothing)
 #     Nb, Ni, Na = data.mo_numbers
 
