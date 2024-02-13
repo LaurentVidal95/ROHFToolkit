@@ -165,7 +165,7 @@ function ROHF_energy_and_gradient(Φ, ζ::State)
     E, ∇E = ROHF_energy_and_gradient(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
     E, TangentVector(∇E, ζ)
 end
-ROHF_energy_and_gradient(ζ::State) = ROHF_energy_and_gradient(ζ.Φ, ζ)
+ROHF_energy_and_gradient(ζ::State; kwargs...) = ROHF_energy_and_gradient(ζ.Φ, ζ)
 
 # Old functions for XC operators
 # function tensor_slice(mol::PyObject, i, j, type)

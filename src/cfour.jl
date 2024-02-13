@@ -82,12 +82,14 @@ end
 Call CFOUR to compute the gradient and energies to the current set
 of orbitals
 """
-function CASSCF_energy_and_gradient(ζ::State; CFOUR_ex="xcasscf", verbose=true)
+function CASSCF_energy_and_gradient(ζ::State; CFOUR_ex="xcasscf", verbose=true,
+                                    tol_ci=nothing)
     @assert ζ.isortho
 
     # De-orthonormalize Φ_tot
     Φ = ζ.Σ.Sm12*ζ.Φ
     open("current_orbitals.txt", "w") do file
+        !isnothing(tol_ci) && (println(file, tol_ci))
         println.(Ref(file), Φ)
     end
 
@@ -107,12 +109,12 @@ The standard Backtracking linesearch uses independantly the energy and gradient
 functional. This CASSCF_energy is a simple wrapper around the CASSCF_energy_and_gradient
 that returns the energy only.
 """
-function CASSCF_energy(ζ::State; CFOUR_ex="xcasscf", verbose=true)
-    E, ∇E = CASSCF_energy_and_gradient(ζ; CFOUR_ex, verbose)
+function CASSCF_energy(ζ::State; CFOUR_ex="xcasscf", verbose=true, tol_ci=nothing)
+    E, ∇E = CASSCF_energy_and_gradient(ζ; CFOUR_ex, verbose, tol_ci)
     E
 end
-function CASSCF_gradient(ζ::State; CFOUR_ex="xcasscf", verbose=true)
-    E, ∇E = CASSCF_energy_and_gradient(ζ; CFOUR_ex, verbose)
+function CASSCF_gradient(ζ::State; CFOUR_ex="xcasscf", verbose=true, tol_ci=nothing)
+    E, ∇E = CASSCF_energy_and_gradient(ζ; CFOUR_ex, verbose, tol_ci)
     ∇E
 end
 function CASSCF_preconditioner(∇E::TangentVector; max_inverse=1e3)
@@ -123,17 +125,18 @@ function CASSCF_preconditioner(∇E::TangentVector; max_inverse=1e3)
     Φ_ortho*data.prec_gradient
 end
 
-function CASSCF_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
-    # @assert isfile("energy_gradient.txt")
-    # @error("Bugged")
-    # data = extract_CFOUR_data("energy_gradient.txt")    
-    # B_diag = map(data.hessian_diag) do λ
-    #     (norm(λ) < 1e-3) && return max_inverse
-    #     inv(λ)
-    # end
-    # Φ = g.base.Φ
-    # ∇E_prec = Φ*B_diag*Φ'g.vec # possible source of instabilities if norm(g)>>1
-end
+## DEBUG
+# function CASSCF_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
+#     # @assert isfile("energy_gradient.txt")
+#     # @error("Bugged")
+#     # data = extract_CFOUR_data("energy_gradient.txt")    
+#     # B_diag = map(data.hessian_diag) do λ
+#     #     (norm(λ) < 1e-3) && return max_inverse
+#     #     inv(λ)
+#     # end
+#     # Φ = g.base.Φ
+#     # ∇E_prec = Φ*B_diag*Φ'g.vec # possible source of instabilities if norm(g)>>1
+# end
 
 #################################### TESTS
 

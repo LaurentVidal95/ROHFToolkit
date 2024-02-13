@@ -26,6 +26,9 @@ function direct_minimization_manual(ζ::State;
                                     f=ROHF_energy,
                                     g=ROHF_gradient,
                                     fg=ROHF_energy_and_riemannian_gradient,
+                                    # CI tol parameters (only for CASSCF)
+                                    tolmin=1e-2,
+                                    tolmax=1e-10,
                                     solver_kwargs...)
 
     # Setup solver and preconditioner
@@ -74,7 +77,9 @@ function direct_minimization_manual(ζ::State;
                                     transport_type
                                     )
         # Update "info" with the new ROHF point and related quantities
-        E, ∇E = fg(ζ)
+        # TODO: add better handling of CASSCF tol_ci
+        tol_ci = max(min(tolmin, 1e-3*norm(info.∇E)), tolmax)
+        E, ∇E = fg(ζ; tol_ci)
         E_prev = info.E; ∇E_prev = info.∇E;
         P∇E = TangentVector(preconditioner(∇E), ζ); P∇E_prev=info.P∇E
         residual = norm(info.∇E)
