@@ -13,6 +13,8 @@ function compute_ground_state(ζ::State;
                               CASSCF=false,
                               CFOUR_ex="xcasscf",
                               CASSCF_verbose=false,
+                              tolmin=1e-2,
+                              tolmax=1e-10,
                               # Solver and related args
                               solver=ConjugateGradient,
                               # linesearch=nothing, # for manual only
@@ -40,7 +42,8 @@ function compute_ground_state(ζ::State;
         LINESEARCHES_LOADED = (:LineSearches ∈ names(Main, imported=true))
         (!LINESEARCHES_LOADED) && error("You need to import LineSearches and assign `linesearch` "*
                                         "before launching manual direct minimization")
-        return direct_minimization_manual(ζ; f, g, fg, solver, solver_kwargs...)
+        return direct_minimization_manual(ζ; f, g, fg, solver, tolmin, tolmax,
+                                          solver_kwargs...)
 
     # Self consistent field (only works for ROHF)
     else

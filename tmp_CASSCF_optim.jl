@@ -26,6 +26,8 @@ res = compute_ground_state(x; CASSCF=true, CFOUR_ex, CASSCF_verbose,
                            ## preconditioner
                            preconditioner,
                            # preconditioned=false # if no preconditioning
+                           tolmin=1e-2, # default
+                           tolmax=1e-10 # default
                            ## LBFGS
                            # B₀ = CASSCF_LBFGS_init
                            )
