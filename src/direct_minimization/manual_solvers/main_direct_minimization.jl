@@ -46,7 +46,8 @@ function direct_minimization_manual(ζ::State;
 
     # Populate info with initial data
     n_iter          = zero(Int64)
-    E, ∇E           = fg(ζ)
+    tol_ci=0.1*tolmin
+    E, ∇E           = fg(ζ; tol_ci)
     E_prev, ∇E_prev = copy(E), deepcopy(∇E)
     P∇E             = TangentVector(preconditioner(∇E), ζ)
     P∇E_prev        = deepcopy(P∇E)
@@ -71,7 +72,7 @@ function direct_minimization_manual(ζ::State;
         n_iter += 1
 
         # find next point ζ on ROHF manifold
-        step, E, ζ = AMO_linesearch(ζ, dir, f, g, fg; E, ∇E, maxstep,
+        step, E, ζ = AMO_linesearch(ζ, dir, f, g, X->fg(X; tol_ci); E, ∇E, maxstep,
                                     linesearch_type=linesearch,
                                     retraction_type,
                                     transport_type

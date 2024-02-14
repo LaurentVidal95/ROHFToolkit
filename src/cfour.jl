@@ -88,7 +88,7 @@ function CASSCF_energy_and_gradient(ζ::State; CFOUR_ex="xcasscf", verbose=true,
     # De-orthonormalize Φ_tot
     Φ = ζ.Σ.Sm12*ζ.Φ
     open("current_orbitals.txt", "w") do file
-        println(file, tol_ci))
+        println(file, tol_ci)
         println.(Ref(file), Φ)
     end
 
