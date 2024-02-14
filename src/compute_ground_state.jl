@@ -25,7 +25,7 @@ function compute_ground_state(ζ::State;
         if CASSCF
             f(x::State) = CASSCF_energy(x; CASSCF_kwargs...)
             g(x::State) = CASSCF_gradient(x; CASSCF_kwargs...)
-            fg(x::State) = CASSCF_energy_and_gradient(x; CASSCF_kwargs...)
+            fg(x::State; tol_ci) = CASSCF_energy_and_gradient(x; tol_ci, CASSCF_kwargs...)
             f, g, fg
         else
             ROHF_energy, ROHF_gradient, ROHF_energy_and_gradient

@@ -82,14 +82,13 @@ end
 Call CFOUR to compute the gradient and energies to the current set
 of orbitals
 """
-function CASSCF_energy_and_gradient(ζ::State; CFOUR_ex="xcasscf", verbose=true,
-                                    tol_ci=nothing)
+function CASSCF_energy_and_gradient(ζ::State; CFOUR_ex="xcasscf", verbose=true, tol_ci)
     @assert ζ.isortho
 
     # De-orthonormalize Φ_tot
     Φ = ζ.Σ.Sm12*ζ.Φ
     open("current_orbitals.txt", "w") do file
-        !isnothing(tol_ci) && (println(file, tol_ci))
+        println(file, tol_ci))
         println.(Ref(file), Φ)
     end
 
