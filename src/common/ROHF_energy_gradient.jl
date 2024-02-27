@@ -150,6 +150,7 @@ function ROHF_energy_and_gradient(Φ, ζ::State)
 end
 ROHF_energy_and_gradient(ζ::State; kwargs...) = ROHF_energy_and_gradient(ζ.Φ, ζ)
 
+
 # Old functions for XC operators
 # function tensor_slice(mol::PyObject, i, j, type)
 #     shls_slice = nothing

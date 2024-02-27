@@ -165,7 +165,6 @@ LBFGSInverseHessian(maxlength::Int, S::Vector{T1}, Y::Vector{T1},
                     ρ::Vector{T2}) where {T1, T2} = LBFGSInverseHessian{T1, T2}(maxlength, S, Y, ρ)
 
 function Absil_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
-    @show "ABSIL"
     s, y, ρ = B[B.length]
     γ = tr(s'y)/(norm(y)^2)
     Nb = size(g.kappa,1)

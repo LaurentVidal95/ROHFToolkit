@@ -25,7 +25,7 @@ function direct_minimization_manual(ζ::State;
                                     # Casscf or ROHF
                                     f=ROHF_energy,
                                     g=ROHF_gradient,
-                                    fg=ROHF_energy_and_riemannian_gradient,
+                                    fg=ROHF_energy_and_gradient,
                                     # CI tol parameters (only for CASSCF)
                                     tolmin=1e-2,
                                     tolmax=1e-10,

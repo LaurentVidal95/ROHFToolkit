@@ -135,13 +135,13 @@ function finalize!(ζ, E, ∇E, n_iter)
     # Print current iter infos
     log_ΔE = log(10, abs(E  - ζ.energy))
     residual = norm(∇E)
-    info_out = [n_iter, E, log_ΔE, log10(residual)]
-    println(@sprintf("%5i %16.12f %16.12f %16.12f", info_out...))
+    info_out = [n_iter, E, log_ΔE, log10(residual), NaN]
+    println(@sprintf("%5i %16.12f %16.12f %16.12f", info_out[1:4]...))
     flush(stdout)
 
     # Actualize energy and history
     ζ.energy = E
-    ζ.history = vcat(ζ.history, reshape(info_out, 1, 4))
+    ζ.history = vcat(ζ.history, reshape(info_out, 1, 5))
 
     # Return entry to match OptimKit.jl conventions
     ζ, E, ∇E
