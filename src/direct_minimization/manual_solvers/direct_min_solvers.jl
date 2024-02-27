@@ -18,8 +18,8 @@ function GradientDescentManual(; preconditioned=true)
 end
 
 function next_dir(S::GradientDescentManual, info; preconditioner, kwargs...)
-    grad_vec = preconditioner(info.∇E)
-    dir = TangentVector(-grad_vec, info.ζ)
+    grad_kappa = preconditioner(info.∇E)
+    dir = TangentVector(-grad_kappa, info.ζ)
     dir, merge(info, (; dir))
 end
 
@@ -52,6 +52,7 @@ function next_dir(S::ConjugateGradientManual, info; preconditioner, transport_ty
     # Transport previous dir and gradient on current point x_new
     τdir = transport_AMO(dir, x_prev, dir, info.step, x_new;
                          type=transport_type, collinear=true)
+
     function cg_coeff(flavor)
         (flavor==:Polack_Ribiere) && (return tr(∇E'P∇E)/tr(∇E_prev'P∇E_prev))
         τ_P∇E_prev = transport_AMO(P∇E_prev, x_prev, dir, info.step, x_new;
@@ -60,8 +61,9 @@ function next_dir(S::ConjugateGradientManual, info; preconditioner, transport_ty
         # Hestenes Stiefel (to be confirmed)
         return (tr(∇E'P∇E) - tr(∇E'τ_P∇E_prev)) / (tr(τdir'P∇E) - tr(dir'P∇E_prev))
     end
+    
     β = cg_coeff(S.flavor)
-    dir = TangentVector(project_tangent_AMO(x_new, -P∇E + β*τdir), x_new)
+    dir = TangentVector(-P∇E + β*τdir, x_new)
 
     # Restart if new dir is not a descent direction
     (tr(dir'∇E)/(norm(dir)*norm(∇E)) > -1e-2) && (β = zero(β))
@@ -106,28 +108,28 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
             y = transport_AMO(y, x_prev, dir, info.step, x_new; type, collinear=false)
 
             # Project back on the tangent plane if s or y propagate errors
-            s = TangentVector(project_tangent_AMO(x_new, s.vec), x_new)
-            y = TangentVector(project_tangent_AMO(x_new, y.vec), x_new)
+            # s = TangentVector(project_tangent_AMO(x_new, s.vec), x_new)
+            # y = TangentVector(project_tangent_AMO(x_new, y.vec), x_new)
 
-            sy_tangents = all([is_tangent(s; tol=1e-9), is_tangent(y; tol=1e-9)])
+            sy_tangents = is_tangent(s; tol=1e-9) && is_tangent(y; tol=1e-9)
             !(sy_tangents) && (@show sy_tangents)
             B[k] = (s,y,ρ)
         end
     end
 
     # Compute current s, y and ρ.
-    αdir = TangentVector(info.step*dir.vec, dir.base)
+    αdir = TangentVector(info.step*dir.kappa, dir.base)
     s = transport_AMO(αdir, x_prev, dir, info.step, x_new; type, collinear=true)
-    y = TangentVector(∇E.vec - transport_AMO(∇E_prev, x_prev, dir, info.step, x_new;
+    y = TangentVector(∇E.kappa - transport_AMO(∇E_prev, x_prev, dir, info.step, x_new;
                                              type, collinear=false
-                                             ).vec,
+                                             ).kappa,
                       x_new)
     ρ = 1/tr(s'y)
     push!(B, (s,y,ρ))
 
     # Compute next dir
-    dir_vec = -B(∇E; S.B₀)
-    dir = TangentVector(-B(∇E).vec, x_new)
+    dir_kappa = -B(∇E; S.B₀)
+    dir = TangentVector(dir_kappa, x_new)
 
     # Restart BFGS if dir is not a descent direction
     if (tr(dir'∇E)/(norm(dir)*norm(∇E)) > -1e-2)
@@ -166,13 +168,14 @@ function Absil_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
     @show "ABSIL"
     s, y, ρ = B[B.length]
     γ = tr(s'y)/(norm(y)^2)
-    Nb = size(g.vec,1)
+    Nb = size(g.kappa,1)
     γ*Matrix(I, Nb, Nb)
 end
 
 default_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector) = I
 
 function EWC_LBFGS_guess(B::LBFGSInverseHessian, g::TangentVector)
+    error("TO DEBUG")
     x = g.base
     Nb, Ni, Na = x.Σ.mo_numbers
     G = ROHF_ambiant_gradient(x)
@@ -195,10 +198,10 @@ function (B::LBFGSInverseHessian)(g::TangentVector; B₀=default_LBFGS_init)
     for i = B.length:-1:1
         s, y, ρ = B[i]
         α[i] = ρ * tr(s'q)
-        q = TangentVector(q.vec - α[i]*y, q.base)
+        q = TangentVector(q.kappa - α[i]*y, q.base)
     end
     # Compute Bₖ⁰q
-    r = TangentVector(B₀(B, g)*q.vec, q.base)
+    r = TangentVector(B₀(B, g)*q.kappa, q.base)
     # Second loop
     for i = 1:B.length
         s, y, ρ = B[i]

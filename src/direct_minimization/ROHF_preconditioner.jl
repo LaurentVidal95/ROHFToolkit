@@ -1,5 +1,5 @@
 function default_preconditioner(∇E::TangentVector; trigger=10^(-1/2))
-    (norm(∇E) > trigger) && (return ∇E.vec)
+    (norm(∇E) > trigger) && (return ∇E.kappa)
     preconditioned_gradient_AMO(∇E.base)
 end
 
@@ -38,9 +38,9 @@ function preconditioned_gradient_AMO(ζ::State; num_safety=1e-6)
         !test_2 && (message *=" norm too high;")
         !test_3 && (message *=" not a descent direction;")
         @warn message
-        return ζ.Φ*κ_grad
+        return κ_grad
     end
-    ζ.Φ*κ
+    κ
 end
 
 function build_quasi_newton_system(Φ::Matrix, Fi, Fa, mo_numbers;

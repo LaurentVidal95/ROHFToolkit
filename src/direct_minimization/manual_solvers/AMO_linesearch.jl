@@ -21,31 +21,31 @@ function AMO_linesearch(ζ::State{T}, p::TangentVector{T},
     # @show norm(p), norm(p)/norm(∇E)
     # LineSearches.jl objects
     function f(step)
-        ζ_next = retract_AMO(ζ, TangentVector(step .* p.vec, ζ); type=retraction_type)
+        ζ_next = retract_AMO(ζ, p, step; type=retraction_type)
         energy(ζ_next)
     end
 
     function df(step)
-        ζ_next = retract_AMO(ζ, TangentVector(step .* p.vec, ζ); type=retraction_type)
+        ζ_next = retract_AMO(ζ, p, step; type=retraction_type)
         τ_p = transport_AMO(p, ζ, p, step, ζ_next; type=transport_type, collinear=true)
         ∇E_next = gradient(ζ_next)
         tr(∇E_next'τ_p)
     end
 
     function fdf(step)
-        ζ_next = retract_AMO(ζ, TangentVector(step .* p.vec, ζ); type=retraction_type)
+        ζ_next = retract_AMO(ζ, p, step,; type=retraction_type)
         E_next, ∇E_next =  energy_and_gradient(ζ_next)
         τ_p = transport_AMO(p, ζ, p, step, ζ_next; type=transport_type, collinear=true)
         E_next, tr(∇E_next'τ_p)
     end
 
     # Init objects
-    df0 = tr(∇E'p.vec);
+    df0 = tr(∇E'p);
     α, E_next = linesearch_type(f, df, fdf, maxstep, E, df0)
 
     # Actualize ζ and energy
 
-    ζ_next = retract_AMO(ζ, TangentVector(α .* p.vec, ζ); type=retraction_type)
+    ζ_next = retract_AMO(ζ, p, α; type=retraction_type)
     ζ_next.energy = E_next
     @assert is_point(ζ_next)
 

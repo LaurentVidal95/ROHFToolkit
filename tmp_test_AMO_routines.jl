@@ -1,40 +1,54 @@
 using ROHFToolkit
+import ROHFToolkit as ROHF
 using JSON3
 
+
+function rand_κ_matrix(mo_numbers; target_norm=1.)
+    Nb, Ni, Na = mo_numbers
+    Ne = Nb - (Ni+Na)
+    X = rand(Ni, Na)
+    Y = rand(Ni, Ne)
+    Z = rand(Na, Ne)
+    return [zeros(Ni,Ni) X Y; -X' zeros(Na,Na) Z; -Y' -Z' zeros(Ne,Ne)]
+end
+
+function random_dir(x::State; target_norm=1., return_κ=false)
+    κ = rand_κ_matrix(x.Σ.mo_numbers; target_norm)
+    κ = κ .* (target_norm/norm(κ))
+    dir = TangentVector(κ, x)
+    (return_κ) && (return dir, κ)
+    return dir
+end
+
 function test_gradient(x::State, t::T) where {T<:Real}
+    # error("Adapt to new TangentVector convention")
     @assert x.isortho
-    dir = TangentVector(x.Φ*ROHFToolkit.rand_mmo_matrix(x.Σ.mo_numbers), x)
-    ∇E = AMO_gradient(x.Φ, x)
+    dir = random_dir(x; target_norm=1)
+    ∇E = ROHF.ROHF_gradient(x.Φ, x)
 
     # Compute next point
-    Φ_next = retract_AMO(x.Φ, t*dir.vec)
-    E_next = energy(x.Σ.Sm12*Φ_next, x)
+    x_next = ROHF.retract(x, dir, t)
+    E_next = ROHF.ROHF_energy(x_next)
 
     # Test
     foo = (E_next - x.energy)/t
-    bar = tr(∇E.vec'dir.vec)
+    bar = tr(∇E.kappa'dir.kappa)
     foo, bar, norm(foo-bar)
 end
 
-function random_dir(x::State; target_norm=1., return_B=false)
-    B = ROHFToolkit.rand_mmo_matrix(x.Σ.mo_numbers)
-    B = B .* (target_norm/norm(B))
-    dir_vec = x.Φ*B
-    return_B && return TangentVector(dir_vec, x), B
-    TangentVector(dir_vec, x)
-end
+function test_transport(x::State, α; target_norm=1, type=:exp)
+    X1 = random_dir(x; target_norm) # vec to be transported
+    X2 = random_dir(x; target_norm) # direction of transport
+    x_next = ROHFToolkit.retract_AMO(x, X2, α)
+    @assert ROHFToolkit.is_point(x_next)
 
-function test_transport(x::State, α; target_norm=1)
-    dir_1 = random_dir(x; target_norm) # vec to be transported
-    dir_2 = random_dir(x; target_norm) # direction of transport
-    x_next = State(x, ROHFToolkit.retract_AMO(x.Φ, α*dir_2))
-    @show norm(dir_1)
-    cos_angle = tr(dir_1.vec'dir_2.vec)/(norm(dir_1)*norm(dir_2))
-    @show "cos angle: $(cos_angle)"
+    cos_angle = tr(X1.kappa'X2.kappa)/(norm(X1)*norm(X2))
+    @info norm(X1)
+    @info "cos angle: $(cos_angle)"
 
     # Transport
-    τdir_1 = ROHFToolkit.parallel_transport_AMO(dir_1, x, dir_2, α, x_next)
+    τX1 = ROHFToolkit.transport_AMO(X1, x, X2, α, x_next; type)
 
     # Test that the transported vector is in the right tangent space
-    ROHFToolkit.test_tangent(τdir_1)
+    ROHFToolkit.is_tangent(τX1)
 end

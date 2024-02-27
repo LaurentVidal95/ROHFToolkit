@@ -34,7 +34,7 @@ function direct_minimization_manual(ζ::State;
     # Setup solver and preconditioner
     precondition(ζ) = preconditioned_gradient_AMO(ζ; trigger=preconditioning_trigger)
     sol = solver(; preconditioned, solver_kwargs...)
-    !(preconditioned) && (preconditioner=∇E->∇E.vec)
+    !(preconditioned) && (preconditioner=∇E->∇E.kappa)
 
     # Linesearch.jl only handles Float64 step sisze
     (typeof(maxstep)≠Float64) && (maxstep=Float64(maxstep))
@@ -46,7 +46,7 @@ function direct_minimization_manual(ζ::State;
 
     # Populate info with initial data
     n_iter          = zero(Int64)
-    tol_ci=0.1*tolmin
+    tol_ci          = 0.1*tolmin
     E, ∇E           = fg(ζ; tol_ci)
     E_prev, ∇E_prev = copy(E), deepcopy(∇E)
     P∇E             = TangentVector(preconditioner(∇E), ζ)
