@@ -16,45 +16,37 @@ end
 TODO
 """
 function project_tangent_AMO(Φ::Matrix, mo_numbers, M::Matrix)
-    # Construct B matrix and project
-    B_proj = asym(Φ'M)
-    remove_diag_blocs!(B_proj, mo_numbers)
-    Φ*B_proj
+    # Construct κ matrix and project
+    κ_proj = asym(Φ'M)
+    remove_diag_blocs!(κ_proj, mo_numbers)
 end
 function project_tangent_AMO(ζ::State, M::Matrix)
     @assert ζ.isortho
     @assert ζ.virtuals
-    project_tangent_AMO(ζ.Φ, ζ.Σ.mo_numbers, M)
+    κ = project_tangent_AMO(ζ.Φ, ζ.Σ.mo_numbers, M)
+    TangentVector(κ, ζ)
 end
 
 @doc raw"""
 TODO
 """
-function exp_retract_AMO(Φ::Matrix{T}, Ψ::Matrix{T}) where {T<:Real}
-    B = Φ'Ψ
-    Φ*exp(B)
-end
-function QR_retract_AMO(Φ::Matrix{T}, Ψ::Matrix{T}) where {T<:Real}
-   Matrix(qr(Φ + Ψ).Q)
-end
+exp_retract_AMO(Φ::Matrix{T}, κ::Matrix{T}, α=1.) where {T<:Real} =
+    Φ*exp(α*κ)
+QR_retract_AMO(Φ::Matrix{T}, κ::Matrix{T}, α=1.) where {T<:Real} =
+   Φ*Matrix(qr(I + α*κ).Q)
 
-function retract_AMO(Φ::Matrix{T}, Ψ::Matrix{T}; type=:exp) where {T<:Real}
-    (type==:exp) && (return exp_retract_AMO(Φ, Ψ))
-    (type==:QR) && (return QR_retract_AMO(Φ, Ψ))
-    error("Given type of retraction not handled")
-end
-function retract_AMO(ζ::State, Ψ::TangentVector; type=:exp)
-    RΦ = retract_AMO(ζ.Φ, Ψ.vec; type)
-    State(ζ, RΦ)
+function retract_AMO(ζ::State{T}, η::TangentVector{T}, α=1; type=:exp) where {T<:Real}
+    Rη = zero(ζ.Φ)
+    (type==:exp) && (Rη = exp_retract_AMO(ζ.Φ, η.kappa, α))
+    (type==:QR)  && (Rη = QR_retract_AMO(ζ.Φ, η.kappa, α))
+    State(ζ, Rη)
 end
 
 """
 Transport of η1 along η2 from ζ to Rζ(η2)
 """
-function parallel_transport_collinear_AMO(η::TangentVector{T}, α::T, Rη::State{T}) where {T<:Real}
-    B = η.base.Φ'η.vec
-    TangentVector(Rη.Φ*B, Rη)
-end
+parallel_transport_collinear_AMO(η::TangentVector{T}, α::T, Rη::State{T}) where {T<:Real} =
+    TangentVector(α*η.kappa, Rη)
 
 @doc raw"""
 TODO
@@ -66,25 +58,23 @@ function parallel_transport_non_collinear_AMO(η1::TangentVector{T}, ζ::State{T
     @assert η1.base.Φ == η2.base.Φ
 
     # Extract antisymmetric matrices
-    X = η1.base.Φ'*η1.vec
-    B = η2.base.Φ'*η2.vec
+    κ1 = η1.kappa
+    κ2 = η2.kappa
     mo_numbers = ζ.Σ.mo_numbers
 
-    # @info "DEBUG"
-    # @info norm(X), norm(B)
     # Compute the transport exponential post factor
-    function exp_φ(X; tol=1e-8, kmax=200)
-        ad_Bm(X) = remove_diag_blocs!(B*X - X*B, mo_numbers)
+    function exp_φ(κ1; tol=1e-8, kmax=200)
+        ad_κ2m(κ1) = remove_diag_blocs!(κ2*κ1 - κ1*κ2, mo_numbers)
         # k = 0
-        output = X
+        output = κ1
         # k = 1
         k=1
-        current_term = - (α/2)*ad_Bm(X)
+        current_term = - (α/2)*ad_κ2m(κ1)
         output = output + current_term
         # k > 1
         while (norm(current_term) > tol) && (k < kmax)
             k += 1
-            current_term = (-α/(2*k))*ad_Bm(current_term)
+            current_term = (-α/(2*k))*ad_κ2m(current_term)
             output = output + current_term
         end
         if norm(current_term) > tol
@@ -94,9 +84,8 @@ function parallel_transport_non_collinear_AMO(η1::TangentVector{T}, ζ::State{T
         end
         output
     end
-    # transport and return in a TangentVector struct
-    τη1_vec = Rη2.Φ*exp_φ(X)
-    TangentVector(τη1_vec, Rη2)
+    # transport and return in a TangentVector structure
+    TangentVector(exp_φ(κ1), Rη2)
 end
 function parallel_transport_AMO(η1::TangentVector{T}, ζ::State{T},
                                 η2::TangentVector{T}, α::T, Rη2::State{T};
@@ -105,9 +94,18 @@ function parallel_transport_AMO(η1::TangentVector{T}, ζ::State{T},
     return  parallel_transport_non_collinear_AMO(η1, ζ, η2, α, Rη2)
 end
 
+@doc raw"""
+Simply projects η1 on the tangent space to Rη2
+"""
+function projection_transport_AMO(η1::TangentVector{T}, ζ::State{T}, η2::TangentVector{T},
+                                  α::T, Rη2::State{T}) where {T<:Real}
+    project_tangent_AMO(Rη2, η1.kappa)
+end
+
 function QR_transport_non_collinear_AMO(Y::TangentVector{T}, x::State{T},
                                         X::TangentVector{T}, α::T, RX::State{T}) where {T<:Real}
     
+    error("Adapt to new TangentVector convention")
     @assert X.base.Φ == Y.base.Φ
     # Renaming for clarity
     Φ = x.Φ
@@ -144,6 +142,6 @@ function transport_AMO(η1::TangentVector{T}, ζ::State{T},
                        type=:exp, collinear=false) where {T<:Real}
     (type==:exp) && (return parallel_transport_AMO(η1, ζ, η2, α, Rη2; collinear))
     (type==:QR) && (return QR_transport_AMO(η1, ζ, η2, α, Rη2; collinear))
-    (type==:proj) && (return TangentVector(project_tangent_AMO(Rη2, η1.vec), Rη2))
+    (type==:proj) && (return projection_transport_AMO(η1, ζ, η2, α, Rη2))
     error("Given type of tranport not handled")
 end

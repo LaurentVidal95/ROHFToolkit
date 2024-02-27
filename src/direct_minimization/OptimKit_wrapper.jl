@@ -76,7 +76,7 @@ function optimkit_kwargs(; retraction_type=:exp,
 
     (verbose) && (kwargs=merge(kwargs, (; finalize!)))
     # Set preconditioner
-    !(preconditioned) && (preconditioner=∇E->∇E.vec)
+    !(preconditioned) && (preconditioner=∇E->∇E.kappa)
     precondition=(args...)-> precondition_optimkit(args...; preconditioner)
     kwargs=merge(kwargs, (; precondition))
 
@@ -93,7 +93,7 @@ end
 
 function retract(ζ::State{T}, η::TangentVector{T}, α; type=:exp) where {T<:Real}
     @assert(η.base.Φ == ζ.Φ) # check that ζ is the base of η
-    Rη = State(ζ, retract_AMO(ζ.Φ, α*η; type))
+    Rη = retract_AMO(ζ, η, α; type)
     τη = transport_AMO(η, ζ, η, α, Rη; type, collinear=true)
     Rη, τη
 end
@@ -103,7 +103,7 @@ function transport!(η1::TangentVector{T}, ζ::State{T},
                     type=:exp) where {T<:Real}
     # Test colinearity
     angle(X::Matrix,Y::Matrix) = tr(X'Y) / (norm(X)*norm(Y))
-    collinear = norm(abs(angle(η1.vec, η2.vec)) - 1) < 1e-8
+    collinear = norm(abs(angle(η1.kappa, η2.kappa)) - 1) < 1e-10
     transport_AMO(η1, ζ, η2, α, Rη2; type, collinear)
 end
 

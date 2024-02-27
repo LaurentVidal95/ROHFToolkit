@@ -19,6 +19,7 @@ split_MOs(ζ::State) = split_MOs(ζ.Φ, ζ.Σ.mo_numbers; ζ.virtuals)
 function split_MOs(Ψ::TangentVector)
     ζ=Ψ.base
     split_MOs(Ψ.vec, ζ.Σ.mo_numbers; ζ.virtuals), split_MOs(ζ; ζ.virtuals)
+    error("Adapt to new TangentVector convention")
 end
 
 @doc raw"""
@@ -82,17 +83,17 @@ function is_tangent(X::TangentVector; tol=1e-8)
     Ne = Nb - (Ni+Na)
     No = Ni+Na
 
-    Φ = X.base.Φ
-    B = X.base.Φ'X.vec
+    κ = X.kappa
 
-    # check that the diag blocs of B are zero
-    test = zero(eltype(Φ))
-    test += norm(B[1:Ni, 1:Ni])
-    test += norm(B[Ni+1:No, Ni+1:No])
-    test += norm(B[No+1:Nb, No+1:Nb])
+    # check that the diag blocs of κ are zero
+    test = zero(eltype(X.base.Φ))
+    test += norm(κ[1:Ni, 1:Ni])
+    test += norm(κ[Ni+1:No, Ni+1:No])
+    test += norm(κ[No+1:Nb, No+1:Nb])
 
-    # test that B is antisymmetric
-    test += norm(B + B')
+    # test that κ is antisymmetric
+    test += norm(κ + κ')
+
     return test < tol
 end
 

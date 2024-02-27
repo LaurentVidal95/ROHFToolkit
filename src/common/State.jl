@@ -109,22 +109,21 @@ Mainly serve to match the conventions of the OptimKit optimization library.
 Note that if vec = base.Φ, the TangentVector is just a State.
 """
 struct TangentVector{T<:Real}
-    vec::AbstractMatrix{T}
+    kappa::AbstractMatrix{T}
     base::State{T}
 end
 
 """
 Overloading basic operations for TangentVectors.
 """
-TangentVector(ζ::State) = TangentVector(ζ.Φ, Φ)
-(+)(A::Matrix, X::TangentVector) = (+)(A, X.vec)
-(+)(X::TangentVector, A::Matrix) = (+)(X.vec, A)
-(*)(λ::Real, X::TangentVector) = (*)(λ, X.vec)
-(*)(A::Adjoint{Float64, Matrix{Float64}}, X::TangentVector) = (*)(A, X.vec)
-(-)(X::TangentVector) = -X.vec
-norm(X::TangentVector) = norm(X.vec)
-(adjoint)(X::TangentVector) = X.vec'
-(vec)(X::TangentVector) = vec(X.vec)
+(+)(A::Matrix, X::TangentVector) = (+)(A, X.kappa)
+(+)(X::TangentVector, A::Matrix) = (+)(X.kappa, A)
+(*)(λ::Real, X::TangentVector) = (*)(λ, X.kappa)
+(*)(A::Adjoint{Float64, Matrix{Float64}}, X::TangentVector) = (*)(A, X.kappa)
+(-)(X::TangentVector) = -X.kappa
+norm(X::TangentVector) = norm(X.kappa)
+(adjoint)(X::TangentVector) = X.kappa'
+(vec)(X::TangentVector) = vec(X.kappa)
 
 @doc raw"""
     reset_state!(ζ::State; guess=:minao)

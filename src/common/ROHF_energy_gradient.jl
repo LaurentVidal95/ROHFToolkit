@@ -101,43 +101,26 @@ function Fock_operators(Piᵒ, Paᵒ, ζ::State{T}) where {T<:Real}
     Fock_operators(Ji, Ja, Ki, Ka, H, Sm12)
 end
 
-
-@doc raw"""
-    TODO
-"""
-function ROHF_ambiant_gradient(Φ, mo_numbers, Fi, Fa)
+function ROHF_gradient_κ(Φ, Fi, Fa, mo_numbers)
+    # Extract MO numbers
     Nb, Ni, Na = mo_numbers
-    I_Ni = diagm(vcat(ones(Ni), zeros(Nb-Ni)))
-    I_Na = diagm(vcat(zeros(Ni), ones(Na), zeros(Nb-(Ni+Na))))
-    4*Fi*Φ*I_Ni + 4*Fa*Φ*I_Na
+    Ne = Nb - (Ni+Na)
+    # Compute κ
+    Φi, Φa, Φe = split_MOs(Φ, (Nb, Ni, Na); virtuals=true)
+    Gx = -Φi'*(Fi-Fa)*Φa
+    Gy = -2*Φi'Fi*Φe
+    Gz = -2*Φa'Fa*Φe
+    return [zeros(Ni,Ni) Gx Gy; -Gx' zeros(Na,Na) Gz; -Gy' -Gz' zeros(Ne,Ne)]
 end
-function ROHF_ambiant_gradient(ζ::State)
-    Fi, Fa = Fock_operators(ζ)
-    ROHF_ambiant_gradient(ζ.Φ, ζ.Σ.mo_numbers, Fi, Fa)
-end
-
-@doc raw"""
-     ROHF_gradient_MO_metric(Φ, ζ::State)
-
-Compute the gradient of the ROHF energy in AMO formalism for the metric:
-g(Ψ₁, Ψ₂) = ⟨Ψ₁,Ψ₂⟩_{MO}
-For a state Φ = (Φi, Φa), the gradient lies in the horizontal tangent space at Φ:
-```math
-    TODO
-```
-"""
 function ROHF_gradient(Φ, ζ::State)
     @assert(ζ.isortho)
     @assert(ζ.virtuals)
-    mo_numbers = ζ.Σ.mo_numbers
-
-    # Compute the ambiant gradient
+    # Fock operators in orthonormal AO conventions
     Fi, Fa = Fock_operators(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-2]...)
-    ∇E_ambiant = ROHF_ambiant_gradient(Φ, mo_numbers, Fi, Fa)
 
-    # Project on the horizontal tangent space
-    ∇E = project_tangent_AMO(ζ, ∇E_ambiant)
-    TangentVector(∇E, ζ)
+    # Assemble the kappa matrix of the gradient and return as a TangentVector
+    κ = ROHF_gradient_κ(Φ, Fi, Fa, ζ.Σ.mo_numbers)
+    TangentVector(κ, ζ)
 end
 ROHF_gradient(ζ::State) = ROHF_gradient(ζ.Φ, ζ)
 
@@ -154,16 +137,16 @@ function ROHF_energy_and_gradient(Φ, Sm12, mo_numbers, eri, H, mol)
     E = ROHF_energy(Pi, Pa, Ji, Ja, Ki, Ka, H, mol)
     # gradient
     Fi, Fa = Fock_operators(Ji, Ja, Ki, Ka, H, Sm12)
-    ∇E_ambiant = ROHF_ambiant_gradient(Φ, mo_numbers, Fi, Fa)
-    # Project on the horizontal tangent space
-    ∇E = project_tangent_AMO(Φ, mo_numbers, ∇E_ambiant)
-    E, ∇E
+    κ = ROHF_gradient_κ(Φ, Fi, Fa, mo_numbers)
+
+    # Return energy and gradient
+    E, κ
 end
 function ROHF_energy_and_gradient(Φ, ζ::State)
     @assert(ζ.isortho)
     @assert(ζ.virtuals)
-    E, ∇E = ROHF_energy_and_gradient(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
-    E, TangentVector(∇E, ζ)
+    E, κ = ROHF_energy_and_gradient(Φ, ζ.Σ.Sm12, collect(ζ)[1:end-1]...)
+    E, TangentVector(κ, ζ)
 end
 ROHF_energy_and_gradient(ζ::State; kwargs...) = ROHF_energy_and_gradient(ζ.Φ, ζ)
 
