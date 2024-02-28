@@ -27,7 +27,7 @@ function test_gradient(x::State, t::T) where {T<:Real}
     ∇E = ROHF.ROHF_gradient(x.Φ, x)
 
     # Compute next point
-    x_next = ROHF.retract(x, dir, t)
+    x_next = ROHF.retract(x, dir, t)[1]
     E_next = ROHF.ROHF_energy(x_next)
 
     # Test

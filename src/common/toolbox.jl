@@ -78,7 +78,7 @@ is_point(ζ::State; tol=1e-8) = is_point(ζ.Φ, ζ.Σ.mo_numbers; tol)
 """
 Test is the given tangent vector belongs to the tangent space at X.base.
 """
-function is_tangent(X::TangentVector; tol=1e-8)
+function is_tangent(X::TangentVector; tol=1e-8, return_value=false)
     Nb, Ni, Na = X.base.Σ.mo_numbers
     Ne = Nb - (Ni+Na)
     No = Ni+Na
@@ -93,6 +93,7 @@ function is_tangent(X::TangentVector; tol=1e-8)
 
     # test that κ is antisymmetric
     test += norm(κ + κ')
+    (return_value) && (return (test<tol), test)
 
     return test < tol
 end

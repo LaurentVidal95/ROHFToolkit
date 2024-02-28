@@ -52,7 +52,8 @@ function extract_CFOUR_data(CFOUR_file::String)
     @assert norm(S_cfour-S_cfour') < 1e-10
 
     # Remove external orbitals and assemble Stiefel gradient
-    (;mo_numbers, mo_coeffs=Φ_cfour, overlap=S_cfour, energy=E, gradient=∇E_cfour, prec_gradient=P∇E_cfour)
+    (;mo_numbers, mo_coeffs=Φ_cfour, overlap=S_cfour,
+     energy=E, gradient=∇E_cfour, prec_gradient=P∇E_cfour)
 
 end
 
@@ -95,12 +96,11 @@ function CASSCF_energy_and_gradient(ζ::State; CFOUR_ex="xcasscf", verbose=true,
     # run and extract CFOUR data
     _ = run_CFOUR(CFOUR_ex; verbose)
     data = extract_CFOUR_data("energy_gradient.txt")
-    Φ_ortho = ζ.Σ.S12*data.mo_coeffs
 
     # Compute gradient in AMO parametrization from kappa parametrization
     Nb, Ni, Na = data.mo_numbers
     E = data.energy
-    ∇E = TangentVector(Φ_ortho*data.gradient, ζ)
+    ∇E = TangentVector(data.gradient, ζ)
     E, ∇E
 end
 """
@@ -119,9 +119,7 @@ end
 function CASSCF_preconditioner(∇E::TangentVector; max_inverse=1e3)
     @assert isfile("energy_gradient.txt")
     data = extract_CFOUR_data("energy_gradient.txt")    
-    Φ = data.mo_coeffs
-    Φ_ortho = ∇E.base.Σ.S12*Φ
-    Φ_ortho*data.prec_gradient
+    data.prec_gradient
 end
 
 ## DEBUG
