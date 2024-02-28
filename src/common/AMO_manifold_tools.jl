@@ -46,7 +46,7 @@ end
 Transport of η1 along η2 from ζ to Rζ(η2)
 """
 parallel_transport_collinear_AMO(η::TangentVector{T}, α::T, Rη::State{T}) where {T<:Real} =
-    TangentVector(α*η.kappa, Rη)
+    TangentVector(η.kappa, Rη)
 
 @doc raw"""
 TODO
