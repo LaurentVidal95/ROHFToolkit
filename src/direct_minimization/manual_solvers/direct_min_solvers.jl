@@ -14,6 +14,7 @@ end
 function GradientDescentManual(; preconditioned=true)
     name = preconditioned ? "Preconditioned Steepest Descent" : "Steepest Descent"
     prefix = preconditioned ? "prec_SD" : "SD"
+    @info name
     GradientDescentManual(name, prefix)
 end
 
@@ -40,6 +41,7 @@ function ConjugateGradientManual(; preconditioned=true, flavor=:Fletcher_Reeves)
     @assert flavor ∈ (:Fletcher_Reeves, :Polack_Ribiere, :Hestenes_Stiefel)
     name = preconditioned ? "Preconditioned Conjugate Gradient" : "Conjugate Gradient"
     prefix = preconditioned ? "prec_CG" : "CG"
+    @info "$(name) with flavor: $(flavor)"
     ConjugateGradientManual(name, prefix, flavor)
 end
 
@@ -99,6 +101,13 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
     dir = info.dir
     # renaming for small lines
     type=transport_type
+
+    # Restart if the step is too small
+    if (info.step < 1e-4)
+        @warn "Restart: steps is too small"
+        empty!(B)
+        dir = TangentVector(-preconditioner(∇E), info.ζ)
+    end
 
     # Transport previous s and y to current location
     if B.length ≥ 1

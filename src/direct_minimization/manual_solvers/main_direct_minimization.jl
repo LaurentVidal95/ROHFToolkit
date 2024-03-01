@@ -61,6 +61,7 @@ function direct_minimization_manual(ζ::State;
 
     # init LBFGS solver if needed
     if isa(sol, LBFGSManual)
+        @assert !preconditioned
         B = LBFGSInverseHessian(sol.depth, TangentVector[],  TangentVector[], eltype(E)[])
         info = merge(info, (; B))
     end
