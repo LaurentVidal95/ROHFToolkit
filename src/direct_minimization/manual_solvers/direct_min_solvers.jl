@@ -139,7 +139,7 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
     if (tr(dir'∇E)/(norm(dir)*norm(∇E)) > -1e-2)
         @warn "Restart: not a descent direction"
         empty!(B)
-        dir = TangentVector(-∇E, info.ζ)
+        dir = TangentVector(-preconditioner(∇E), info.ζ)
     end
     # DEBUG : norm(dir) goes to zero every 30 iterations... Why ?
     dir, merge(info, (; dir, B))

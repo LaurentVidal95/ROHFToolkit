@@ -41,6 +41,9 @@ function direct_minimization_OptimKit(ζ::State;
     # Optimization via OptimKit
     ζ0, E0, ∇E0, _ = optimize(fg, ζ,
                               solver(; gradtol=tol, maxiter, verbosity=0, kwargs...);
+                              # the transport is isometric but the locking condition is by default
+                              # satisfied. I don't want OptimKit to do additional stuff.
+                              isometrictransport=false,
                               optimkit_kwargs(;retraction_type=retraction,
                                            transport_type=transport,
                                            preconditioned,
