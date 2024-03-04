@@ -32,7 +32,6 @@ function direct_minimization_manual(ζ::State;
                                     solver_kwargs...)
 
     # Setup solver and preconditioner
-    precondition(ζ) = preconditioned_gradient_AMO(ζ; trigger=preconditioning_trigger)
     sol = solver(; preconditioned, solver_kwargs...)
     !(preconditioned) && (preconditioner=∇E->∇E.kappa)
 
@@ -61,8 +60,7 @@ function direct_minimization_manual(ζ::State;
 
     # init LBFGS solver if needed
     if isa(sol, LBFGSManual)
-        @assert !preconditioned
-        B = LBFGSInverseHessian(sol.depth, TangentVector[],  TangentVector[], eltype(E)[])
+        B = LBFGSInverseHessian(sol.depth, TangentVector[],  TangentVector[],  TangentVector[], eltype(E)[])
         info = merge(info, (; B))
     end
 
