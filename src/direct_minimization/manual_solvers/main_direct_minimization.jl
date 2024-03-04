@@ -33,7 +33,7 @@ function direct_minimization_manual(ζ::State;
 
     # Setup solver and preconditioner
     sol = solver(; preconditioned, solver_kwargs...)
-    !(preconditioned) && (preconditioner=∇E->∇E.kappa)
+    !(preconditioned) && (preconditioner=∇E->∇E)
 
     # Linesearch.jl only handles Float64 step sisze
     (typeof(maxstep)≠Float64) && (maxstep=Float64(maxstep))
@@ -46,9 +46,9 @@ function direct_minimization_manual(ζ::State;
     # Populate info with initial data
     n_iter          = zero(Int64)
     tol_ci          = 0.1*tolmin
-    E, ∇E           = fg(ζ; tol_ci)
+    E, ∇E           = fg(ζ; tol_ci)    
     E_prev, ∇E_prev = copy(E), deepcopy(∇E)
-    P∇E             = TangentVector(preconditioner(∇E), ζ)
+    P∇E             = preconditioner(∇E)
     P∇E_prev        = deepcopy(P∇E)
     dir             = TangentVector(-P∇E_prev, ζ)
     step            = zero(Float64)
@@ -81,7 +81,7 @@ function direct_minimization_manual(ζ::State;
         tol_ci = max(min(tolmin, 1e-3*norm(info.∇E)), tolmax)
         E, ∇E = fg(ζ; tol_ci)
         E_prev = info.E; ∇E_prev = info.∇E;
-        P∇E = TangentVector(preconditioner(∇E), ζ); P∇E_prev=info.P∇E
+        P∇E = preconditioner(∇E); P∇E_prev=info.P∇E
         residual = norm(info.∇E)
         (residual<tol) && (converged=true)
 

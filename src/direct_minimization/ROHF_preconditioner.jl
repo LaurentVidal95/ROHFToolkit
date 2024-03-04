@@ -1,71 +1,125 @@
 function default_preconditioner(∇E::TangentVector; trigger=10^(-1/2))
-    (norm(∇E) > trigger) && (return ∇E.kappa)
-    preconditioned_gradient_AMO(∇E.base)
+    (norm(∇E) > trigger) && (return ∇E)
+    AMO_preconditioner(∇E)
 end
 
-function preconditioned_gradient_AMO(ζ::State; num_safety=1e-6)
-    Fi, Fa = Fock_operators(ζ)
-    H, G_vec = build_quasi_newton_system(ζ.Φ, Fi, Fa, ζ.Σ.mo_numbers;
-                                         num_safety)
+function AMO_preconditioner(η::TangentVector; num_safety=1e-6)
+    κ = η.kappa
+    Nb, Ni, Na = η.base.Σ.mo_numbers
+    Ne = Nb - (Ni+Na)
 
+    # build quasi newton system
+    H = build_approx_ROHF_hessian(η.base; num_safety)
+    κ_vec = mat_to_vec(κ[1:Ni, Ni+1:Ni+Na], κ[1:Ni, Ni+Na+1:Nb],
+                       κ[Ni+1:Ni+Na, Ni+Na+1:Nb])
+
+    # Return standard gradient if to far from a minimum
     function vec_to_κ(XYZ, Ni, Na, Ne)
         X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
         [zeros(Ni,Ni) X Y; -X' zeros(Na,Na) Z; -Y' -Z' zeros(Ne,Ne)]
     end
-
-    # Return standard gradient if to far from a minimum
-    Nb, Ni, Na = ζ.Σ.mo_numbers
-    Ne = Nb - (Ni+Na)
-    κ_grad = vec_to_κ(G_vec, Ni, Na, Ne)
 
     # Compute quasi newton direction by solving the system with BICGStab l=3.
     # BICGStab requires that L is positive definite which is not the case
     # far from a minimum. In practice a numerical hack allows to compute
     # the lowest eigenvalue of L (without diagonalizing) and we apply a level-shift.
     # Otherwise, replace by Minres if L is still non-positive definite.
-    XYZ, history = bicgstabl(H, G_vec, 3, reltol=1e-14, abstol=1e-14, log=true)
-    κ = vec_to_κ(XYZ, Ni, Na, Ne)     # Convert back to matrix format
+    XYZ, history = bicgstabl(H, κ_vec, 3, reltol=1e-14, abstol=1e-14, log=true)
+    Pκ = vec_to_κ(XYZ, Ni, Na, Ne)     # Convert back to matrix format
 
     # Return unpreconditioned grad if norm(κ) is too high
     # or if -prec_grad is not a descent direction
-    angle_grad_precgrad = tr(κ'κ_grad)/(norm(κ)*norm(κ_grad))
+    angle_grad_precgrad = tr(Pκ'κ)/(norm(Pκ)*norm(κ))
     test_1 = history.isconverged
-    test_2 = norm((I+1e-13)*κ - κ) < 1e-8
-    test_3 = angle_grad_precgrad > 1e-2
-    if !all([test_3, test_2, test_3])
+    test_2 = angle_grad_precgrad > 1e-2
+    if !(test_1 && test_2)
         message = "No preconditioning:"
         !test_1 && (message *=" precgrad system not converged;")
-        !test_2 && (message *=" norm too high;")
-        !test_3 && (message *=" not a descent direction;")
+        !test_2 && (message *=" not a descent direction;")
         @warn message
-        return κ_grad
+        return η
     end
-    κ
+    TangentVector(Pκ, η.base)
 end
-
-function build_quasi_newton_system(Φ::Matrix, Fi, Fa, mo_numbers;
-                                   num_safety=1e-6)
-    Nb, Ni, Na = mo_numbers
+function build_approx_ROHF_hessian(ζ::State; num_safety=1e-6)
+    Nb, Ni, Na = ζ.Σ.mo_numbers
     Ne = Nb - (Ni + Na)
     length_XYZ = Ni*Na + Ni*Ne + Na*Ne
 
     # Build the gradient in XYZ convention
-    Φi, Φa, Φe = split_MOs(Φ, mo_numbers; virtuals=true)
-    Gx = -Φi'*(Fi-Fa)*Φa
-    Gy = -2*Φi'Fi*Φe
-    Gz = -2*Φa'Fa*Φe
-    G_vec = mat_to_vec(Gx, Gy, Gz)
+    Fi, Fa = Fock_operators(ζ)
 
     # Prepare hessian blocs
     Hx¹, Hx², Hy¹, Hy², Hz¹, Hz², shifts =
-        build_hessian_blocs_and_shift(Φ, Fi, Fa, mo_numbers)
+        build_hessian_blocs_and_shift(ζ.Φ, Fi, Fa, ζ.Σ.mo_numbers)
     shift = max(shifts..., num_safety)
     H_tmp = XYZ -> hessian_as_linear_map(XYZ, Hx¹, Hx², Hy¹, Hy², Hz¹, Hz², shift)
-    H = LinearMap(H_tmp, length_XYZ)
-
-    # Return gradient as XYZ vector and hessian as a linear map of XYZ
-    H, G_vec
+    return LinearMap(H_tmp, length_XYZ)
 end
+
+# function preconditioned_gradient_AMO(ζ::State; num_safety=1e-6)
+#     Fi, Fa = Fock_operators(ζ)
+#     H, G_vec = build_quasi_newton_system(ζ.Φ, Fi, Fa, ζ.Σ.mo_numbers;
+#                                          num_safety)
+
+#     function vec_to_κ(XYZ, Ni, Na, Ne)
+#         X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
+#         [zeros(Ni,Ni) X Y; -X' zeros(Na,Na) Z; -Y' -Z' zeros(Ne,Ne)]
+#     end
+
+#     # Return standard gradient if to far from a minimum
+#     Nb, Ni, Na = ζ.Σ.mo_numbers
+#     Ne = Nb - (Ni+Na)
+#     κ_grad = vec_to_κ(G_vec, Ni, Na, Ne)
+
+#     # Compute quasi newton direction by solving the system with BICGStab l=3.
+#     # BICGStab requires that L is positive definite which is not the case
+#     # far from a minimum. In practice a numerical hack allows to compute
+#     # the lowest eigenvalue of L (without diagonalizing) and we apply a level-shift.
+#     # Otherwise, replace by Minres if L is still non-positive definite.
+#     XYZ, history = bicgstabl(H, G_vec, 3, reltol=1e-14, abstol=1e-14, log=true)
+#     κ = vec_to_κ(XYZ, Ni, Na, Ne)     # Convert back to matrix format
+
+#     # Return unpreconditioned grad if norm(κ) is too high
+#     # or if -prec_grad is not a descent direction
+#     angle_grad_precgrad = tr(κ'κ_grad)/(norm(κ)*norm(κ_grad))
+#     test_1 = history.isconverged
+#     test_2 = norm((I+1e-13)*κ - κ) < 1e-8
+#     test_3 = angle_grad_precgrad > 1e-2
+#     if !all([test_3, test_2, test_3])
+#         message = "No preconditioning:"
+#         !test_1 && (message *=" precgrad system not converged;")
+#         !test_2 && (message *=" norm too high;")
+#         !test_3 && (message *=" not a descent direction;")
+#         @warn message
+#         return κ_grad
+#     end
+#     κ
+# end
+
+# function build_quasi_newton_system(Φ::Matrix, Fi, Fa, mo_numbers;
+#                                    num_safety=1e-6)
+#     Nb, Ni, Na = mo_numbers
+#     Ne = Nb - (Ni + Na)
+#     length_XYZ = Ni*Na + Ni*Ne + Na*Ne
+
+#     # Build the gradient in XYZ convention
+#     Φi, Φa, Φe = split_MOs(Φ, mo_numbers; virtuals=true)
+#     Gx = -Φi'*(Fi-Fa)*Φa
+#     Gy = -2*Φi'Fi*Φe
+#     Gz = -2*Φa'Fa*Φe
+#     G_vec = mat_to_vec(Gx, Gy, Gz)
+
+#     # Prepare hessian blocs
+#     Hx¹, Hx², Hy¹, Hy², Hz¹, Hz², shifts =
+#         build_hessian_blocs_and_shift(Φ, Fi, Fa, mo_numbers)
+#     shift = max(shifts..., num_safety)
+#     H_tmp = XYZ -> hessian_as_linear_map(XYZ, Hx¹, Hx², Hy¹, Hy², Hz¹, Hz², shift)
+#     H = LinearMap(H_tmp, length_XYZ)
+
+#     # Return gradient as XYZ vector and hessian as a linear map of XYZ
+#     H, G_vec
+# end
 
 @doc raw"""
 TODO see old paper PartII p.13

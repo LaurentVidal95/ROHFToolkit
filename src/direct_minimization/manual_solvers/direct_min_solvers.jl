@@ -86,6 +86,7 @@ end
 function LBFGSManual(;depth=8, B₀=default_LBFGS_init, preconditioned=true)
     name = preconditioned ? "Preconditioned LBFGS" : "LBFGS"
     prefix = preconditioned ? "prec_LBFGS" : "LBFGS"
+    @info "$(name) with depth $(depth)"
     LBFGSManual(name, prefix, depth, B₀)
 end
 
@@ -102,14 +103,7 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
     dir = info.dir
     # renaming for small lines
     type=transport_type
-
-    # Restart if the step is too small
-    if (info.step < 1e-4)
-        @warn "Restart: steps is too small"
-        empty!(B)
-        dir = TangentVector(-preconditioner(∇E), info.ζ)
-    end
-
+    
     # Transport previous s and y to current location
     if B.length ≥ 1
         for k in 1:B.length
@@ -137,8 +131,7 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
     αdir = TangentVector(info.step*dir.kappa, dir.base)
     s = transport_AMO(αdir, x_prev, dir, info.step, x_new; type, collinear=true)
     y = TangentVector(∇E.kappa - transport_AMO(∇E_prev, x_prev, dir, info.step, x_new;
-                                             type, collinear=false
-                                             ).kappa,
+                                             type, collinear=false).kappa,
                       x_new)
 
     Py = TangentVector(P∇E.kappa - transport_AMO(P∇E_prev, x_prev, dir, info.step, x_new;
@@ -148,7 +141,7 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
     push!(B, (s,y,Py,ρ))
 
     # Compute next dir
-    dir_kappa = -B(P∇E; S.B₀)
+    dir_kappa = -B(∇E; preconditioner, S.B₀)
     dir = TangentVector(dir_kappa, x_new)
 
     # Restart BFGS if dir is not a descent direction
@@ -157,6 +150,18 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
         empty!(B)
         dir = TangentVector(-preconditioner(∇E), info.ζ)
     end
+    # Restart if the step is too small
+    if (info.step < 1e-4)
+        @warn "Restart: steps is too small"
+        empty!(B)
+        dir = TangentVector(-preconditioner(∇E), info.ζ)
+    end
+    # if info.n_iter==130
+    #     @warn "Forced"
+    #     empty!(B)
+    #     dir = TangentVector(-preconditioner(∇E), info.ζ)
+    # end
+
     # DEBUG : norm(dir) goes to zero every 30 iterations... Why ?
     dir, merge(info, (; dir, B))
 end
@@ -193,7 +198,8 @@ function Absil_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
     γ*Matrix(I, Nb, Nb)
 end
 
-default_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector) = I
+default_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector) = Absil_LBFGS_init(B, g)
+id_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector) = I
 
 function EWC_LBFGS_guess(B::LBFGSInverseHessian, g::TangentVector)
     error("TO DEBUG")
@@ -212,17 +218,18 @@ end
 """
 Compute next dir using the two-loop L-BFGS evalutation
 """
-function (B::LBFGSInverseHessian)(g::TangentVector; B₀=default_LBFGS_init)
+function (B::LBFGSInverseHessian)(g::TangentVector; preconditioner, B₀=default_LBFGS_init)
     q = deepcopy(g)
     α = zeros(eltype(g.base.Φ), B.length)
     # First loop
     for i = B.length:-1:1
         s, y, Py, ρ = B[i]
         α[i] = ρ * tr(s'q)
-        q = TangentVector(q.kappa - α[i]*Py, q.base)
+        q = TangentVector(q.kappa - α[i]*y, q.base)
     end
     # Compute Bₖ⁰q
-    r = TangentVector(B₀(B, g)*q.kappa, q.base)
+    Pq = preconditioner(q)
+    r = TangentVector(B₀(B, g)*Pq.kappa, q.base)
     # Second loop
     for i = 1:B.length
         s, y, Py, ρ = B[i]

@@ -79,7 +79,7 @@ function optimkit_kwargs(; retraction_type=:exp,
 
     (verbose) && (kwargs=merge(kwargs, (; finalize!)))
     # Set preconditioner
-    !(preconditioned) && (preconditioner=∇E->∇E.kappa)
+    !(preconditioned) && (preconditioner=∇E->∇E)
     precondition=(args...)-> precondition_optimkit(args...; preconditioner)
     kwargs=merge(kwargs, (; precondition))
 
@@ -90,8 +90,7 @@ end
 Wrapper around preconditioner for OptimKit
 """
 function precondition_optimkit(ζ::State, η; preconditioner)
-    ∇E_prec_kappa = preconditioner(η)
-    TangentVector(∇E_prec_kappa, ζ)
+    preconditioner(η)
 end
 
 function retract(ζ::State{T}, η::TangentVector{T}, α; type=:exp) where {T<:Real}
