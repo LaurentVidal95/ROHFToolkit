@@ -55,6 +55,10 @@ function reshape_XYZ(XYZ, N1, N2, N3)
     Z = reshape(XYZ[N1*N2+N1*N3+1:end], N2, N3)
     X,Y,Z
 end
+function vec_to_κ(XYZ, Ni, Na, Ne)
+    X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
+    [zeros(Ni,Ni) X Y; -X' zeros(Na,Na) Z; -Y' -Z' zeros(Ne,Ne)]
+end
 
 @doc raw"""
      is_point(Φ::Matrix{T}, mo_numbers) where {T<:Real}
