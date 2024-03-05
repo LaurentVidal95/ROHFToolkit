@@ -156,6 +156,12 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
         empty!(B)
         dir = TangentVector(-preconditioner(∇E), info.ζ)
     end
+    if isfile("RESTART_LBFGS")
+        @warn "Restart: diagonal test"
+        empty!(B)
+        dir = TangentVector(-preconditioner(∇E), info.ζ)
+        rm("RESTART_LBFGS")
+    end        
     # if info.n_iter==130
     #     @warn "Forced"
     #     empty!(B)

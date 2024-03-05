@@ -130,7 +130,24 @@ function CASSCF_preconditioner(η::TangentVector; tol=1e-6)
     end
     TangentVector(Pη, η.base)
 end
-
+function CASSCF_fixed_diag_preconditioner(η::TangentVector; tol=1e-6)
+    @assert isfile("energy_gradient.txt")
+    data = extract_CFOUR_data("energy_gradient.txt")    
+    current_diag = data.hess_diag_matrix
+    if !isfile("casscf_diag.txt")
+        writedlm("casscf_diag.txt", current_diag)
+    end
+    diag = readdlm("casscf_diag.txt")
+    if norm(diag - current_diag) > 0.2
+        diag = current_diag
+        writedlm("RESTART_LBFGS", rand())
+    end
+    Pη = map(zip(η.kappa, diag)) do (x,y)
+        y = iszero(y) ? 1. : abs(y)
+        x/y
+    end
+    TangentVector(Pη, η.base)
+end
 
 ## DEBUG
 # function CASSCF_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
