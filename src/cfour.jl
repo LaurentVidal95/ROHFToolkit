@@ -48,7 +48,6 @@ function extract_CFOUR_data(CFOUR_file::String)
 
     P∇E_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
     hess_diag_matrix = reshape(multipop(data, Nb^2), Nb, Nb)
-    hess_diag = multipop(data, N_rot)
 
     # Sanity checks
     @assert isempty(data)
@@ -57,7 +56,7 @@ function extract_CFOUR_data(CFOUR_file::String)
 
     # Remove external orbitals and assemble Stiefel gradient
     (;mo_numbers, mo_coeffs=Φ_cfour, overlap=S_cfour,
-     energy=E, gradient=∇E_cfour, prec_gradient=P∇E_cfour, hess_diag_matrix, hess_diag)
+     energy=E, gradient=∇E_cfour, prec_gradient=P∇E_cfour, hess_diag_matrix)
 
 end
 
@@ -130,7 +129,7 @@ function CASSCF_preconditioner(η::TangentVector; tol=1e-6)
     end
     TangentVector(Pη, η.base)
 end
-function CASSCF_fixed_diag_preconditioner(η::TangentVector; tol=1e-6)
+function CASSCF_fixed_diag_preconditioner(η::TangentVector; tol=0.2)
     @assert isfile("energy_gradient.txt")
     data = extract_CFOUR_data("energy_gradient.txt")    
     current_diag = data.hess_diag_matrix
@@ -138,8 +137,9 @@ function CASSCF_fixed_diag_preconditioner(η::TangentVector; tol=1e-6)
         writedlm("casscf_diag.txt", current_diag)
     end
     diag = readdlm("casscf_diag.txt")
-    if norm(diag - current_diag) > 0.2
+    if norm(diag - current_diag) > tol
         diag = current_diag
+        writedlm("casscf_diag.txt", current_diag)
         writedlm("RESTART_LBFGS", rand())
     end
     Pη = map(zip(η.kappa, diag)) do (x,y)

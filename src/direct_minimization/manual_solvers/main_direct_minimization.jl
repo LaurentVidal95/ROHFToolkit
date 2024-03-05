@@ -99,5 +99,9 @@ function direct_minimization_manual(ζ::State;
     (info.converged) ? (@info "Final energy: $(ζ.energy) Ha") :
         println("----Maximum iteration reached")
 
+    # Remove CASSCF LBFGS files
+    !isfile("casscf_diag.txt") && rm("casscf_diag.txt")
+    !isfile("RESTART_LBFGS") && rm("RESTART_LBFGS.txt")
+
     prompt.clean(info)
 end

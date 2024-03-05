@@ -64,6 +64,7 @@ export CFOUR_init
 export CASSCFState
 export energy_landscape
 export CASSCF_preconditioner
+export CASSCF_fixed_diag_preconditioner
 export CASSCF_LBFGS_init
 include("cfour.jl")
 
