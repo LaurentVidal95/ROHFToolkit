@@ -35,17 +35,21 @@ function extract_CFOUR_data(CFOUR_file::String)
     # Extract MO numbers and energy
     Ni, Na, Ne = Int.(multipop(data, 3))
     Nb = Ni+Na+Ne
+    N_rot = Ni*Na + Ni*Ne + Na*Ne
     mo_numbers = (Nb, Ni, Na)
     E = popfirst!(data)
 
-    ∇E_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
+    ∇E_cfour = reshape(multipop(data, Nb^2), Nb, N)
+    
     @assert(norm(∇E_cfour' + ∇E_cfour) < 1e-10)
     # Extract orbitals and overlap
     Φ_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
     S_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
 
     P∇E_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
-    
+    hess_diag_matrix = reshape(multipop(data, Nb^2), Nb, Nb)
+    hess_diag = multipop(data, N_rot)
+
     # Sanity checks
     @assert isempty(data)
     @assert norm(Φ_cfour'S_cfour*Φ_cfour - I) < 1e-7
@@ -53,7 +57,7 @@ function extract_CFOUR_data(CFOUR_file::String)
 
     # Remove external orbitals and assemble Stiefel gradient
     (;mo_numbers, mo_coeffs=Φ_cfour, overlap=S_cfour,
-     energy=E, gradient=∇E_cfour, prec_gradient=P∇E_cfour)
+     energy=E, gradient=∇E_cfour, prec_gradient=P∇E_cfour, hess_diag_matrix, hess_diag)
 
 end
 
@@ -116,11 +120,26 @@ function CASSCF_gradient(ζ::State; CFOUR_ex="xcasscf", verbose=true, tol_ci=not
     E, ∇E = CASSCF_energy_and_gradient(ζ; CFOUR_ex, verbose, tol_ci)
     ∇E
 end
-function CASSCF_preconditioner(∇E::TangentVector; max_inverse=1e3)
+# function CASSCF_preconditioner(∇E::TangentVector; max_inverse=1e3)
+#     @assert isfile("energy_gradient.txt")
+#     data = extract_CFOUR_data("energy_gradient.txt")    
+#     data.prec_gradient
+# end
+function CASSCF_preconditioner(η::TangentVector; max_inverse=1e3)
     @assert isfile("energy_gradient.txt")
     data = extract_CFOUR_data("energy_gradient.txt")    
-    data.prec_gradient
+    B_diag = 1 ./ data.hess_diag
+    Nb, Ni, Na = data.mo_numbers
+    Ne = Nb - (Ni+Na)
+    # transform B into a diagonal matrix
+    change_major_order(X::AbstractArray, size...=size(X)...) = permutedims(reshape(X, reverse([size...])...), length(size):-1:1)
+    X = .- change_major_order(reshape(B_diag[1:Ni*Na], Ni, Na))
+    Y = .- change_major_order(reshape(B_diag[Ni*Na+1:Ni*Na+Ni*Ne], Ni, Ne))
+    Z = .- change_major_order(reshape(B_diag[Ni*Na+Ni*Ne+1:Ni*Na+Ni*Ne+Na*Ne], Na, Ne))
+    inv_hess = [zeros(Ni,Ni) X Y; -X' zeros(Na, Na) Z; -Y' -Z' zeros(Ne, Ne)]
+    TangentVector(inv_hess * η.kappa, η.base)
 end
+
 
 ## DEBUG
 # function CASSCF_LBFGS_init(B::LBFGSInverseHessian, g::TangentVector)
