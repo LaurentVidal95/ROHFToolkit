@@ -39,7 +39,7 @@ function extract_CFOUR_data(CFOUR_file::String)
     mo_numbers = (Nb, Ni, Na)
     E = popfirst!(data)
 
-    ∇E_cfour = reshape(multipop(data, Nb^2), Nb, N)
+    ∇E_cfour = reshape(multipop(data, Nb^2), Nb, Nb)
     
     @assert(norm(∇E_cfour' + ∇E_cfour) < 1e-10)
     # Extract orbitals and overlap
