@@ -133,7 +133,7 @@ function oda_convex_combination_param(c₁::T, c₂::T) where {T<:Real}
     end
     iszero(t_min) && (@warn "Coefficient of the convex combination is 0.."*
                       " Changin guess of the subproblem.")
-    @show t_min
+    t_min
 end
 """
    oda_polynom_coefficients(Pdₙᶜ::Matrix{T}, Psₙᶜ::Matrix{T}, Fdₙᶜ::Matrix{T},

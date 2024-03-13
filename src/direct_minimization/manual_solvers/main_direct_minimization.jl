@@ -100,8 +100,8 @@ function direct_minimization_manual(ζ::State;
         println("----Maximum iteration reached")
 
     # Remove CASSCF LBFGS files
-    !isfile("casscf_diag.txt") && rm("casscf_diag.txt")
-    !isfile("RESTART_LBFGS") && rm("RESTART_LBFGS.txt")
+    isfile("casscf_diag.txt") && rm("casscf_diag.txt")
+    isfile("RESTART_LBFGS") && rm("RESTART_LBFGS")
 
     prompt.clean(info)
 end
