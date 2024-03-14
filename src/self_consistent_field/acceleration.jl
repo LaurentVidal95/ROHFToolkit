@@ -39,13 +39,13 @@ from densities contained in info and history in the DIIS struct.
 function (diis::DIIS)(info)
     Pdₙ, Psₙ = info.DMs
     Rₙ = info.∇E
-    
+    Fdₙ, Fsₙ = Fock_operators(Pdₙ, Psₙ, info.ζ)
     # Special case, no DIIS.
-    (diis.m == 0) && return (Pdₙ, Psₙ, Fock_operators(Pdₙ, Psₙ, info.ζ)...)
+    (diis.m == 0) && return (Pdₙ, Psₙ, Fdₙ, Fsₙ, info)
     # First iteration
     if isempty(diis.iterates)
         push!(diis, Pdₙ, Psₙ, Rₙ)
-        return Pdₙ, Psₙ,  Fock_operators(Pdₙ, Psₙ, info.ζ)...
+        return Pdₙ, Psₙ, Fdₙ, Fsₙ, info
     end
 
     push!(diis, Pdₙ, Psₙ, Rₙ)
@@ -62,7 +62,8 @@ function (diis::DIIS)(info)
     𝐏s_diff = [𝐏[i+1][2] - 𝐏[i][2] for i in 1:length(𝐏)-1]
     Pd_diis = Pdₙ - C'𝐏d_diff
     Ps_diis = Psₙ - C'𝐏s_diff
-    Pd_diis, Ps_diis, Fock_operators(Pd_diis, Ps_diis, info.ζ)...
+    Fd_diis, Fs_diis = Fock_operators(Pd_diis, Ps_diis, info.ζ)
+    Pd_diis, Ps_diis, Fd_diis, Fs_diis, info
 end
 
 @doc raw"""
@@ -94,7 +95,7 @@ function (oda::ODA{T})(info) where {T<:Real}
     if isempty(oda.densities)
         Fdₙ₊₁, Fsₙ₊₁ = Fock_operators(Pdₙ₊₁, Psₙ₊₁, info.ζ)
         oda.densities = hcat(Pdₙ₊₁, Psₙ₊₁); oda.Fock_operators = hcat(Fdₙ₊₁, Fsₙ₊₁)
-        return (Pdₙ₊₁, Psₙ₊₁, Fdₙ₊₁, Fsₙ₊₁)
+        return (Pdₙ₊₁, Psₙ₊₁, Fdₙ₊₁, Fsₙ₊₁, info)
     end
 
     # Subsequent iterations
@@ -104,12 +105,29 @@ function (oda::ODA{T})(info) where {T<:Real}
     c₁, c₂, Fdₙ₊₁, Fsₙ₊₁ = oda_polynom_coefficients(Pdₙᶜ, Psₙᶜ, Fdₙᶜ, Fsₙᶜ,
                                                     Pdₙ₊₁, Psₙ₊₁, info.ζ)
     t = oda_convex_combination_param(c₁, c₂) # Add changing guess if t=0
+
+    # Handles the t=0 case (ODA stuck) by changing the inner scf loop guess
+    # The second guess is Euler. Otherwise switch to :none, which is way more stable
+    # but slow
+    if iszero(t)
+        @warn "Coefficient of the convex combination is 0. Changin guess of the subproblem"
+        if (info.effective_hamiltonian==:Euler)
+            info = merge(info, (;effective_hamiltonian=:none))
+        else
+            info = merge(info, (;effective_hamiltonian=:Euler))
+        end
+    else
+        default_heff = :Guest_Saunders
+        (info.effective_hamiltonian≠:default_heff) && (info = merge(info,
+                                                (;effective_hamiltonian=default_heff)))
+    end
+    
     Pdₙ₊₁ᶜ = (1-t)*Pdₙᶜ + t*Pdₙ₊₁
     Psₙ₊₁ᶜ = (1-t)*Psₙᶜ + t*Psₙ₊₁
     Fdₙ₊₁ᶜ = (1-t)*Fdₙᶜ + t*Fdₙ₊₁
     Fsₙ₊₁ᶜ = (1-t)*Fsₙᶜ + t*Fsₙ₊₁
     oda.densities = hcat(Pdₙ₊₁ᶜ , Psₙ₊₁ᶜ); oda.Fock_operators = hcat(Fdₙ₊₁ᶜ ,Fsₙ₊₁ᶜ)
-    Pdₙ₊₁ᶜ, Psₙ₊₁ᶜ, Fdₙ₊₁ᶜ, Fsₙ₊₁ᶜ
+    Pdₙ₊₁ᶜ, Psₙ₊₁ᶜ, Fdₙ₊₁ᶜ, Fsₙ₊₁ᶜ, info
 end
 
 """
@@ -131,8 +149,6 @@ function oda_convex_combination_param(c₁::T, c₂::T) where {T<:Real}
         (t_extremum > 0.5) && (t_min = zero(T))
         (t_extremum == 0.5) && (t_min = t_extremum)
     end
-    iszero(t_min) && (@warn "Coefficient of the convex combination is 0.."*
-                      " Changin guess of the subproblem.")
     t_min
 end
 """

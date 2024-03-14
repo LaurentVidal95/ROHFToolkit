@@ -63,8 +63,8 @@ function scf_method(ζ::State;
 
         # Compute current densities (or DIIS extrapolation if activated)
         ζ = info.ζ
-        Pd, Ps, Fd, Fs = acceleration(info)
-
+        Pd, Ps, Fd, Fs, info = acceleration(info)
+ 
         # n -> n+1 densities and state
         ζ, Pd_out, Ps_out = g_update(Pd, Ps, Fd, Fs, ζ, info)
 
