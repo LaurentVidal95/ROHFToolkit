@@ -42,7 +42,7 @@ function hybrid_scf(info; fixpoint_map, maxiter=500, inner_loop_verbosity=0)
 
         function hybrid_SCF_precondition(ζ::State, η)
             (norm(η) > 10^(-1/2)) && (return η)
-            return hybrid_SCF_preconditioned_grad(Pd, Ps, ζ)
+            return AMO_preconditioner(Fd, Fs, η)
         end
 
         # Solve subproblem with CG
@@ -99,7 +99,7 @@ function hybrid_SCF_optimization_args(Pi₀::Matrix{T}, Pa₀::Matrix{T},
         
         f = tr(Fi₀*Φi*Φi') + tr(Fa₀*Φa*Φa')
 
-        Gx = -(1/2)*Φi'*(Fi₀-Fa₀)*Φa
+        Gx = -Φi'*(Fi₀-Fa₀)*Φa
         Gy = -Φi'Fi₀*Φe
         Gz = -Φa'Fa₀*Φe
         # Assemble into kappa matrix
@@ -110,21 +110,4 @@ function hybrid_SCF_optimization_args(Pi₀::Matrix{T}, Pa₀::Matrix{T},
         f, TangentVector(Gκ, ζ)
     end    
     fg₀, ζ_init
-end
-# Same as classic preconditioner but with Fd = (1/2)*Fd₀ and Fs (1/2)*Fs₀
-function hybrid_SCF_preconditioned_grad(Pd::Matrix{T}, Ps::Matrix{T},
-                                        ζ::State{T}) where {T<:Real}
-    Fi, Fa = Fock_operators(Pd, Ps, ζ)
-    Fi = (1/2) .* Fi
-    Fa = (1/2) .* Fa
-    # Construct gradient for hybrid scf problem
-    Φi, Φa, Φe = split_MOs(ζ.Φ, ζ.Σ.mo_numbers; virtuals=true)
-    Gx = -Φi'*(Fi-Fa)*Φa
-    Gy = -2*Φi'Fi*Φe
-    Gz = -2*Φa'Fa*Φe
-    # Assemble into kappa matrix
-    Nb, Ni, Na = ζ.Σ.mo_numbers
-    Ne = Nb-(Ni+Na)
-    Gκ = [zeros(Ni,Ni) Gx Gy; -Gx' zeros(Na,Na) Gz; -Gy' -Gz' zeros(Ne,Ne)]
-    AMO_preconditioner(Fi, Fa, TangentVector(Gκ, ζ))
 end

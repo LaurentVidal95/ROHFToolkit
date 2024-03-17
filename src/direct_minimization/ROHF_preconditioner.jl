@@ -26,7 +26,7 @@ function AMO_preconditioner(Fi, Fa, η::TangentVector; num_safety=1e-6)
     # far from a minimum. In practice a numerical hack allows to compute
     # the lowest eigenvalue of L (without diagonalizing) and we apply a level-shift.
     # Otherwise, replace by Minres if L is still non-positive definite.
-    XYZ, history = bicgstabl(H, κ_vec, reltol=1e-14, abstol=1e-14, log=true)
+    XYZ, history = bicgstabl(H, κ_vec, 3, reltol=1e-14, abstol=1e-14, log=true)
     Pκ = vec_to_κ(XYZ, Ni, Na, Ne)     # Convert back to matrix format
 
     # Return unpreconditioned grad if norm(κ) is too high

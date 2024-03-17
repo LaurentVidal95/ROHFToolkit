@@ -107,7 +107,7 @@ function ROHF_gradient_κ(Φ, Fi, Fa, mo_numbers)
     Ne = Nb - (Ni+Na)
     # Compute κ
     Φi, Φa, Φe = split_MOs(Φ, (Nb, Ni, Na); virtuals=true)
-    Gx = -Φi'*(Fi-Fa)*Φa
+    Gx = -2*Φi'*(Fi-Fa)*Φa
     Gy = -2*Φi'Fi*Φe
     Gz = -2*Φa'Fa*Φe
     return [zeros(Ni,Ni) Gx Gy; -Gx' zeros(Na,Na) Gz; -Gy' -Gz' zeros(Ne,Ne)]
