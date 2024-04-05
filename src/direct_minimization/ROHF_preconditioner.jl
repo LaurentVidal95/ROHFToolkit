@@ -98,3 +98,27 @@ function hessian_as_linear_map(XYZ, Hx¹, Hx², Hy¹, Hy², Hz¹, Hz², shift)
     # Matrix to vector
     0.5 * mat_to_vec(Hx, Hy, Hz)
 end
+
+
+function diaghess_preconditioner(ζ::TangentVector)
+    x = ζ.base
+    mf = pyscf.scf.RHF(x.Σ.mol)
+    Nb, Ni, Na = x.Σ.mo_numbers
+    Ne = Nb - (Ni+Na)
+    mo_occ = vcat([2 for _ in 1:Ni], [1 for _ in 1:Na], [0 for _ in 1:(Nb-(Ni+Na))])
+    h_diag = pyscf.soscf.newton_ah.gen_g_hop_rohf(mf, x.Φ, mo_occ)[3]
+
+    P = diagm(map(x->1/x, h_diag))
+
+    # Apply preconditioner
+    κ = ζ.kappa
+    κ_vec = mat_to_vec(κ[1:Ni, Ni+1:Ni+Na], κ[1:Ni, Ni+Na+1:Nb],
+                       κ[Ni+1:Ni+Na, Ni+Na+1:Nb])
+    κ_prec_vec = P*κ_vec
+    function vec_to_κ(XYZ, Ni, Na, Ne)
+        X, Y, Z = reshape_XYZ(XYZ, Ni, Na, Ne)
+        [zeros(Ni,Ni) X Y; -X' zeros(Na,Na) Z; -Y' -Z' zeros(Ne,Ne)]
+    end
+
+    TangentVector(vec_to_κ(κ_prec_vec, Ni, Na, Ne), x)    
+end

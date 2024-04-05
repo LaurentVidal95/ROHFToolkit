@@ -34,7 +34,7 @@ Hybrid SCF solver, where the next density is given by:
 ```
 which is solved by a direct minimization method.
 """
-function hybrid_scf(info; fixpoint_map, maxiter=500, inner_loop_verbosity=0)
+function hybrid_scf(info; fixpoint_map, maxiter=500, inner_loop_verbosity=1)
     # Define hybrid scf update function
     function g_hybrid(Pd, Ps, Fd, Fs, ζ::State, info;
                       guess=info.effective_hamiltonian)
@@ -87,12 +87,14 @@ function hybrid_SCF_optimization_args(Pi₀::Matrix{T}, Pa₀::Matrix{T},
     # Initial point
     ζ_init = ζ₀
     if (guess ≠ :none)
-        H_eff = assemble_H_eff(H_eff_coeffs(guess, ζ₀.Σ.mol)...,
-                               Pi₀, Pa₀, Fi₀, Fa₀)
+        H_eff = Fi₀# assemble_H_eff(H_eff_coeffs(guess, ζ₀.Σ.mol)...,
+                   #             Pi₀, Pa₀, Fi₀, Fa₀)
+        # H_eff = assemble_H_eff(H_eff_coeffs(guess, ζ₀.Σ.mol)...,
+        #                     Pi₀, Pa₀, Fi₀, Fa₀)
         Φ_init = eigvecs(Symmetric(H_eff))[:,1:size(ζ₀.Φ,2)]
         ζ_init = State(ζ₀, Φ_init)
     end
-
+    
     # Function to minimize
     function fg₀(ζ::State)
         Φi, Φa, Φe = split_MOs(ζ.Φ, ζ.Σ.mo_numbers; virtuals=true)
