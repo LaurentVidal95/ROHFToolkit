@@ -3,7 +3,8 @@ function default_direct_min_prompt(; show_dir_angle=false)
     function prompt(info)
         if info.n_iter == 0
             ζ = info.ζ
-            ζ.history = reshape([0, info.E, NaN, NaN, NaN], 1, 5)
+            res = log(10, norm(info.∇E))
+            ζ.history = reshape([0, info.E, NaN, res, NaN], 1, 5)
             info = merge(info, (;ζ))
 
             println("ROHF energy minimization method: $(info.solver.name)")
@@ -14,8 +15,8 @@ function default_direct_min_prompt(; show_dir_angle=false)
             println(@sprintf("%-5s  %-16s  %-16s  %-16s %-16s", header...))
             println("-"^76)
 
-            info_out = [info.n_iter, info.E, " "^16, " "^16, " "^16]
-            println(@sprintf("%5i %16.12f %16s %16s %16s", info_out...))
+            info_out = [info.n_iter, info.E, " "^16, res, " "^16]
+            println(@sprintf("%5i %16.12f %16s %16.12f %16s", info_out...))
         else
             ζ = info.ζ
             log_ΔE = log(10, abs(info.E  - info.E_prev))
@@ -40,7 +41,8 @@ function default_scf_prompt()
     function prompt(info)
         if info.n_iter == 0
             ζ = info.ζ
-            ζ.history = reshape([0, info.E, NaN, NaN, NaN], 1, 5)
+            res = log(10, norm(info.∇E))
+            ζ.history = reshape([0, info.E, NaN, res, NaN], 1, 5)
             info = merge(info, (;ζ))
 
             # Small hack to print steps also
@@ -53,7 +55,7 @@ function default_scf_prompt()
             println(@sprintf("%-5s  %-16s  %-16s  %-16s", header...))
             println("-"^58)
 
-            info_out = [info.n_iter, info.E, " "^16, " "^16]
+            info_out = [info.n_iter, info.E, " "^16, res]
             println(@sprintf("%5i %16.12f %16s %16s", info_out...))
         else
             log_ΔE = log(10, abs(info.E  - info.E_prev))
