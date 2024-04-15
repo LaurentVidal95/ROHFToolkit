@@ -37,7 +37,7 @@ struct ConjugateGradientManual <: Solver
     prefix         ::String
     flavor         ::Symbol
 end
-function ConjugateGradientManual(; preconditioned=true, flavor=:Fletcher_Reeves)
+function ConjugateGradientManual(; preconditioned=true, flavor=:Polack_Ribiere)
     @assert flavor ∈ (:Fletcher_Reeves, :Polack_Ribiere, :Hestenes_Stiefel)
     name = preconditioned ? "Preconditioned Conjugate Gradient" : "Conjugate Gradient"
     prefix = preconditioned ? "prec_CG" : "CG"
@@ -56,10 +56,10 @@ function next_dir(S::ConjugateGradientManual, info; preconditioner, transport_ty
                          type=transport_type, collinear=true)
 
     function cg_coeff(flavor)
-        (flavor==:Polack_Ribiere) && (return tr(∇E'P∇E)/tr(∇E_prev'P∇E_prev))
+        (flavor==:Fletcher_Reeves) && (return tr(∇E'P∇E)/tr(∇E_prev'P∇E_prev))
         τ_P∇E_prev = transport_AMO(P∇E_prev, x_prev, dir, info.step, x_new;
                                    type=transport_type, collinear=false)
-        (flavor==:Fletcher_Reeves) && (return (tr(∇E'P∇E) - tr(∇E'τ_P∇E_prev)) / tr(∇E_prev'P∇E_prev))
+        (flavor==:Polack_Ribiere) && (return (tr(∇E'P∇E) - tr(∇E'τ_P∇E_prev)) / tr(∇E_prev'P∇E_prev))
         # Hestenes Stiefel (to be confirmed)
         return (tr(∇E'P∇E) - tr(∇E'τ_P∇E_prev)) / (tr(τdir'P∇E) - tr(dir'P∇E_prev))
     end
