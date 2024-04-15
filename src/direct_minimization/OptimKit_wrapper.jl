@@ -130,8 +130,9 @@ function finalize!(ζ, E, ∇E, n_iter)
         println(@sprintf("%-5s  %-16s  %-16s  %-16s", header...))
         println("-"^58)
 
-        info_out = [n_iter-1, ζ.energy, " "^16, " "^16]
-        println(@sprintf("%5i %16.12f %16s %16s", info_out...))
+        res = log(10, norm(∇E))
+        info_out = [n_iter-1, ζ.energy, " "^16, res]
+        println(@sprintf("%5i %16.12f %16s %16.12f", info_out...))
         flush(stdout)
     end
     # Print current iter infos
