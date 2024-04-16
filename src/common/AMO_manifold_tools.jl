@@ -15,16 +15,23 @@ end
 @doc raw"""
 TODO
 """
-function project_tangent_AMO(Φ::Matrix, mo_numbers, M::Matrix)
-    # Construct κ matrix and project
-    κ_proj = asym(Φ'M)
-    remove_diag_blocs!(κ_proj, mo_numbers)
-end
-function project_tangent_AMO(ζ::State, M::Matrix)
-    @assert ζ.isortho
-    @assert ζ.virtuals
-    κ = project_tangent_AMO(ζ.Φ, ζ.Σ.mo_numbers, M)
-    TangentVector(κ, ζ)
+# function project_tangent_AMO(Φ::Matrix, mo_numbers, M::Matrix)
+#     # Construct κ matrix and project
+#     κ_proj = asym(Φ'M)
+#     remove_diag_blocs!(κ_proj, mo_numbers)
+# end
+# function project_tangent_AMO(ζ::State, M::Matrix)
+#     @assert ζ.isortho
+#     @assert ζ.virtuals
+#     κ = project_tangent_AMO(ζ.Φ, ζ.Σ.mo_numbers, M)
+#     TangentVector(κ, ζ)
+# end
+
+function ensure_tangent_AMO(X::TangentVector)
+    x = X.base
+    κ_proj = copy((1/2)*(X.kappa - X.kappa'))
+    remove_diag_blocs!(κ_proj, x.Σ.mo_numbers)
+    TangentVector(κ_proj, x)
 end
 
 @doc raw"""
@@ -63,7 +70,7 @@ function parallel_transport_non_collinear_AMO(η1::TangentVector{T}, ζ::State{T
     mo_numbers = ζ.Σ.mo_numbers
 
     # Compute the transport exponential post factor
-    function exp_φ(κ1; tol=1e-8, kmax=200)
+    function exp_φ(κ1; tol=eps(T), kmax=200)
         ad_κ2m(κ1) = remove_diag_blocs!(κ2*κ1 - κ1*κ2, mo_numbers)
         # k = 0
         output = κ1

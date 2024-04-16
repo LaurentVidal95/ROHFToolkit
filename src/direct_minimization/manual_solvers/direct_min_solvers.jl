@@ -112,9 +112,9 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
             y = transport_AMO(y, x_prev, dir, info.step, x_new; type, collinear=false)
             Py = transport_AMO(Py, x_prev, dir, info.step, x_new; type, collinear=false)
 
-            # Project back on the tangent plane if s or y propagate errors
-            # s = TangentVector(project_tangent_AMO(x_new, s.vec), x_new)
-            # y = TangentVector(project_tangent_AMO(x_new, y.vec), x_new)
+            # Project back on the tangent plane if s or y propagate errors           
+            s = ensure_tangent_AMO(s)
+            y = ensure_tangent_AMO(y)
 
             s_tangent = is_tangent(s; tol=1e-9, return_value=true)
             y_tangent = is_tangent(y; tol=1e-9, return_value=true)
