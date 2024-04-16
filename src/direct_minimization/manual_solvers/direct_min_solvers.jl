@@ -61,7 +61,7 @@ function next_dir(S::ConjugateGradientManual, info; preconditioner, transport_ty
                                    type=transport_type, collinear=false)
         (flavor==:Polack_Ribiere) && (return (tr(∇E'P∇E) - tr(∇E'τ_P∇E_prev)) / tr(∇E_prev'P∇E_prev))
         # Hestenes Stiefel (to be confirmed)
-        return (tr(∇E'P∇E) - tr(∇E'τ_P∇E_prev)) / (tr(τdir'P∇E) - tr(dir'P∇E_prev))
+        return (tr(∇E'P∇E) - tr(∇E'τ_P∇E_prev)) / (tr(τdir'∇E) - tr(dir'∇E_prev))
     end
     
     β = cg_coeff(S.flavor)
@@ -83,7 +83,7 @@ struct LBFGSManual <: Solver
     depth          ::Int
     B₀             ::Function
 end
-function LBFGSManual(;depth=8, B₀=default_LBFGS_init, preconditioned=true)
+function LBFGSManual(;depth=20, B₀=default_LBFGS_init, preconditioned=true)
     name = preconditioned ? "Preconditioned LBFGS" : "LBFGS"
     prefix = preconditioned ? "prec_LBFGS" : "LBFGS"
     @info "$(name) with depth $(depth)"
