@@ -3,22 +3,23 @@ import Base: getindex, setindex!, push!, pop!, popfirst!, empty!
 abstract type Solver end
 
 @doc raw"""
-    OLD: GradientDescentManual(; preconditioned=true)
+    OLD: GradientDescent(; preconditioned=true)
 
 (Preconditioned) Steepest descent algorithm on the AMO manifold.
 """
-struct GradientDescentManual <: Solver
+struct GradientDescent <: Solver
     name           ::String
     prefix         ::String
 end
-function GradientDescentManual(; preconditioned=true)
-    name = preconditioned ? "Preconditioned Steepest Descent" : "Steepest Descent"
-    prefix = preconditioned ? "prec_SD" : "SD"
+function GradientDescent(; preconditioned=true)
+    name = preconditioned ? "Preconditioned Riemannian Steepest Descent" :
+        "Riemannian Steepest Descent"
+    prefix = preconditioned ? "P-RSD" : "RSD"
     @info name
-    GradientDescentManual(name, prefix)
+    GradientDescent(name, prefix)
 end
 
-function next_dir(S::GradientDescentManual, info; preconditioner, kwargs...)
+function next_dir(S::GradientDescent, info; preconditioner, kwargs...)
     grad_kappa = preconditioner(info.∇E)
     dir = TangentVector(-grad_kappa, info.ζ)
     dir, merge(info, (; dir))
@@ -26,26 +27,27 @@ end
 
 
 @doc raw"""
-    OLD: ConjugateGradientManual(; preconditioned=true, flavor="Fletcher-Reeves")
+    OLD: ConjugateGradient(; preconditioned=true, flavor="Fletcher-Reeves")
 
 (Preconditioned) conjugate gradient algorithm on the MO manifold.
 The ``cg_type`` for now is useless but will serve to launch other
 types of CG algorithms.
 """
-struct ConjugateGradientManual <: Solver
+struct ConjugateGradient <: Solver
     name           ::String
     prefix         ::String
     flavor         ::Symbol
 end
-function ConjugateGradientManual(; preconditioned=true, flavor=:Polack_Ribiere)
+function ConjugateGradient(; preconditioned=true, flavor=:Polack_Ribiere)
     @assert flavor ∈ (:Fletcher_Reeves, :Polack_Ribiere, :Hestenes_Stiefel)
-    name = preconditioned ? "Preconditioned Conjugate Gradient" : "Conjugate Gradient"
-    prefix = preconditioned ? "prec_CG" : "CG"
+    name = preconditioned ? "Preconditioned Riemannian Conjugate Gradient" :
+        "Riemannian Conjugate Gradient"
+    prefix = preconditioned ? "P-RCG" : "RCG"
     @info "$(name) with flavor: $(flavor)"
-    ConjugateGradientManual(name, prefix, flavor)
+    ConjugateGradient(name, prefix, flavor)
 end
 
-function next_dir(S::ConjugateGradientManual, info; preconditioner, transport_type)
+function next_dir(S::ConjugateGradient, info; preconditioner, transport_type)
     x_new = info.ζ
     ∇E = info.∇E; ∇E_prev = info.∇E_prev
     P∇E = info.P∇E; P∇E_prev = info.P∇E_prev
@@ -63,7 +65,7 @@ function next_dir(S::ConjugateGradientManual, info; preconditioner, transport_ty
         # Hestenes Stiefel (to be confirmed)
         return (tr(∇E'P∇E) - tr(∇E'τ_P∇E_prev)) / (tr(τdir'∇E) - tr(dir'∇E_prev))
     end
-    
+
     β = cg_coeff(S.flavor)
     dir = TangentVector(-P∇E + β*τdir, x_new)
 
@@ -77,24 +79,24 @@ end
 """
 LBFGS on the AMO manifold.
 """
-struct LBFGSManual <: Solver
+struct LBFGS <: Solver
     name           ::String
     prefix         ::String
     depth          ::Int
     B₀             ::Function
 end
-function LBFGSManual(;depth=20, B₀=default_LBFGS_init, preconditioned=true)
-    name = preconditioned ? "Preconditioned LBFGS" : "LBFGS"
-    prefix = preconditioned ? "prec_LBFGS" : "LBFGS"
+function LBFGS(;depth=20, B₀=default_LBFGS_init, preconditioned=true)
+    name = preconditioned ? "Preconditioned Riemannian LBFGS" : "Riemannian LBFGS"
+    prefix = preconditioned ? "PR-LBFGS" : "R-LBFGS"
     @info "$(name) with depth $(depth)"
-    LBFGSManual(name, prefix, depth, B₀)
+    LBFGS(name, prefix, depth, B₀)
 end
 
 """
 For now, no preconditioning.
 Not supposed to work with other transports and rectractions than exp.
 """
-function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
+function next_dir(S::LBFGS, info; preconditioner, transport_type=:exp)
     # Extract data
     B = info.B
     x_prev = info.dir.base;  ∇E_prev = info.∇E_prev
@@ -103,7 +105,7 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
     dir = info.dir
     # renaming for small lines
     type=transport_type
-    
+
     # Transport previous s and y to current location
     if B.length ≥ 1
         for k in 1:B.length
@@ -112,7 +114,7 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
             y = transport_AMO(y, x_prev, dir, info.step, x_new; type, collinear=false)
             Py = transport_AMO(Py, x_prev, dir, info.step, x_new; type, collinear=false)
 
-            # Project back on the tangent plane if s or y propagate errors           
+            # Project back on the tangent plane to avoid propagation of numerical errors
             s = ensure_tangent_AMO(s)
             y = ensure_tangent_AMO(y)
 
@@ -136,7 +138,7 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
 
     Py = TangentVector(P∇E.kappa - transport_AMO(P∇E_prev, x_prev, dir, info.step, x_new;
                                                  type, collinear=false).kappa, x_new)
-    
+
     ρ = 1/tr(s'y)
     push!(B, (s,y,Py,ρ))
 
@@ -161,14 +163,8 @@ function next_dir(S::LBFGSManual, info; preconditioner, transport_type=:exp)
         empty!(B)
         dir = TangentVector(-preconditioner(∇E), info.ζ)
         rm("RESTART_LBFGS")
-    end        
-    # if info.n_iter==130
-    #     @warn "Forced"
-    #     empty!(B)
-    #     dir = TangentVector(-preconditioner(∇E), info.ζ)
-    # end
+    end
 
-    # DEBUG : norm(dir) goes to zero every 30 iterations... Why ?
     dir, merge(info, (; dir, B))
 end
 

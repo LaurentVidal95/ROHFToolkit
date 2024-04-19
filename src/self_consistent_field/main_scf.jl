@@ -30,7 +30,7 @@ function scf_method(ζ::State;
                     acceleration = DIIS(;m=15), # DIIS or ODA
                     effective_hamiltonian=:Guest_Saunders,
                     tol=1e-5,
-                    callback=SCF_default_callback(),
+                    prompt=default_scf_prompt(),#SCF_default_callback(),
                     kwargs...)
     # non-orthonormal AO -> orthonormal AO convention
     (cond(ζ.Σ.overlap_matrix) > 1e6) && @warn("Conditioning of the "*
@@ -79,11 +79,11 @@ function scf_method(ζ::State;
 
         info = merge(info, (; ζ=ζ, n_iter=n_iter, DMs = (Pd_out, Ps_out), E=E, ∇E=∇E, E_prev=E_prev,
                             residual=residual, converged=converged))
-        callback(info)
+        prompt.prompt(info)
         info
     end
     
-    callback(info) # Initial print
+    prompt.prompt(info) # Initial print
 
     # SCF-type loop. See "scf_solvers.jl" for all implemented solvers.
     info = solver(info; fixpoint_map, kwargs...)
@@ -96,5 +96,5 @@ function scf_method(ζ::State;
     deorthonormalize_state!(ζ)
     info = merge(info, (; ζ=ζ))
     
-    clean(info)
+    prompt.clean(info)
 end

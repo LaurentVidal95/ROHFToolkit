@@ -29,7 +29,6 @@ function direct_minimization_OptimKit(ζ::State;
                                       transport=:exp,
                                       #
                                       verbose=true,
-                                      # break_symmetry=false,
                                       # Choose between ROHF and CASSCF function
                                       fg=ROHF_energy_and_gradient,
                                       kwargs...)
@@ -39,7 +38,7 @@ function direct_minimization_OptimKit(ζ::State;
     orthonormalize_state!(ζ)
 
     # Optimization via OptimKit
-    ζ0, E0, ∇E0, _ = optimize(fg, ζ,
+    ζ0, E0, ∇E0, _ = Opt.optimize(fg, ζ,
                               solver(; gradtol=tol, maxiter, verbosity=0, kwargs...);
                               # the transport is isometric but the locking condition is by default
                               # satisfied. I don't want OptimKit to do additional stuff.

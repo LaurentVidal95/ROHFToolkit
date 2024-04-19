@@ -1,8 +1,5 @@
 # Define ROHF manifold, associated methods and objects
 
-import Base: +, -, *, adjoint, vec, size
-import LinearAlgebra.norm
-
 @doc raw"""
     State(Φ::Matrix, Σ::ChemicalSystem, energy::Real, isortho::Bool,
                          guess::String, history::Matrix)
@@ -10,16 +7,17 @@ import LinearAlgebra.norm
 Molecular orbitals belonging to a specified discrete state manifold.
 """
 mutable struct State{T<:Real}
-    Φ        ::AbstractMatrix{T}
-    Σ        ::ChemicalSystem{T}
-    energy   ::T
-    #
-    isortho  ::Bool
-    guess    ::Symbol
-    virtuals ::Bool # Select the All MOs or occupied MOs manifold
-    # All the history of minimizing precedure is contained in ζ
-    # so that it can be updated by OptimKit
-    history  ::Matrix{T}
+    Φ        ::AbstractMatrix{T}  # Molecular orbitals in AO basis
+    Σ        ::ChemicalSystem{T}  # contains eri, overlap and core Hamiltonian
+    energy   ::T                  # ROHF energy (Beware, not necessarily the one corresponding to Φ.
+    #                             #
+    isortho  ::Bool               # True: Φ'Φ = Id
+    #                             # False: Φ'SΦ = Id
+    guess    ::Symbol             # Name of the guess MOs
+    #                             #
+    virtuals ::Bool               # Store virtual orbitals or not (AMO or OMO convention)
+    #                             # For now always true. Advantageous only for Nb ≫ 1.
+    history  ::Matrix{T}          # Convergence path. Empty before optimization.
 end
 
 """
@@ -27,17 +25,6 @@ Gathers all informations except the MOs Φ.
 """
 Base.collect(ζ::State) = collect(ζ.Σ)
 Base.size(ζ::State) = size(ζ.Φ)
-
-@doc raw"""
-    generate_molden(ζ::State, filename::String)
-
-Save the MOs contained in the state ``ζ`` in a molden file
-for visualization.
-"""
-function generate_molden(ζ::State, filename::String)
-    pyscf.tools.molden.from_mo(ζ.Σ.mol, filename, ζ.Φ)
-    nothing
-end
 
 @doc raw"""
     init_guess(Σ::ChemicalSystem{T}, guess::Symbol) where {T<:Real}
@@ -101,31 +88,6 @@ State(mol::PyObject; guess=:minao, virtuals=true) = State(ChemicalSystem(mol); g
 State(ζ::State, Φ::Matrix) = State(Φ, ζ.Σ, ζ.energy, ζ.isortho, ζ.guess, ζ.virtuals, ζ.history)
 
 @doc raw"""
-     TangentVector(vec::AbstractMatrix{T}, base::State{T})
-
-The base vector is a point on the MO manifold, and vec is a vector in
-the tangent space the base to the MO manifold.
-Mainly serve to match the conventions of the OptimKit optimization library.
-Note that if vec = base.Φ, the TangentVector is just a State.
-"""
-struct TangentVector{T<:Real}
-    kappa::AbstractMatrix{T}
-    base::State{T}
-end
-
-"""
-Overloading basic operations for TangentVectors.
-"""
-(+)(A::Matrix, X::TangentVector) = (+)(A, X.kappa)
-(+)(X::TangentVector, A::Matrix) = (+)(X.kappa, A)
-(*)(λ::Real, X::TangentVector) = (*)(λ, X.kappa)
-(*)(A::Adjoint{Float64, Matrix{Float64}}, X::TangentVector) = (*)(A, X.kappa)
-(-)(X::TangentVector) = -X.kappa
-norm(X::TangentVector) = norm(X.kappa)
-(adjoint)(X::TangentVector) = X.kappa'
-(vec)(X::TangentVector) = vec(X.kappa)
-
-@doc raw"""
     reset_state!(ζ::State; guess=:minao)
 """
 function reset_state!(ζ::State; guess=:minao, virtuals=true)
@@ -153,7 +115,6 @@ function orthonormalize_state!(ζ::State)
     end
     nothing
 end
-orthonormalize_state!(Ψ::TangentVector) = orthonormalize_state!(Ψ.base)
 
 @doc raw"""
     deorthonormalize_state!(ζ::State)

@@ -1,8 +1,10 @@
 Julia code to compare SCF and direct minimization algorithms for the high-spin
-ROHF model. This code is built as an interface between the [PySCF](https://pyscf.org/)
-python library, and the [OptimKit.jl](https://github.com/Jutho/OptimKit.jl)
-Riemannian optimization package in Julia. BEWARE: the OptimKit library
-is not maintained anymore, and the code might break with Julia updates.
+ROHF model. This code uses the [PySCF](https://pyscf.org/) python library to
+handle the generation of AOs and the computation of eri.
+<!-- It also uses the [OptimKit.jl](https://github.com/Jutho/OptimKit.jl) -->
+<!-- Riemannian optimization package in Julia to solve the inner optimization -->
+<!-- problem  `hybrid_scf`. BEWARE: the OptimKit library -->
+<!-- is not maintained anymore, and the code might break with Julia updates. -->
 
 # Requirements:
 Julia 1.8 and above (tested up until Julia 1.10.0-rc2).
@@ -39,20 +41,21 @@ and call
 using Pkg; Pkg.build("PyCall")
 ```
 The code should be running fine, and fast.
-# Launch a ROHF computation
 
+# Launch a ROHF computation
 Let us compute the ground state of oxygen in a 6-31G basis, from the core
 Hamiltonian guess, using a preconditioned Riemannian conjugate gradient
 algorithm. The oxygen molecule as a PySCF object has been defined in the 
 ``test_cases`` directory:
 ```
 using ROHFToolkit
+using LineSearches
 
 include("test_cases/oxygen.jl")
 x_init = ROHFState(oxygen("6-31G"), guess=:hcore)
 
 # Launch minimization. (Note that these kwargs are the default one)
-output = compute_ground_state(x_init; solver=ConjugateGradient, preconditioned=true)
+output = compute_ground_state(x_init; solver=ConjugateGradient, preconditioned=true, linesearch=HagerZhang());
 
 # Extract final state and energy
 x_min = output.final_state

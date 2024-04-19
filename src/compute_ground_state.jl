@@ -9,15 +9,14 @@ Wraps all ground state computation routines in a single routine.
     (scf, hybrid_scf).
 """
 function compute_ground_state(ζ::State;
-                              # Interface with CFOUR CASSCF code
+                              # Solver and related args
+                              solver=ConjugateGradient,
+                              # Dummy interface with CFOUR CASSCF code
                               CASSCF=false,
                               CFOUR_ex="xcasscf",
                               CASSCF_verbose=false,
                               tolmin=1e-2,
                               tolmax=1e-10,
-                              # Solver and related args
-                              solver=ConjugateGradient,
-                              # linesearch=nothing, # for manual only
                               solver_kwargs...)
     # Choose between CASSCF and ROHF
     CASSCF_kwargs = (; CFOUR_ex, verbose=CASSCF_verbose)
@@ -34,16 +33,17 @@ function compute_ground_state(ζ::State;
 
     # Direct minimization
     if (solver ∈ (GradientDescent, ConjugateGradient, LBFGS))
-        return direct_minimization_OptimKit(ζ; solver, fg, solver_kwargs...)
-
-    # Manual direct minimization
-    elseif (solver ∈ (GradientDescentManual, ConjugateGradientManual, LBFGSManual))
         # Manual solvers need external LineSearches.jl library
         LINESEARCHES_LOADED = (:LineSearches ∈ names(Main, imported=true))
         (!LINESEARCHES_LOADED) && error("You need to import LineSearches and assign `linesearch` "*
-                                        "before launching manual direct minimization")
-        return direct_minimization_manual(ζ; f, g, fg, solver, tolmin, tolmax,
-                                          solver_kwargs...)
+                                        "before launching direct minimization (otherwise pyscf is running low"*
+                                        " for some reason.")
+        return direct_minimization(ζ; f, g, fg, solver, tolmin, tolmax,
+                                   solver_kwargs...)
+
+    # Direct minimization with OptimKit
+    elseif (solver ∈ (Opt.GradientDescent, Opt.ConjugateGradient, Opt.LBFGS))
+        return direct_minimization_OptimKit(ζ; solver, fg, solver_kwargs...)
 
     # Self consistent field (only works for ROHF)
     else

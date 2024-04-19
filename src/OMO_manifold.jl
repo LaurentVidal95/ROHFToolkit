@@ -1,3 +1,6 @@
+#### DEPRECATED FOR NOW
+#### Tools on the OMO manifold (without tracking the virtual orbitals).
+
 @doc raw"""
     retract_OMO(mo_numbers::Tuple(Int64,Int64,Int64), Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
 
@@ -115,32 +118,3 @@ function transport_OMO_same_dir(Ψ::TangentVector{T}, t::T,
     Ξd, Ξs = split_MOs(τ_p, (Nb,Nd,Ns))
     TangentVector(hcat(Ξd - Φd_next*Φd_next'Ξd, Ξs - Φs_next*Φs_next'Ξs), ζ_next)
 end
-
-## Retraction using geodesic (i.e. virtual orbitals) for numerical tests.
-# function retract(mo_numbers::Tuple{Int64, Int64, Int64}, Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
-#     Nb, Nd, Ns = mo_numbers
-#     No = Nd+Ns
-
-#     Ψd, Ψs = split_MOs(Ψ, (Nb,Nd,Ns))
-#     Φd, Φs = split_MOs(Φ, (Nb,Nd,Ns))
-#     Φv = generate_virtual_MOs(Φd, Φs, (Nb,Nd,Ns))
-#     Φ_tot = hcat(Φd, Φs, Φv)
-
-#     X = -Φd'Ψs
-#     Y = Φv'Ψd
-#     Z = Φv'Ψs
-#     W = zeros(No,No); W[1:Nd,Nd+1:No] = .- X; W[Nd+1:No,1:Nd] = X';
-    
-#     B = zeros(Nb, Nb)
-#     B[1:Nd, Nd+1:Nd+Ns] = -X;
-#     B[1:Nd, Nd+Ns+1:Nb] = -Y';
-#     B[Nd+1:Nd+Ns, Nd+Ns+1:Nb] = -Z';
-#     B = B - B'
-    
-#     (Φ_tot * exp(B)) * Matrix(I, Nb, No)
-# end
-# function retract(mo_numbers::Tuple{Int64, Int64, Int64}, Ψ::Matrix{T}, Φ::Matrix{T}) where {T<:Real}
-#     V1,D,V2 = svd(Ψ)
-#     Σ = diagm(D)
-#     (Φ*V2*cos(Σ) + V1*sin(Σ))*V2'
-# end

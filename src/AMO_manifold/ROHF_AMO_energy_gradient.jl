@@ -21,13 +21,12 @@ function assemble_CX_operators(eri::Vector{T}, Pi::AbstractMatrix{T},
     Ji, Ja, Ki, Ka
 end
 
-###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
-##!!! !! !  !                       Energy                         !  ! !! !!!##
-###!!!!!!! !! !! !  !                                      !  ! !! !! !!!!!!!###
 """
-Low level ROHF energy function. Arguments are the
-doubly and singly occupied states density and coulomb/exchange operators.
-The core hamiltonian as well as the PySCF molecule is also needed.
+Low level ROHF energy function. Arguments are:
+• the doubly and singly occupied densities
+• the coulomb and exchange operators for these densities
+• the core hamiltonian
+• the PySCF molecule (used for the nuclei energy part)
 """
 ROHF_energy(Pi, Pa, Ji, Ja, Ki, Ka, H, mol) =
     tr(H*(2Pi+Pa)) + tr((2Ji-Ki)*(Pi+Pa)) + 1/2*tr((Ja-Ka)*Pa) + mol.energy_nuc()
@@ -60,6 +59,18 @@ function ROHF_energy(ζ::State)
     @assert ζ.isortho
     ROHF_energy(ζ.Σ.Sm12*ζ.Φ, ζ)
 end
+
+@doc raw"""
+Compute densities ``P_d = Φ Φ^{T}``, ``P_s = Φ Φ^{T}``
+from MOs in orthonormal AO basis.
+"""
+function densities(Φᵒ, mo_numbers)
+    # Extract needed integers
+    Nb,Nd,Ns = mo_numbers
+    Φdᵒ = Φᵒ[:,1:Nd]; Φsᵒ = Φᵒ[:,Nd+1:Nd+Ns]
+    Φdᵒ*Φdᵒ', Φsᵒ*Φsᵒ'
+end
+densities(ζ::State) = densities(ζ.Φ, ζ.Σ.mo_numbers)
 
 @doc raw"""
     Fock_operators(Ji, Ja, Ki, Ka, H, Sm12)
@@ -149,35 +160,3 @@ function ROHF_energy_and_gradient(Φ, ζ::State)
     E, TangentVector(κ, ζ)
 end
 ROHF_energy_and_gradient(ζ::State; kwargs...) = ROHF_energy_and_gradient(ζ.Φ, ζ)
-
-
-# Old functions for XC operators
-# function tensor_slice(mol::PyObject, i, j, type)
-#     shls_slice = nothing
-#     n_ao = mol.nao
-#     (type=="J") && (shls_slice = (i-1, i-1, j-1, j-1, 0, n_ao-1, 0, n_ao-1)) # Marche pas
-#     (type=="K") && (shls_slice = (i-1, i-1, 0, n_ao-1, 0, n_ao-1, j-1, j-1,)) # Marche pas
-#     mol.intor("int2e", shls_slice=shls_slice)
-# end
-
-# function manual_CX_operators(A::AbstractArray{T}, Pi::AbstractMatrix{T},
-#                              Pa::AbstractMatrix{T}) where {T<:Real}
-#     Ji = zero(Pi); Ja = zero(Pa); Ki = zero(Pi); Ka = zero(Pa);
-#     N = size(Pi,1)
-#     for j in 1:N
-#         for i in j:N
-#             A_J = A[i,j,:,:] # Remplacer par la slice ci dessus
-#             A_K = A[i,:,:,j] # Remplacer par la slice ci dessus
-#             Ji[i,j] = tr(A_J*Pi); Ji[j,i] = Ji[i,j] # Ji = J(Pi)
-#             Ja[i,j] = tr(A_J*Pa); Ja[j,i] = Ja[i,j] # Ja = J(Pa)
-#             Ki[i,j] = tr(A_K*Pi); Ki[j,i] = Ki[i,j] # Ki = K(Pi)
-#             Ka[i,j] = tr(A_K*Pa); Ka[j,i] = Ka[i,j] # Ka = K(Pa)
-#         end
-#     end
-#     Ji, Ja, Ki, Ka
-# end
-
-# """
-# test = mol.intor("int2e", shls_slice=(0, 1, 0, 1, 0, 5, 0, 5), aosym="2ij")
-# dropdims(test, dims=1) donne A[1,1,:,:]
-# """

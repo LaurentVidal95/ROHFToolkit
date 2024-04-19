@@ -1,5 +1,5 @@
 @doc raw"""
-    OLD: direct_minimization(ζ::State;  TODO)
+    direct_minimization(ζ::State;  TODO)
 
 General direct minimization procedure, which decomposes as such:
     1) Choose a direction according to the method provided in the solver arg.
@@ -8,28 +8,28 @@ General direct minimization procedure, which decomposes as such:
 The arguments are
     TODO
 """
-function direct_minimization_manual(ζ::State;
-                                    maxiter = 500,
-                                    maxstep = 2*one(Float64),
-                                    tol = 1e-5,
-                                    #  Type fo retraction and transport
-                                    retraction_type=:exp,
-                                    transport_type=:exp,
-                                    # Prompt
-                                    prompt=default_direct_min_prompt(),
-                                    # Choose solver and preconditioning
-                                    solver=ConjugateGradientManual,
-                                    preconditioned=true,
-                                    preconditioner=default_preconditioner,
-                                    linesearch,
-                                    # Casscf or ROHF
-                                    f=ROHF_energy,
-                                    g=ROHF_gradient,
-                                    fg=ROHF_energy_and_gradient,
-                                    # CI tol parameters (only for CASSCF)
-                                    tolmin=1e-2,
-                                    tolmax=1e-10,
-                                    solver_kwargs...)
+function direct_minimization(ζ::State;
+                             maxiter = 500,
+                             maxstep = 2*one(Float64),
+                             tol = 1e-5,
+                             #  Type of retraction and transport
+                             retraction_type=:exp,
+                             transport_type=:exp,
+                             # Prompt
+                             prompt=default_direct_min_prompt(),
+                             # Choose solver and preconditioning
+                             solver=ConjugateGradient,
+                             preconditioned=true,
+                             preconditioner=default_preconditioner,
+                             linesearch,
+                             # Choose between ROHF or CASSCF functionals
+                             f=ROHF_energy,
+                             g=ROHF_gradient,
+                             fg=ROHF_energy_and_gradient,
+                             # CI tol parameters (only for CASSCF)
+                             tolmin=1e-2,
+                             tolmax=1e-10,
+                             solver_kwargs...)
 
     # Setup solver and preconditioner
     sol = solver(; preconditioned, solver_kwargs...)
@@ -59,8 +59,9 @@ function direct_minimization_manual(ζ::State;
             solver=sol, step, converged, tol, residual)
 
     # init LBFGS solver if needed
-    if isa(sol, LBFGSManual)
-        B = LBFGSInverseHessian(sol.depth, TangentVector[],  TangentVector[],  TangentVector[], eltype(E)[])
+    if isa(sol, LBFGS)
+        B = LBFGSInverseHessian(sol.depth, TangentVector[],  TangentVector[],
+                                TangentVector[], eltype(E)[])
         info = merge(info, (; B))
     end
 
@@ -99,7 +100,7 @@ function direct_minimization_manual(ζ::State;
     (info.converged) ? (@info "Final energy: $(ζ.energy) Ha") :
         println("----Maximum iteration reached")
 
-    # Remove CASSCF LBFGS files
+    # DUMMY CFOUR INTERFACE: remove CASSCF LBFGS files
     isfile("casscf_diag.txt") && rm("casscf_diag.txt")
     isfile("RESTART_LBFGS") && rm("RESTART_LBFGS")
 

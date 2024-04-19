@@ -1,5 +1,5 @@
 @doc raw"""
-TODO
+  Replace the I, A and E diagonal blocs by zeros (in place).
 """
 function remove_diag_blocs!(M::Matrix, mo_numbers)
     Nb, Ni, Na = mo_numbers
@@ -13,7 +13,7 @@ function remove_diag_blocs!(M::Matrix, mo_numbers)
 end
 
 @doc raw"""
-TODO
+TODO: Redo with new conventions
 """
 # function project_tangent_AMO(Φ::Matrix, mo_numbers, M::Matrix)
 #     # Construct κ matrix and project
@@ -27,6 +27,9 @@ TODO
 #     TangentVector(κ, ζ)
 # end
 
+@doc raw"""
+TODO
+"""
 function ensure_tangent_AMO(X::TangentVector)
     x = X.base
     κ_proj = copy((1/2)*(X.kappa - X.kappa'))
@@ -102,6 +105,7 @@ function parallel_transport_AMO(η1::TangentVector{T}, ζ::State{T},
 end
 
 @doc raw"""
+TODO: modify with new conventions. For now obsolete.
 Simply projects η1 on the tangent space to Rη2
 """
 function projection_transport_AMO(η1::TangentVector{T}, ζ::State{T}, η2::TangentVector{T},
@@ -109,6 +113,9 @@ function projection_transport_AMO(η1::TangentVector{T}, ζ::State{T}, η2::Tang
     project_tangent_AMO(Rη2, η1.kappa)
 end
 
+@doc raw"""
+TODO: modify with new conventions. For now obsolete.
+"""
 function QR_transport_non_collinear_AMO(Y::TangentVector{T}, x::State{T},
                                         X::TangentVector{T}, α::T, RX::State{T}) where {T<:Real}
     
@@ -137,10 +144,6 @@ function QR_transport_non_collinear_AMO(Y::TangentVector{T}, x::State{T},
     TangentVector(RΦ*remove_diag_blocs!(τY_B, x.Σ.mo_numbers), RX)
 end
 function QR_transport_AMO(args...;  collinear=false)
-    # if colinear
-    #     return QR_transport_colinear_AMO(TODO...)
-    # end
-    # For now no collinear transport for QR
     return  QR_transport_non_collinear_AMO(args...)
 end
 
@@ -151,4 +154,47 @@ function transport_AMO(η1::TangentVector{T}, ζ::State{T},
     (type==:QR) && (return QR_transport_AMO(η1, ζ, η2, α, Rη2; collinear))
     (type==:proj) && (return projection_transport_AMO(η1, ζ, η2, α, Rη2))
     error("Given type of tranport not handled")
+end
+
+
+@doc raw"""
+     is_point(Φ::Matrix{T}, mo_numbers) where {T<:Real}
+
+Test if the give MOs are a point in the AMO manifold.
+"""
+function is_point(Φ::Matrix{T}, mo_numbers; tol=1e-8) where {T<:Real}
+    Nb,Nd,Ns = mo_numbers
+    Pd, Ps = densities(Φ, mo_numbers)
+
+    test = norm(Pd*Pd - Pd)
+    test += norm(Ps*Ps - Ps)
+    test += norm(Pd*Ps)
+    test += tr(Pd) - Nd
+    test -= tr(Ps) - Ns
+
+    return test < tol
+end
+is_point(ζ::State; tol=1e-8) = is_point(ζ.Φ, ζ.Σ.mo_numbers; tol)
+
+"""
+Test is the given tangent vector belongs to the tangent space at X.base.
+"""
+function is_tangent(X::TangentVector; tol=1e-8, return_value=false)
+    Nb, Ni, Na = X.base.Σ.mo_numbers
+    Ne = Nb - (Ni+Na)
+    No = Ni+Na
+
+    κ = X.kappa
+
+    # check that the diag blocs of κ are zero
+    test = zero(eltype(X.base.Φ))
+    test += norm(κ[1:Ni, 1:Ni])
+    test += norm(κ[Ni+1:No, Ni+1:No])
+    test += norm(κ[No+1:Nb, No+1:Nb])
+
+    # test that κ is antisymmetric
+    test += norm(κ + κ')
+    (return_value) && (return (test<tol), test)
+
+    return test < tol
 end
