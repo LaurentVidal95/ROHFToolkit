@@ -1,10 +1,12 @@
 Julia code to compare SCF and direct minimization algorithms for the high-spin
 ROHF model. This code uses the [PySCF](https://pyscf.org/) python library to
-handle the generation of AOs and the computation of eri.
-<!-- It also uses the [OptimKit.jl](https://github.com/Jutho/OptimKit.jl) -->
-<!-- Riemannian optimization package in Julia to solve the inner optimization -->
-<!-- problem  `hybrid_scf`. BEWARE: the OptimKit library -->
-<!-- is not maintained anymore, and the code might break with Julia updates. -->
+handle the generation of the atomic basis set and the computation of electronic
+integrals.
+<!-- It also uses the
+[OptimKit.jl](https://github.com/Jutho/OptimKit.jl) --> <!-- Riemannian
+optimization package in Julia to solve the inner optimization --> <!-- problem
+`hybrid_scf`. BEWARE: the OptimKit library --> <!-- is not maintained anymore,
+and the code might break with Julia updates. -->
 
 # Requirements:
 Julia 1.8 and above (tested up until Julia 1.10.0-rc2).
